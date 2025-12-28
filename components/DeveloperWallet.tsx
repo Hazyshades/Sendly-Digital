@@ -472,11 +472,35 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
       if (response.success) {
         toast.success('Testnet tokens requested! USDC and EURC will be sent to your wallet shortly.');
       } else {
-        toast.error(response.message || 'Failed to request testnet tokens');
+        // Check for rate limit error (429)
+        const responseAny = response as any;
+        const details = responseAny.details || responseAny.message || '';
+        const errorText = responseAny.error || '';
+        
+        if (details.includes('429') || details.includes('API rate limit error') || 
+            errorText.includes('429') || errorText.includes('API rate limit error')) {
+          toast.error('Limit exceeded. Sorry, you\'ve hit the limit. We\'ll have more test tokens available in 24 hours. Use a default faucet for Internal Wallet');
+        } else {
+          toast.error(response.message || 'Failed to request testnet tokens');
+        }
       }
     } catch (error: any) {
       console.error('Error requesting testnet tokens:', error);
-      toast.error(error?.message || 'Failed to request testnet tokens');
+      
+      // Check for rate limit error (429) in catch block
+      // Check errorData.details, error.details, error.message, and error.error
+      const errorData = error?.errorData || {};
+      const errorDetails = errorData.details || error?.details || error?.message || '';
+      const errorText = errorData.error || error?.error || '';
+      
+      // Check if any of these fields contain 429 or API rate limit error
+      const allErrorText = `${errorDetails} ${errorText} ${error?.message || ''}`;
+      
+      if (allErrorText.includes('429') || allErrorText.includes('API rate limit error')) {
+        toast.error('Limit exceeded. Sorry, you\'ve hit the limit. We\'ll have more test tokens available in 24 hours. Use a default faucet for Internal Wallet');
+      } else {
+        toast.error(error?.message || 'Failed to request testnet tokens');
+      }
     } finally {
       setRequestingTokens(false);
     }

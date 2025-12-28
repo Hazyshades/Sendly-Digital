@@ -770,7 +770,7 @@ export function PrivyAuthModal({ isOpen, onClose }: PrivyAuthModalProps) {
           )}
 
           <div className="text-sm text-muted-foreground text-center">
-            Connect accounts to receive and create gift cards
+          You need an account to receive or send a gift card via social accounts.
           </div>
         </div>
       </DialogContent>

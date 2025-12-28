@@ -11,6 +11,7 @@ import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { Slider } from './ui/slider';
 import { Alert, AlertDescription } from './ui/alert';
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from './ui/empty';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
@@ -1006,13 +1007,18 @@ export function CreateGiftCard() {
     }
 
     return (
-      <div className="p-6 text-center">
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Please connect your wallet or social account to create gift cards
-          </AlertDescription>
-        </Alert>
+      <div className="p-6">
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Gift className="w-12 h-12 opacity-50" />
+            </EmptyMedia>
+            <EmptyTitle>Connect your wallet</EmptyTitle>
+            <EmptyDescription>
+              Please connect your wallet or social account to create gift cards
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       </div>
     );
   }
