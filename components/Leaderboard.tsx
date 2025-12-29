@@ -61,24 +61,24 @@ const getAvatarUrl = (address: string) => {
 };
 
 // Medal component for top 3
-const TopThreeMedal = ({ rank }: { rank: number }) => {
-  if (rank > 3) return null;
-  
-  const medals = {
-    1: { emoji: '🥇', gradient: 'from-yellow-400 via-yellow-300 to-yellow-200', glow: 'shadow-yellow-200/50' },
-    2: { emoji: '🥈', gradient: 'from-gray-300 via-gray-200 to-gray-100', glow: 'shadow-gray-200/50' },
-    3: { emoji: '🥉', gradient: 'from-amber-400 via-amber-300 to-amber-200', glow: 'shadow-amber-200/50' },
-  };
-  
-  const medal = medals[rank as keyof typeof medals];
-  
-  return (
-    <div className={`relative bg-gradient-to-br ${medal.gradient} rounded-full w-10 h-10 flex items-center justify-center text-xl ${medal.glow} shadow-lg`}>
-      <span>{medal.emoji}</span>
-    </div>
-  );
-};
-
+// const TopThreeMedal = ({ rank }: { rank: number }) => {
+//   if (rank > 3) return null;
+//   
+//   const medals = {
+//     1: { emoji: '🥇', gradient: 'from-yellow-400 via-yellow-300 to-yellow-200', glow: 'shadow-yellow-200/50' },
+//     2: { emoji: '🥈', gradient: 'from-gray-300 via-gray-200 to-gray-100', glow: 'shadow-gray-200/50' },
+//     3: { emoji: '🥉', gradient: 'from-amber-400 via-amber-300 to-amber-200', glow: 'shadow-amber-200/50' },
+//   };
+//   
+//   const medal = medals[rank as keyof typeof medals];
+//   
+//   return (
+//     <div className={`relative bg-gradient-to-br ${medal.gradient} rounded-full w-10 h-10 flex items-center justify-center text-xl ${medal.glow} shadow-lg`}>
+//       <span>{medal.emoji}</span>
+//     </div>
+//   );
+// };
+{/* 
 // Achievement badges component
 const AchievementBadges = ({ cardsSent, rank }: { cardsSent: number; rank: number }) => {
   const badges = [];
@@ -107,7 +107,7 @@ const AchievementBadges = ({ cardsSent, rank }: { cardsSent: number; rank: numbe
   
   return badges.length > 0 ? <div className="flex flex-wrap gap-1 mt-1">{badges}</div> : null;
 };
-
+*/}
 export function Leaderboard() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -117,6 +117,7 @@ export function Leaderboard() {
   const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'cards' | 'amount' | 'date'>('cards');
+  const [filterType, setFilterType] = useState<'all' | 'zns'>('all');
   const { address } = useAccount();
   const normalizedAccount = address?.toLowerCase() ?? null;
   const userEntryRef = useRef<HTMLDivElement>(null);
@@ -221,18 +222,25 @@ export function Leaderboard() {
   const filteredAndSortedEntries = useMemo(() => {
     let filtered = [...entries];
     
+    // ZNS domains filter
+    if (filterType === 'zns') {
+      filtered = filtered.filter(entry => entry.znsDomain && entry.znsDomain.trim() !== '');
+    }
+    
     // Search filter
     if (searchQuery) {
       filtered = filtered.filter(entry => 
         entry.senderAddress?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (entry as any).znsDomain?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.znsDomain?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         entry.displayName?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
     
     // Sort
+    // For ZNS filter, always sort by cards sent
+    const effectiveSortBy = filterType === 'zns' ? 'cards' : sortBy;
     filtered.sort((a, b) => {
-      switch (sortBy) {
+      switch (effectiveSortBy) {
         case 'cards':
           return b.cardsSentTotal - a.cardsSentTotal;
         case 'amount':
@@ -247,7 +255,7 @@ export function Leaderboard() {
     });
     
     return filtered;
-  }, [entries, sortBy, searchQuery]);
+  }, [entries, sortBy, searchQuery, filterType]);
 
   // Calculate pagination
   const totalPages = useMemo(() => Math.ceil(filteredAndSortedEntries.length / ITEMS_PER_PAGE), [filteredAndSortedEntries.length]);
@@ -298,11 +306,18 @@ export function Leaderboard() {
     [entries]
   );
 
-  // Get leader's card count for progress calculation
-  const leaderCards = useMemo(() => {
+  // Get leader's value for progress calculation (cards or USDC amount)
+  const leaderValue = useMemo(() => {
     if (filteredAndSortedEntries.length === 0) return 1;
-    return filteredAndSortedEntries[0]?.cardsSentTotal || 1;
-  }, [filteredAndSortedEntries]);
+    const leader = filteredAndSortedEntries[0];
+    if (sortBy === 'amount') {
+      // For amount sorting, use USDC total
+      const usdcAmount = leader?.amountSentByCurrency?.['USDC'] || 0;
+      return usdcAmount > 0 ? usdcAmount : 1;
+    }
+    // For cards sorting, use card count
+    return leader?.cardsSentTotal || 1;
+  }, [filteredAndSortedEntries, sortBy]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -394,6 +409,18 @@ export function Leaderboard() {
               className="pl-9"
             />
           </div>
+          <Select value={filterType} onValueChange={(v) => {
+            setFilterType(v as typeof filterType);
+            setCurrentPage(1);
+          }}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Filter" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="zns">ZNS domains</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={sortBy} onValueChange={(v) => {
             setSortBy(v as typeof sortBy);
             setCurrentPage(1);
@@ -450,7 +477,16 @@ export function Leaderboard() {
                 normalizedAccount &&
                 entry.senderAddress?.toLowerCase() === normalizedAccount;
               const globalRank = startIndex + index + 1;
-              const progressPercentage = (entry.cardsSentTotal / leaderCards) * 100;
+              // Calculate progress based on sort type
+              const progressPercentage = sortBy === 'amount'
+                ? // For amount sorting, use USDC amount
+                  ((entry.amountSentByCurrency?.['USDC'] || 0) / leaderValue) * 100
+                : // For cards sorting, use card count
+                  (entry.cardsSentTotal / leaderValue) * 100;
+              
+              // Get USDC amount for display
+              const usdcAmount = entry.amountSentByCurrency?.['USDC'] || 0;
+              const isAmountSort = sortBy === 'amount';
 
               return (
                 <div
@@ -468,16 +504,16 @@ export function Leaderboard() {
                   <div className="flex items-center gap-3 md:gap-4">
                     {/* Rank badge or medal */}
                     <div className="flex-shrink-0">
-                      {globalRank <= 3 ? (
+                      {/* {globalRank <= 3 ? (
                         <TopThreeMedal rank={globalRank} />
-                      ) : (
+                      ) : ( */}
                         <Badge 
                           variant="secondary"
                           className="min-w-[2.5rem] justify-center bg-gray-100 text-gray-700"
                         >
                           #{globalRank}
                         </Badge>
-                      )}
+                      {/* )} */}
                     </div>
 
                     {/* Avatar */}
@@ -534,24 +570,41 @@ export function Leaderboard() {
                           </Tooltip>
                         )}
                       </div>
+                      {entry.znsDomain && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <p className="text-xs font-medium text-[#635bff]">@{entry.znsDomain}</p>
+                        </div>
+                      )}
                       {isCurrentUser && (
                         <div className="flex items-center gap-1 mt-1">
                           <CheckCircle2 className="h-3 w-3 text-indigo-500" />
                           <p className="text-xs font-medium text-indigo-500">Your wallet</p>
                         </div>
                       )}
-                      <AchievementBadges cardsSent={entry.cardsSentTotal} rank={globalRank} />
+                      {/* <AchievementBadges cardsSent={entry.cardsSentTotal} rank={globalRank} /> */}  
                     </div>
 
                     {/* Stats - Desktop */}
                     <div className="hidden md:block text-right">
                       <div className="flex items-center gap-2 justify-end">
-                        <p className="text-sm font-semibold text-gray-900">
-                          {entry.cardsSentTotal} cards
-                        </p>
+                        {isAmountSort ? (
+                          <>
+                            <p className="text-sm font-semibold text-gray-900">
+                              USDC {usdcAmount.toFixed(2)}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-sm font-semibold text-gray-900">
+                            {entry.cardsSentTotal} cards
+                          </p>
+                        )}
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        {formatCurrencySummary(entry.amountSentByCurrency)}
+                        {isAmountSort ? (
+                          <span>{entry.cardsSentTotal} cards</span>
+                        ) : (
+                          formatCurrencySummary(entry.amountSentByCurrency)
+                        )}
                       </p>
                       {entry.lastSentAt && (
                         <p className="text-xs text-gray-400 mt-1">
@@ -561,30 +614,47 @@ export function Leaderboard() {
                     </div>
                   </div>
 
-                  {/* Progress bar */}
-                  <div className="mt-2 space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-500">Progress to #1</span>
-                      <span className="font-medium text-gray-700">{progressPercentage.toFixed(1)}%</span>
+                  {/* Progress bar - only show when sorting by cards or amount */}
+                  {sortBy !== 'date' && (
+                    <div className="mt-2 space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-500">Progress to Top-1</span>
+                        <span className="font-medium text-gray-700">{progressPercentage.toFixed(1)}%</span>
+                      </div>
+                      <Progress 
+                        value={progressPercentage} 
+                        className={`h-2 ${
+                          globalRank <= 3 ? 'bg-yellow-100' : ''
+                        }`}
+                      />
                     </div>
-                    <Progress 
-                      value={progressPercentage} 
-                      className={`h-2 ${
-                        globalRank <= 3 ? 'bg-yellow-100' : ''
-                      }`}
-                    />
-                  </div>
+                  )}
 
                   {/* Stats - Mobile */}
                   <div className="flex md:hidden flex-col gap-1 text-xs pt-2 border-t border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Cards:</span>
-                      <span className="font-semibold">{entry.cardsSentTotal}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Amount:</span>
-                      <span className="font-semibold">{formatCurrencySummary(entry.amountSentByCurrency)}</span>
-                    </div>
+                    {isAmountSort ? (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Amount:</span>
+                          <span className="font-semibold text-gray-900">USDC {usdcAmount.toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Cards:</span>
+                          <span className="text-gray-500">{entry.cardsSentTotal}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Cards:</span>
+                          <span className="font-semibold text-gray-900">{entry.cardsSentTotal}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Amount:</span>
+                          <span className="text-gray-500">{formatCurrencySummary(entry.amountSentByCurrency)}</span>
+                        </div>
+                      </>
+                    )}
                     {entry.lastSentAt && (
                       <div className="flex items-center justify-between">
                         <span className="text-gray-500">Last sent:</span>
@@ -625,6 +695,7 @@ export function Leaderboard() {
                       </PaginationItem>
                     );
                   }
+                  const isActive = page === currentPage;
                   return (
                     <PaginationItem key={page}>
                       <PaginationLink
@@ -633,7 +704,11 @@ export function Leaderboard() {
                           e.preventDefault();
                           handlePageChange(page);
                         }}
-                        isActive={page === currentPage}
+                        isActive={isActive}
+                        className={isActive 
+                          ? "bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white border-transparent hover:opacity-90 font-semibold shadow-md" 
+                          : "hover:bg-gray-100"
+                        }
                       >
                         {page}
                       </PaginationLink>

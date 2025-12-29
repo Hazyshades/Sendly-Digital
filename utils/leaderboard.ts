@@ -12,6 +12,7 @@ export interface LeaderboardEntry {
   amountSentTotal: number;
   amountSentByCurrency: Record<string, number>;
   lastSentAt: string | null;
+  znsDomain?: string | null;
 }
 
 interface FetchParams {
@@ -85,6 +86,7 @@ export async function getLeaderboardSenders(params: FetchParams = {}): Promise<L
       amountSentTotal: toNumber(entry.amountSentTotal ?? entry.amount_sent_total ?? 0),
       amountSentByCurrency,
       lastSentAt: entry.lastSentAt ?? entry.last_sent_at ?? null,
+      znsDomain: entry.znsDomain ?? entry.zns_domain ?? null,
     } satisfies LeaderboardEntry;
   });
 }
