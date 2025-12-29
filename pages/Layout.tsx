@@ -6,6 +6,7 @@ import { PrivyAuthModal } from '../components/PrivyAuthModal';
 import { PrivyConnectedAccounts } from '../components/PrivyConnectedAccounts';
 import { Toaster } from '../components/ui/sonner';
 import { NewsPanel } from '../components/NewsPanel';
+import { FeedbackPanel } from '../components/FeedbackPanel';
 import { useState } from 'react';
 
 interface LayoutProps {
@@ -89,6 +90,7 @@ export function Layout({ children }: LayoutProps) {
       </div>
       <Toaster />
       {location.pathname !== '/' && <NewsPanel />}
+      <FeedbackPanel />
     </div>
   );
 }
