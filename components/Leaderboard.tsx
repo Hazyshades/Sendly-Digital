@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { Trophy, RefreshCw, Users, Gift, Copy, CheckCircle2, Search } from 'lucide-react';
+import { Trophy, RefreshCw, Users, Copy, CheckCircle2, Search } from 'lucide-react';
 import { CardHeader, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -10,6 +10,7 @@ import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from './
 import { Progress } from './ui/progress';
 import { Input } from './ui/input';
 import { Separator } from './ui/separator';
+import { ScrollArea } from './ui/scroll-area';
 import {
   Select,
   SelectContent,
@@ -26,7 +27,7 @@ import {
   PaginationNext,
   PaginationEllipsis,
 } from './ui/pagination';
-import { getLeaderboardSenders, recalculateLeaderboard, updateZNSDomains, LeaderboardEntry } from '../utils/leaderboard';
+import { getLeaderboardSenders, recalculateLeaderboard, LeaderboardEntry } from '../utils/leaderboard';
 import { useAccount } from 'wagmi';
 import { toast } from 'sonner';
 
@@ -60,24 +61,24 @@ const getAvatarUrl = (address: string) => {
 };
 
 // Medal component for top 3
-const TopThreeMedal = ({ rank }: { rank: number }) => {
-  if (rank > 3) return null;
-  
-  const medals = {
-    1: { emoji: '🥇', gradient: 'from-yellow-400 via-yellow-300 to-yellow-200', glow: 'shadow-yellow-200/50' },
-    2: { emoji: '🥈', gradient: 'from-gray-300 via-gray-200 to-gray-100', glow: 'shadow-gray-200/50' },
-    3: { emoji: '🥉', gradient: 'from-amber-400 via-amber-300 to-amber-200', glow: 'shadow-amber-200/50' },
-  };
-  
-  const medal = medals[rank as keyof typeof medals];
-  
-  return (
-    <div className={`relative bg-gradient-to-br ${medal.gradient} rounded-full w-10 h-10 flex items-center justify-center text-xl ${medal.glow} shadow-lg`}>
-      <span>{medal.emoji}</span>
-    </div>
-  );
-};
-
+// const TopThreeMedal = ({ rank }: { rank: number }) => {
+//   if (rank > 3) return null;
+//   
+//   const medals = {
+//     1: { emoji: '🥇', gradient: 'from-yellow-400 via-yellow-300 to-yellow-200', glow: 'shadow-yellow-200/50' },
+//     2: { emoji: '🥈', gradient: 'from-gray-300 via-gray-200 to-gray-100', glow: 'shadow-gray-200/50' },
+//     3: { emoji: '🥉', gradient: 'from-amber-400 via-amber-300 to-amber-200', glow: 'shadow-amber-200/50' },
+//   };
+//   
+//   const medal = medals[rank as keyof typeof medals];
+//   
+//   return (
+//     <div className={`relative bg-gradient-to-br ${medal.gradient} rounded-full w-10 h-10 flex items-center justify-center text-xl ${medal.glow} shadow-lg`}>
+//       <span>{medal.emoji}</span>
+//     </div>
+//   );
+// };
+{/* 
 // Achievement badges component
 const AchievementBadges = ({ cardsSent, rank }: { cardsSent: number; rank: number }) => {
   const badges = [];
@@ -106,7 +107,7 @@ const AchievementBadges = ({ cardsSent, rank }: { cardsSent: number; rank: numbe
   
   return badges.length > 0 ? <div className="flex flex-wrap gap-1 mt-1">{badges}</div> : null;
 };
-
+*/}
 export function Leaderboard() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -116,6 +117,7 @@ export function Leaderboard() {
   const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'cards' | 'amount' | 'date'>('cards');
+  const [filterType, setFilterType] = useState<'all' | 'zns'>('all');
   const { address } = useAccount();
   const normalizedAccount = address?.toLowerCase() ?? null;
   const userEntryRef = useRef<HTMLDivElement>(null);
@@ -161,6 +163,26 @@ export function Leaderboard() {
     []
   );
 
+  const scrollToUserEntry = useCallback(() => {
+    if (userEntryRef.current) {
+      userEntryRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+      hasScrolledToUser.current = true;
+    } else {
+      setTimeout(() => {
+        if (userEntryRef.current) {
+          userEntryRef.current.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          });
+          hasScrolledToUser.current = true;
+        }
+      }, 200);
+    }
+  }, []);
+
   useEffect(() => {
     loadEntries({ preserveData: hasFetchedOnce });
     if (!hasFetchedOnce) {
@@ -168,54 +190,114 @@ export function Leaderboard() {
     }
   }, [hasFetchedOnce, loadEntries]);
 
-  // Filter and sort entries
-  const filteredAndSortedEntries = useMemo(() => {
-    let filtered = entries;
-
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter((entry) => {
-        const addressMatch = entry.senderAddress?.toLowerCase().includes(query);
-        const domainMatch = entry.znsDomain?.toLowerCase().includes(query);
-        const displayNameMatch = entry.displayName?.toLowerCase().includes(query);
-        return addressMatch || domainMatch || displayNameMatch;
-      });
+  useEffect(() => {
+    if (!normalizedAccount || !entries.length || loading || hasScrolledToUser.current) {
+      return;
     }
 
-    // Apply sorting
-    const sorted = [...filtered].sort((a, b) => {
-      switch (sortBy) {
+    const userIndex = entries.findIndex(
+      (entry) => entry.senderAddress?.toLowerCase() === normalizedAccount
+    );
+
+    if (userIndex === -1) {
+      hasScrolledToUser.current = true;
+      return;
+    }
+
+    const userPage = Math.floor(userIndex / ITEMS_PER_PAGE) + 1;
+
+    if (currentPage !== userPage) {
+      setCurrentPage(userPage);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      scrollToUserEntry();
+    }, 200);
+
+    return () => clearTimeout(timeoutId);
+  }, [entries, normalizedAccount, loading, currentPage, scrollToUserEntry]);
+
+  // Filter and sort entries
+  const filteredAndSortedEntries = useMemo(() => {
+    let filtered = [...entries];
+    
+    // ZNS domains filter
+    if (filterType === 'zns') {
+      filtered = filtered.filter(entry => entry.znsDomain && entry.znsDomain.trim() !== '');
+    }
+    
+    // Search filter
+    if (searchQuery) {
+      filtered = filtered.filter(entry => 
+        entry.senderAddress?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.znsDomain?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.displayName?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    // Sort
+    // For ZNS filter, always sort by cards sent
+    const effectiveSortBy = filterType === 'zns' ? 'cards' : sortBy;
+    filtered.sort((a, b) => {
+      switch (effectiveSortBy) {
         case 'cards':
           return b.cardsSentTotal - a.cardsSentTotal;
-        case 'amount': {
-          const aTotal = Object.values(a.amountSentByCurrency || {}).reduce((sum, val) => sum + val, 0);
-          const bTotal = Object.values(b.amountSentByCurrency || {}).reduce((sum, val) => sum + val, 0);
+        case 'amount':
+          const aTotal = Object.values(a.amountSentByCurrency).reduce((sum, val) => sum + val, 0);
+          const bTotal = Object.values(b.amountSentByCurrency).reduce((sum, val) => sum + val, 0);
           return bTotal - aTotal;
-        }
         case 'date':
-          const aDate = a.lastSentAt ? new Date(a.lastSentAt).getTime() : 0;
-          const bDate = b.lastSentAt ? new Date(b.lastSentAt).getTime() : 0;
-          return bDate - aDate;
+          return new Date(b.lastSentAt || 0).getTime() - new Date(a.lastSentAt || 0).getTime();
         default:
-          return b.cardsSentTotal - a.cardsSentTotal;
+          return 0;
       }
     });
-
-    return sorted;
-  }, [entries, searchQuery, sortBy]);
-
-  // Calculate leader cards (cards sent by #1)
-  const leaderCards = useMemo(() => {
-    if (filteredAndSortedEntries.length === 0) return 1;
-    return filteredAndSortedEntries[0]?.cardsSentTotal || 1;
-  }, [filteredAndSortedEntries]);
+    
+    return filtered;
+  }, [entries, sortBy, searchQuery, filterType]);
 
   // Calculate pagination
   const totalPages = useMemo(() => Math.ceil(filteredAndSortedEntries.length / ITEMS_PER_PAGE), [filteredAndSortedEntries.length]);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
   const displayedEntries = useMemo(() => filteredAndSortedEntries.slice(startIndex, endIndex), [filteredAndSortedEntries, startIndex, endIndex]);
+
+  // Calculate pagination pages to display
+  const paginationPages = useMemo(() => {
+    const pages: (number | 'ellipsis')[] = [];
+    const showEllipsis = totalPages > 7;
+    
+    if (!showEllipsis) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+      
+      if (currentPage <= 4) {
+        for (let i = 2; i <= 5; i++) {
+          pages.push(i);
+        }
+        pages.push('ellipsis');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 3) {
+        pages.push('ellipsis');
+        for (let i = totalPages - 4; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push('ellipsis');
+        pages.push(currentPage - 1);
+        pages.push(currentPage);
+        pages.push(currentPage + 1);
+        pages.push('ellipsis');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  }, [totalPages, currentPage]);
 
   // Calculate statistics
   const totalAddresses = useMemo(() => entries.length, [entries.length]);
@@ -224,9 +306,30 @@ export function Leaderboard() {
     [entries]
   );
 
-  const handleRefresh = () => {
-    // Recalculate leaderboard when user clicks refresh
-    loadEntries({ preserveData: true, recalculate: true });
+  // Get leader's value for progress calculation (cards or USDC amount)
+  const leaderValue = useMemo(() => {
+    if (filteredAndSortedEntries.length === 0) return 1;
+    const leader = filteredAndSortedEntries[0];
+    if (sortBy === 'amount') {
+      // For amount sorting, use USDC total
+      const usdcAmount = leader?.amountSentByCurrency?.['USDC'] || 0;
+      return usdcAmount > 0 ? usdcAmount : 1;
+    }
+    // For cards sorting, use card count
+    return leader?.cardsSentTotal || 1;
+  }, [filteredAndSortedEntries, sortBy]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    hasScrolledToUser.current = false;
+    try {
+      // Note: updateZNSDomains function needs to be implemented
+      // For now, we'll skip it and just recalculate the leaderboard
+      loadEntries({ preserveData: true, recalculate: true });
+    } catch (error) {
+      console.error('Failed to refresh leaderboard:', error);
+      loadEntries({ preserveData: true, recalculate: true });
+    }
   };
 
   const handlePageChange = (page: number) => {
@@ -306,6 +409,18 @@ export function Leaderboard() {
               className="pl-9"
             />
           </div>
+          <Select value={filterType} onValueChange={(v) => {
+            setFilterType(v as typeof filterType);
+            setCurrentPage(1);
+          }}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Filter" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="zns">ZNS domains</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={sortBy} onValueChange={(v) => {
             setSortBy(v as typeof sortBy);
             setCurrentPage(1);
@@ -350,7 +465,8 @@ export function Leaderboard() {
             </EmptyHeader>
           </Empty>
         ) : (
-          <div className="space-y-2">
+          <ScrollArea className="w-full">
+            <div className="space-y-2 pr-4">
             {displayedEntries.map((entry, index) => {
               const isAddressLabel =
                 !entry.displayName ||
@@ -361,12 +477,30 @@ export function Leaderboard() {
                 normalizedAccount &&
                 entry.senderAddress?.toLowerCase() === normalizedAccount;
               const globalRank = startIndex + index + 1;
-              const progressPercentage = (entry.cardsSentTotal / leaderCards) * 100;
+              // Get leader's values for difference calculation
+              const leader = filteredAndSortedEntries[0];
+              const leaderCards = leader?.cardsSentTotal || 0;
+              const leaderUsdcAmount = leader?.amountSentByCurrency?.['USDC'] || 0;
+              // Calculate progress based on sort type
+              const progressPercentage = sortBy === 'amount'
+                ? // For amount sorting, use USDC amount
+                  ((entry.amountSentByCurrency?.['USDC'] || 0) / leaderValue) * 100
+                : // For cards sorting, use card count
+                  (entry.cardsSentTotal / leaderValue) * 100;
+              
+              // Calculate differences (only show if progress < 100%)
+              const cardsDifference = leaderCards - entry.cardsSentTotal;
+              const usdcDifference = leaderUsdcAmount - (entry.amountSentByCurrency?.['USDC'] || 0);
+              
+              // Get USDC amount for display
+              const usdcAmount = entry.amountSentByCurrency?.['USDC'] || 0;
+              const isAmountSort = sortBy === 'amount';
 
               return (
                 <div
                   key={entry.id}
-                  className={`group flex flex-col gap-4 rounded-2xl border p-4 transition hover:shadow-md md:flex-row md:items-center md:justify-between ${
+                  ref={isCurrentUser ? userEntryRef : null}
+                  className={`group flex flex-col gap-3 rounded-2xl border p-3 md:p-4 transition-all hover:shadow-lg hover:scale-[1.01] ${
                     isCurrentUser 
                       ? 'bg-[#f0f9ff] border-[#bae6fd] ring-2 ring-blue-200' 
                       : globalRank <= 3
@@ -378,16 +512,16 @@ export function Leaderboard() {
                   <div className="flex items-center gap-3 md:gap-4">
                     {/* Rank badge or medal */}
                     <div className="flex-shrink-0">
-                      {globalRank <= 3 ? (
+                      {/* {globalRank <= 3 ? (
                         <TopThreeMedal rank={globalRank} />
-                      ) : (
+                      ) : ( */}
                         <Badge 
                           variant="secondary"
                           className="min-w-[2.5rem] justify-center bg-gray-100 text-gray-700"
                         >
                           #{globalRank}
                         </Badge>
-                      )}
+                      {/* )} */}
                     </div>
 
                     {/* Avatar */}
@@ -455,18 +589,30 @@ export function Leaderboard() {
                           <p className="text-xs font-medium text-indigo-500">Your wallet</p>
                         </div>
                       )}
-                      <AchievementBadges cardsSent={entry.cardsSentTotal} rank={globalRank} />
+                      {/* <AchievementBadges cardsSent={entry.cardsSentTotal} rank={globalRank} /> */}  
                     </div>
 
                     {/* Stats - Desktop */}
                     <div className="hidden md:block text-right">
                       <div className="flex items-center gap-2 justify-end">
-                        <p className="text-sm font-semibold text-gray-900">
-                          {entry.cardsSentTotal} cards
-                        </p>
+                        {isAmountSort ? (
+                          <>
+                            <p className="text-sm font-semibold text-gray-900">
+                              USDC {usdcAmount.toFixed(2)}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-sm font-semibold text-gray-900">
+                            {entry.cardsSentTotal} cards
+                          </p>
+                        )}
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        {formatCurrencySummary(entry.amountSentByCurrency)}
+                        {isAmountSort ? (
+                          <span>{entry.cardsSentTotal} cards</span>
+                        ) : (
+                          formatCurrencySummary(entry.amountSentByCurrency)
+                        )}
                       </p>
                       {entry.lastSentAt && (
                         <p className="text-xs text-gray-400 mt-1">
@@ -476,30 +622,62 @@ export function Leaderboard() {
                     </div>
                   </div>
 
-                  {/* Progress bar */}
-                  <div className="mt-2 space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-500">Progress to #1</span>
-                      <span className="font-medium text-gray-700">{progressPercentage.toFixed(1)}%</span>
+                  {/* Progress bar - only show when sorting by cards or amount */}
+                  {sortBy !== 'date' && (
+                    <div className="mt-2 space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-500">Progress to Top-1</span>
+                        <span className="font-medium text-gray-700">
+                          {progressPercentage.toFixed(1)}%
+                          {progressPercentage < 100 && (
+                            isAmountSort ? (
+                              usdcDifference > 0 && (
+                                <span className="text-gray-500 font-normal ml-1">
+                                  (USDC {usdcDifference.toFixed(2)})
+                                </span>
+                              )
+                            ) : (
+                              cardsDifference > 0 && (
+                                <span className="text-gray-500 font-normal ml-1">
+                                  ({cardsDifference} {cardsDifference === 1 ? 'card' : 'cards'})
+                                </span>
+                              )
+                            )
+                          )}
+                        </span>
+                      </div>
+                      <Progress 
+                        value={progressPercentage} 
+                        className="h-2"
+                      />
                     </div>
-                    <Progress 
-                      value={progressPercentage} 
-                      className={`h-2 ${
-                        globalRank <= 3 ? 'bg-yellow-100' : ''
-                      }`}
-                    />
-                  </div>
+                  )}
 
                   {/* Stats - Mobile */}
                   <div className="flex md:hidden flex-col gap-1 text-xs pt-2 border-t border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Cards:</span>
-                      <span className="font-semibold">{entry.cardsSentTotal}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Amount:</span>
-                      <span className="font-semibold">{formatCurrencySummary(entry.amountSentByCurrency)}</span>
-                    </div>
+                    {isAmountSort ? (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Amount:</span>
+                          <span className="font-semibold text-gray-900">USDC {usdcAmount.toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Cards:</span>
+                          <span className="text-gray-500">{entry.cardsSentTotal}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Cards:</span>
+                          <span className="font-semibold text-gray-900">{entry.cardsSentTotal}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Amount:</span>
+                          <span className="text-gray-500">{formatCurrencySummary(entry.amountSentByCurrency)}</span>
+                        </div>
+                      </>
+                    )}
                     {entry.lastSentAt && (
                       <div className="flex items-center justify-between">
                         <span className="text-gray-500">Last sent:</span>
@@ -510,7 +688,8 @@ export function Leaderboard() {
                 </div>
               );
             })}
-          </div>
+            </div>
+          </ScrollArea>
         )}
 
         {!loading && displayedEntries.length > 0 && totalPages > 1 && (
@@ -531,67 +710,34 @@ export function Leaderboard() {
                     className={currentPage === 1 ? 'pointer-events-none opacity-50 cursor-not-allowed' : ''}
                   />
                 </PaginationItem>
-                {(() => {
-                  const pages: (number | 'ellipsis')[] = [];
-                  const showEllipsis = totalPages > 7;
-                  
-                  if (!showEllipsis) {
-                    // Show all pages if total pages <= 7
-                    for (let i = 1; i <= totalPages; i++) {
-                      pages.push(i);
-                    }
-                  } else {
-                    // Always show first page
-                    pages.push(1);
-                    
-                    if (currentPage <= 4) {
-                      // Show pages 1-5, ellipsis, last
-                      for (let i = 2; i <= 5; i++) {
-                        pages.push(i);
-                      }
-                      pages.push('ellipsis');
-                      pages.push(totalPages);
-                    } else if (currentPage >= totalPages - 3) {
-                      // Show first, ellipsis, last 5 pages
-                      pages.push('ellipsis');
-                      for (let i = totalPages - 4; i <= totalPages; i++) {
-                        pages.push(i);
-                      }
-                    } else {
-                      // Show first, ellipsis, current-1, current, current+1, ellipsis, last
-                      pages.push('ellipsis');
-                      pages.push(currentPage - 1);
-                      pages.push(currentPage);
-                      pages.push(currentPage + 1);
-                      pages.push('ellipsis');
-                      pages.push(totalPages);
-                    }
-                  }
-                  
-                  return pages.map((page, idx) => {
-                    if (page === 'ellipsis') {
-                      return (
-                        <PaginationItem key={`ellipsis-${idx}`}>
-                          <PaginationEllipsis />
-                        </PaginationItem>
-                      );
-                    }
+                {paginationPages.map((page, idx) => {
+                  if (page === 'ellipsis') {
                     return (
-                      <PaginationItem key={page}>
-                        <PaginationLink
-                          href="#"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handlePageChange(page);
-                          }}
-                          isActive={page === currentPage}
-                        >
-                          {page}
-                        </PaginationLink>
+                      <PaginationItem key={`ellipsis-${idx}`}>
+                        <PaginationEllipsis />
                       </PaginationItem>
                     );
-                  });
-                })()}
+                  }
+                  const isActive = page === currentPage;
+                  return (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handlePageChange(page);
+                        }}
+                        isActive={isActive}
+                        className={isActive 
+                          ? "bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white border-transparent hover:opacity-90 font-semibold shadow-md" 
+                          : "hover:bg-gray-100"
+                        }
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                })}
                 <PaginationItem>
                   <PaginationNext
                     href="#"

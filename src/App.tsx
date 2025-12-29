@@ -47,6 +47,7 @@ function AppRouter() {
   return (
     <Routes>
       <Route path="/" element={<LandingRoute />} />
+      <Route path="/dashboard" element={<AgentRoute />} />
       <Route path="/agent" element={<AgentRoute />} />
       <Route path="/create" element={<CreateRoute />} />
       <Route path="/my" element={<MyRoute />} />

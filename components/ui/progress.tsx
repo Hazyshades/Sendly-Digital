@@ -8,15 +8,20 @@ import { cn } from "./utils";
 function Progress({
   className,
   value,
+  style,
   ...props
 }: React.ComponentProps<typeof ProgressPrimitive.Root>) {
   return (
     <ProgressPrimitive.Root
       data-slot="progress"
       className={cn(
-        "bg-primary/20 relative h-2 w-full overflow-hidden rounded-full",
+        "relative h-2 w-full overflow-hidden rounded-full",
         className,
       )}
+      style={{
+        backgroundColor: '#CFD1D4',
+        ...style
+      }}
       {...props}
     >
       <ProgressPrimitive.Indicator

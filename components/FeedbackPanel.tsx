@@ -67,7 +67,7 @@ export function FeedbackPanel() {
 
       await submitFeedback(feedbackData);
       
-      toast.success('Thank you for your feedback! We will definitely review it.');
+      toast.success('Thank you for your feedback! We will definitely review it and remember you.');
       setSelectedType('');
       setDescription('');
       setIsExpanded(false);
@@ -102,7 +102,7 @@ export function FeedbackPanel() {
           </button>
         ) : (
           <>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 border-b">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b">
               <div className="flex items-center gap-2">
                 <CardTitle className="text-lg font-semibold">Help us improve</CardTitle>
               </div>
@@ -116,68 +116,70 @@ export function FeedbackPanel() {
                 <X className="w-4 h-4" />
               </Button>
             </CardHeader>
-            <CardContent className="p-4 h-[calc(100%-73px)] flex flex-col">
+            <CardContent className="p-3 flex flex-col h-[calc(100%-73px)]">
               <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-                <ScrollArea className="flex-1 pr-4 mb-4">
-                  <div className="space-y-6">
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700 mb-3 block">
-                        What could be better? (Select one)
-                      </Label>
-                      <RadioGroup
-                        value={selectedType}
-                        onValueChange={setSelectedType}
-                        className="space-y-2"
-                      >
-                        {feedbackTypes.map((type) => (
-                          <div
-                            key={type.value}
-                            className={cn(
-                              'flex items-center space-x-3 rounded-xl border p-3 transition-all',
-                              selectedType === type.value
-                                ? 'bg-orange-50 border-orange-300'
-                                : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                            )}
-                          >
-                            <RadioGroupItem
-                              value={type.value}
-                              id={type.value}
-                              className="flex-shrink-0"
-                            />
-                            <Label
-                              htmlFor={type.value}
+                <div className="flex-1 min-h-0 mb-3">
+                  <ScrollArea className="h-full">
+                    <div className="space-y-4 pr-4">
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                          What could be better? (Select one)
+                        </Label>
+                        <RadioGroup
+                          value={selectedType}
+                          onValueChange={setSelectedType}
+                          className="space-y-1.5"
+                        >
+                          {feedbackTypes.map((type) => (
+                            <div
+                              key={type.value}
                               className={cn(
-                                'flex-1 cursor-pointer text-sm font-medium',
+                                'flex items-center space-x-2 rounded-xl border p-2 transition-all',
                                 selectedType === type.value
-                                  ? 'text-orange-700'
-                                  : 'text-gray-700'
+                                  ? 'bg-orange-50 border-orange-300'
+                                  : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                               )}
                             >
-                              {type.label}
-                            </Label>
-                          </div>
-                        ))}
-                      </RadioGroup>
-                    </div>
+                              <RadioGroupItem
+                                value={type.value}
+                                id={type.value}
+                                className="flex-shrink-0"
+                              />
+                              <Label
+                                htmlFor={type.value}
+                                className={cn(
+                                  'flex-1 cursor-pointer text-sm font-medium',
+                                  selectedType === type.value
+                                    ? 'text-orange-700'
+                                    : 'text-gray-700'
+                                )}
+                              >
+                                {type.label}
+                              </Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      </div>
 
-                    <Separator />
+                      <Separator />
 
-                    <div>
-                      <Label htmlFor="description" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Additional details (optional)
-                      </Label>
-                      <Textarea
-                        id="description"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Tell us what went wrong or what you expected..."
-                        className="min-h-24 resize-none"
-                        rows={4}
-                      />
+                      <div>
+                        <Label htmlFor="description" className="text-sm font-medium text-gray-700 mb-1.5 block">
+                          Additional details (optional)
+                        </Label>
+                        <Textarea
+                          id="description"
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          placeholder="Tell us what went wrong or what you expected..."
+                          className="min-h-24 resize-none"
+                          rows={4}
+                        />
+                      </div>
                     </div>
-                  </div>
-                </ScrollArea>
-                <div className="flex gap-3 pt-4 border-t">
+                  </ScrollArea>
+                </div>
+                <div className="flex gap-2 pt-3 border-t">
                   <Button
                     type="button"
                     variant="outline"

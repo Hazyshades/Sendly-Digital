@@ -1338,6 +1338,11 @@ export class Web3Service {
         return await this.publicClient.waitForTransactionReceipt({ hash });
       });
 
+      // Check transaction status - if it failed, throw an error
+      if (receipt.status === 'reverted' || (typeof receipt.status === 'number' && receipt.status === 0)) {
+        throw new Error(`Transaction failed: ERC20 transfer amount exceeds balance or other contract error. Transaction hash: ${hash}`);
+      }
+
       // Get token ID from Transfer event (emitted by ERC721 on mint)
       // Transfer(from=0x0, to=recipient, tokenId) - topics: [signature, from, to, tokenId]
       const transferEventSignature = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
@@ -1680,6 +1685,11 @@ export class Web3Service {
         return await this.publicClient.waitForTransactionReceipt({ hash });
       });
 
+      // Check transaction status - if it failed, throw an error
+      if (receipt.status === 'reverted' || (typeof receipt.status === 'number' && receipt.status === 0)) {
+        throw new Error(`Transaction failed: ERC20 transfer amount exceeds balance or other contract error. Transaction hash: ${hash}`);
+      }
+
       // Get token ID from Transfer event (emitted by ERC721 on mint)
       // Transfer(from=0x0, to=vault, tokenId) - topics: [signature, from, to, tokenId]
       const transferEventSignature = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
@@ -1942,6 +1952,11 @@ export class Web3Service {
         return await this.publicClient.waitForTransactionReceipt({ hash });
       });
 
+      // Check transaction status - if it failed, throw an error
+      if (receipt.status === 'reverted' || (typeof receipt.status === 'number' && receipt.status === 0)) {
+        throw new Error(`Transaction failed: ERC20 transfer amount exceeds balance or other contract error. Transaction hash: ${hash}`);
+      }
+
       const transferEventSignature = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
       const zeroAddress = '0x0000000000000000000000000000000000000000';
       const zeroAddressTopic = '0x' + zeroAddress.slice(2).padStart(64, '0');
@@ -2127,6 +2142,11 @@ export class Web3Service {
       const receipt = await this.safeRequest(async () => {
         return await this.publicClient.waitForTransactionReceipt({ hash });
       });
+
+      // Check transaction status - if it failed, throw an error
+      if (receipt.status === 'reverted' || (typeof receipt.status === 'number' && receipt.status === 0)) {
+        throw new Error(`Transaction failed: ERC20 transfer amount exceeds balance or other contract error. Transaction hash: ${hash}`);
+      }
 
       const transferEventSignature = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
       const zeroAddress = '0x0000000000000000000000000000000000000000';
@@ -2314,6 +2334,11 @@ export class Web3Service {
         return await this.publicClient.waitForTransactionReceipt({ hash });
       });
 
+      // Check transaction status - if it failed, throw an error
+      if (receipt.status === 'reverted' || (typeof receipt.status === 'number' && receipt.status === 0)) {
+        throw new Error(`Transaction failed: ERC20 transfer amount exceeds balance or other contract error. Transaction hash: ${hash}`);
+      }
+
       const transferEventSignature = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
       const zeroAddress = '0x0000000000000000000000000000000000000000';
       const zeroAddressTopic = '0x' + zeroAddress.slice(2).padStart(64, '0');
@@ -2499,6 +2524,11 @@ export class Web3Service {
       const receipt = await this.safeRequest(async () => {
         return await this.publicClient.waitForTransactionReceipt({ hash });
       });
+
+      // Check transaction status - if it failed, throw an error
+      if (receipt.status === 'reverted' || (typeof receipt.status === 'number' && receipt.status === 0)) {
+        throw new Error(`Transaction failed: ERC20 transfer amount exceeds balance or other contract error. Transaction hash: ${hash}`);
+      }
 
       const transferEventSignature = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
       const zeroAddress = '0x0000000000000000000000000000000000000000';

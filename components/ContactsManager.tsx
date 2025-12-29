@@ -1106,7 +1106,6 @@ export function ContactsManager({ contacts, onContactsChange }: ContactsManagerP
     }
   };
 
-
   return (
     <Card className="bg-white/90 backdrop-blur-sm border border-gray-200 shadow-circle-card">
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
