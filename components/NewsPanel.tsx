@@ -17,25 +17,25 @@ interface NewsItem {
 
 // Example news data - can be replaced with real data from API
 const newsItems: NewsItem[] = [
-  {
+  /*{
     id: '2',
     title: 'Fixed bug: Leaderboard not showing all users',
     description: 'Leaderboard now shows all users, not just the top 1000',
     date: '2025-12-28',
     type: 'fixed',
-  },
-  /*{
+  },*/
+  {
     id: '2',
-    title: 'Dev-Controlled Wallets update',
-    description: 'Added support for Internal Wallets claims and sending cards with socials usernames.',
-    date: '2025-12-27',
+    title: 'Leaderboard update',
+    description: 'Added new list filters and sorting options.',
+    date: '2025-12-29',
     type: 'update',
   },
-  */
+  
   {
     id: '1',
     title: 'Sendly reached 1000 unique users',
-    description: 'A huge thank you to everyone who participated in the testing phase! Stay tuned, keep sending, and let’s keep building together!',
+    description: 'A huge thank you to everyone who participated in the testing phase! Stay tuned, keep sending.',
     date: '2025-12-27',
     type: 'announcement',
   },
@@ -142,7 +142,7 @@ export function NewsPanel() {
                 <TabsList className="grid w-full grid-cols-3 mb-4">
                   <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
                   <TabsTrigger value="announcement" className="text-xs">Announcements</TabsTrigger>
-                  <TabsTrigger value="fixed" className="text-xs">Fixes</TabsTrigger>
+                      <TabsTrigger value="update" className="text-xs">Updates</TabsTrigger>
                 </TabsList>
                 <ScrollArea className="flex-1 pr-4">
                   <div className="space-y-3">
