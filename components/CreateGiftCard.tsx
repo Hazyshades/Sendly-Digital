@@ -31,7 +31,7 @@ import { createTikTokCardMapping } from '../utils/tiktok';
 import { createInstagramCardMapping } from '../utils/instagram';
 import BridgeDialog from './BridgeDialog';
 import { GiftCardsService } from '../utils/supabase/giftCards';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { generateBridgeUrlFromArc } from '../utils/bridge/bridgeUrlHelper';
 import { usePrivy } from '@privy-io/react-auth';
 import { DeveloperWalletService } from '../utils/circle/developerWalletService';
@@ -116,6 +116,7 @@ export function CreateGiftCard() {
   const { data: walletClient } = useWalletClient();
   const { authenticated, user: privyUser } = usePrivy();
   const navigate = useNavigate();
+  const location = useLocation();
   const [hasDeveloperWallet, setHasDeveloperWallet] = useState(false);
   const [developerWallet, setDeveloperWallet] = useState<any>(null);
   const [checkingWallet, setCheckingWallet] = useState(true);
@@ -145,6 +146,44 @@ export function CreateGiftCard() {
   const [step, setStep] = useState<'form' | 'generating' | 'uploading' | 'creating' | 'success'>('form');
   const [isBridgeDialogOpen, setIsBridgeDialogOpen] = useState(false);
   const [highlightField, setHighlightField] = useState<'twitch' | 'twitter' | 'telegram' | 'tiktok' | 'instagram' | null>(null);
+
+  // Auto-scroll to bottom of page every time user navigates to Create page
+  useEffect(() => {
+    // Only scroll if we're on the /create route
+    if (location.pathname === '/create') {
+      const scrollToBottom = () => {
+        // Use a very large number to ensure we scroll to the absolute bottom
+        window.scrollTo({
+          top: 999999,
+          left: 0,
+          behavior: 'smooth'
+        });
+      };
+
+      // Try scrolling multiple times with increasing delays to ensure content is loaded
+      const timers = [
+        setTimeout(() => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(scrollToBottom);
+          });
+        }, 200),
+        setTimeout(() => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(scrollToBottom);
+          });
+        }, 600),
+        setTimeout(() => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(scrollToBottom);
+          });
+        }, 1200)
+      ];
+
+      return () => {
+        timers.forEach(timer => clearTimeout(timer));
+      };
+    }
+  }, [location.pathname]);
 
   // Load selected recipient from localStorage on mount
   useEffect(() => {
