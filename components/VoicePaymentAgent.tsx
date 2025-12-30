@@ -17,7 +17,7 @@ import pinataService from '../utils/pinata';
 import imageGenerator from '../utils/imageGenerator';
 import elevenLabsService from '../utils/elevenlabs';
 import aimlapiService, { ParsedPaymentCommand } from '../utils/aimlapiService';
-import { ContactsManager, Contact } from './ContactsManager';
+import type { Contact } from './ContactsManager';
 import { usePrivy } from '@privy-io/react-auth';
 import { DeveloperWalletService } from '../utils/circle/developerWalletService';
 
@@ -30,7 +30,7 @@ export function VoicePaymentAgent() {
   const { data: walletClient } = useWalletClient();
   const { authenticated, user: privyUser } = usePrivy();
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
-  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contacts] = useState<Contact[]>([]);
   const [transcribedText, setTranscribedText] = useState('');
   const [parsedCommand, setParsedCommand] = useState<ParsedPaymentCommand | null>(null);
   const [error, setError] = useState('');
@@ -502,8 +502,6 @@ export function VoicePaymentAgent() {
         </Collapsible>
       </Card>
       )}
-
-      <ContactsManager contacts={contacts} onContactsChange={setContacts} />
     </div>
   );
 }

@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Bell, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
+import { Separator } from './ui/separator';
+import { ScrollArea } from './ui/scroll-area';
+import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { cn } from './ui/utils';
 
 interface NewsItem {
@@ -14,25 +17,25 @@ interface NewsItem {
 
 // Example news data - can be replaced with real data from API
 const newsItems: NewsItem[] = [
-  {
+  /*{
     id: '2',
     title: 'Fixed bug: Leaderboard not showing all users',
     description: 'Leaderboard now shows all users, not just the top 1000',
     date: '2025-12-28',
     type: 'fixed',
-  },
-  /*{
+  },*/
+  {
     id: '2',
-    title: 'Dev-Controlled Wallets update',
-    description: 'Added support for Internal Wallets claims and sending cards with socials usernames.',
-    date: '2025-12-27',
+    title: 'Leaderboard update',
+    description: 'Added new list filters and sorting options.',
+    date: '2025-12-29',
     type: 'update',
   },
-  */
+  
   {
     id: '1',
     title: 'Sendly reached 1000 unique users',
-    description: 'A huge thank you to everyone who participated in the testing phase! Stay tuned, keep sending, and let’s keep building together!',
+    description: 'A huge thank you to everyone who participated in the testing phase! Stay tuned, keep sending.',
     date: '2025-12-27',
     type: 'announcement',
   },
@@ -40,10 +43,19 @@ const newsItems: NewsItem[] = [
 
 export function NewsPanel() {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [filterType, setFilterType] = useState<string>('all');
 
   const toggleExpand = () => {
     setIsExpanded(!isExpanded);
   };
+
+  // Filter news by type
+  const filteredNews = useMemo(() => {
+    if (filterType === 'all') {
+      return newsItems;
+    }
+    return newsItems.filter(item => item.type === filterType);
+  }, [filterType]);
 
   const getTypeColor = (type?: string) => {
     switch (type) {
@@ -125,35 +137,48 @@ export function NewsPanel() {
                 <X className="w-4 h-4" />
               </Button>
             </CardHeader>
-            <CardContent className="p-4 overflow-y-auto h-[calc(100%-73px)]">
-              <div className="space-y-4">
-                {newsItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer bg-white/50"
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <span
-                        className={cn(
-                          'text-xs font-semibold px-2 py-1 rounded-lg',
-                          getTypeColor(item.type)
+            <CardContent className="p-4 h-[calc(100%-73px)] flex flex-col">
+              <Tabs value={filterType} onValueChange={setFilterType} className="w-full">
+                <TabsList className="grid w-full grid-cols-3 mb-4">
+                  <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
+                  <TabsTrigger value="announcement" className="text-xs">Announcements</TabsTrigger>
+                      <TabsTrigger value="update" className="text-xs">Updates</TabsTrigger>
+                </TabsList>
+                <ScrollArea className="flex-1 pr-4">
+                  <div className="space-y-3">
+                    {filteredNews.map((item, index) => (
+                      <div key={item.id}>
+                        <div
+                          className="p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer bg-white/50"
+                        >
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <span
+                              className={cn(
+                                'text-xs font-semibold px-2 py-1 rounded-lg',
+                                getTypeColor(item.type)
+                              )}
+                            >
+                              {getTypeLabel(item.type)}
+                            </span>
+                            <span className="text-xs text-gray-500">{item.date}</span>
+                          </div>
+                          <h3 className="font-semibold text-gray-900 mb-1">{item.title}</h3>
+                          <p className="text-sm text-gray-600 leading-relaxed">{item.description}</p>
+                        </div>
+                        {index < filteredNews.length - 1 && (
+                          <Separator className="my-3" />
                         )}
-                      >
-                        {getTypeLabel(item.type)}
-                      </span>
-                      <span className="text-xs text-gray-500">{item.date}</span>
-                    </div>
-                    <h3 className="font-semibold text-gray-900 mb-1">{item.title}</h3>
-                    <p className="text-sm text-gray-600 leading-relaxed">{item.description}</p>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              {newsItems.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <Bell className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>No new updates</p>
-                </div>
-              )}
+                  {filteredNews.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Bell className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p>No updates in this category</p>
+                    </div>
+                  )}
+                </ScrollArea>
+              </Tabs>
             </CardContent>
           </>
         )}

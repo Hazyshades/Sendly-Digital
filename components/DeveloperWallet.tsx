@@ -619,8 +619,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
                 <div>
                   <CardTitle className="text-lg font-semibold">Internal Wallet</CardTitle>
                   <CardDescription className="text-xs mt-0.5">
-                    Developer-controlled wallet
-                  </CardDescription>
+                  Smart wallet for quick receipt and sending of funds                  </CardDescription>
                 </div>
               </div>
               <CollapsibleTrigger asChild>

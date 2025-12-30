@@ -16,6 +16,29 @@ export interface GiftCardRecord {
   last_synced_at?: string | null;
 }
 
+export interface FeedbackRecord {
+  id?: number;
+  user_id?: string | null;
+  user_address?: string | null;
+  user_email?: string | null;
+  feedback_type: 'bug' | 'feature' | 'question' | 'other' | 'wallet_issue' | 'broken_error' | 'slow_unresponsive';
+  title?: string | null;
+  description: string;
+  status?: 'new' | 'in_progress' | 'resolved' | 'closed';
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface FeedbackInsert {
+  user_id?: string;
+  user_address?: string;
+  user_email?: string;
+  feedback_type: 'bug' | 'feature' | 'question' | 'other' | 'wallet_issue' | 'broken_error' | 'slow_unresponsive';
+  title?: string;
+  description: string;
+  status?: 'new' | 'in_progress' | 'resolved' | 'closed';
+}
+
 export interface GiftCardInsert {
   token_id: string;
   sender_address: string;
