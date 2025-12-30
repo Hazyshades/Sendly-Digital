@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { Trophy, RefreshCw, Users, Copy, CheckCircle2 } from 'lucide-react';
+import { Trophy, RefreshCw, Users, Copy, CheckCircle2, Search } from 'lucide-react';
 import { CardHeader, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
 import { Alert, AlertDescription } from './ui/alert';
-import { Separator } from './ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from './ui/empty';
+import { Progress } from './ui/progress';
+import { Input } from './ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
 import {
   Pagination,
   PaginationContent,
@@ -17,7 +25,7 @@ import {
   PaginationNext,
   PaginationEllipsis,
 } from './ui/pagination';
-import { getLeaderboardSenders, recalculateLeaderboard, updateZNSDomains, LeaderboardEntry } from '../utils/leaderboard';
+import { getLeaderboardSenders, recalculateLeaderboard, LeaderboardEntry } from '../utils/leaderboard';
 import { useAccount } from 'wagmi';
 import { toast } from 'sonner';
 
@@ -42,6 +50,62 @@ const formatCurrencySummary = (map: Record<string, number>) => {
   return parts.length ? parts.join(' • ') : '0';
 };
 
+// Generate avatar URL from address (using a simple hash-based approach)
+const getAvatarUrl = (address: string) => {
+  // In production, use @dicebear/core or similar library
+  // For now, using a placeholder service
+  const seed = address.toLowerCase().slice(2, 10);
+  return `https://api.dicebear.com/7.x/identicon/svg?seed=${seed}&radius=50&size=40`;
+};
+
+// Medal component for top 3
+const TopThreeMedal = ({ rank }: { rank: number }) => {
+  if (rank > 3) return null;
+  
+  const medals = {
+    1: { emoji: '🥇', gradient: 'from-yellow-400 via-yellow-300 to-yellow-200', glow: 'shadow-yellow-200/50' },
+    2: { emoji: '🥈', gradient: 'from-gray-300 via-gray-200 to-gray-100', glow: 'shadow-gray-200/50' },
+    3: { emoji: '🥉', gradient: 'from-amber-400 via-amber-300 to-amber-200', glow: 'shadow-amber-200/50' },
+  };
+  
+  const medal = medals[rank as keyof typeof medals];
+  
+  return (
+    <div className={`relative bg-gradient-to-br ${medal.gradient} rounded-full w-10 h-10 flex items-center justify-center text-xl ${medal.glow} shadow-lg`}>
+      <span>{medal.emoji}</span>
+    </div>
+  );
+};
+
+// Achievement badges component
+const AchievementBadges = ({ cardsSent, rank }: { cardsSent: number; rank: number }) => {
+  const badges = [];
+  
+  if (cardsSent >= 100) {
+    badges.push(
+      <Badge key="power" variant="default" className="bg-purple-100 text-purple-700 border-purple-200 text-xs">
+        💎 Power User
+      </Badge>
+    );
+  }
+  if (rank < 10) {
+    badges.push(
+      <Badge key="top10" variant="default" className="bg-yellow-100 text-yellow-700 border-yellow-200 text-xs">
+        ⭐ Top 10
+      </Badge>
+    );
+  }
+  if (cardsSent >= 50) {
+    badges.push(
+      <Badge key="active" variant="default" className="bg-blue-100 text-blue-700 border-blue-200 text-xs">
+        🚀 Active Sender
+      </Badge>
+    );
+  }
+  
+  return badges.length > 0 ? <div className="flex flex-wrap gap-1 mt-1">{badges}</div> : null;
+};
+
 export function Leaderboard() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -49,6 +113,8 @@ export function Leaderboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'cards' | 'amount' | 'date'>('cards');
   const { address } = useAccount();
   const normalizedAccount = address?.toLowerCase() ?? null;
   const userEntryRef = useRef<HTMLDivElement>(null);
@@ -66,19 +132,16 @@ export function Leaderboard() {
       }
 
       try {
-        // Recalculate leaderboard if requested (e.g., on refresh button click)
         if (shouldRecalculate) {
           console.log('Recalculating leaderboard before loading...');
           const recalcResult = await recalculateLeaderboard();
           if (!recalcResult.success) {
             console.warn('Leaderboard recalculation failed:', recalcResult.message);
-            // Continue loading anyway - maybe data is still valid
           } else {
             console.log('Leaderboard recalculated. Entries:', recalcResult.entries_count);
           }
         }
         
-        // Load all leaderboard entries without limit
         const data = await getLeaderboardSenders({ limit: 100000 });
         console.log(`[Leaderboard] Loaded ${data.length} entries from API`);
         setEntries(data);
@@ -105,7 +168,6 @@ export function Leaderboard() {
       });
       hasScrolledToUser.current = true;
     } else {
-      // Retry after a short delay if ref is not ready
       setTimeout(() => {
         if (userEntryRef.current) {
           userEntryRef.current.scrollIntoView({
@@ -119,43 +181,33 @@ export function Leaderboard() {
   }, []);
 
   useEffect(() => {
-    // Load entries without recalculating on first load (to avoid unnecessary DB load)
-    // Recalculation happens only when user clicks Refresh button
     loadEntries({ preserveData: hasFetchedOnce });
     if (!hasFetchedOnce) {
       setHasFetchedOnce(true);
     }
   }, [hasFetchedOnce, loadEntries]);
 
-  // Find user's position and scroll to it on first load
   useEffect(() => {
     if (!normalizedAccount || !entries.length || loading || hasScrolledToUser.current) {
       return;
     }
 
-    // Find user's index in the entries array
     const userIndex = entries.findIndex(
       (entry) => entry.senderAddress?.toLowerCase() === normalizedAccount
     );
 
     if (userIndex === -1) {
-      // User not found in leaderboard
       hasScrolledToUser.current = true;
       return;
     }
 
-    // Calculate which page the user is on
     const userPage = Math.floor(userIndex / ITEMS_PER_PAGE) + 1;
 
-    // Switch to user's page if not already there
     if (currentPage !== userPage) {
       setCurrentPage(userPage);
-      // Don't scroll yet, wait for page to change
       return;
     }
 
-    // We're on the correct page, scroll to user entry
-    // Use a timeout to ensure DOM is ready
     const timeoutId = setTimeout(() => {
       scrollToUserEntry();
     }, 200);
@@ -163,11 +215,43 @@ export function Leaderboard() {
     return () => clearTimeout(timeoutId);
   }, [entries, normalizedAccount, loading, currentPage, scrollToUserEntry]);
 
+  // Filter and sort entries
+  const filteredAndSortedEntries = useMemo(() => {
+    let filtered = [...entries];
+    
+    // Search filter
+    if (searchQuery) {
+      filtered = filtered.filter(entry => 
+        entry.senderAddress?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (entry as any).znsDomain?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.displayName?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    // Sort
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'cards':
+          return b.cardsSentTotal - a.cardsSentTotal;
+        case 'amount':
+          const aTotal = Object.values(a.amountSentByCurrency).reduce((sum, val) => sum + val, 0);
+          const bTotal = Object.values(b.amountSentByCurrency).reduce((sum, val) => sum + val, 0);
+          return bTotal - aTotal;
+        case 'date':
+          return new Date(b.lastSentAt || 0).getTime() - new Date(a.lastSentAt || 0).getTime();
+        default:
+          return 0;
+      }
+    });
+    
+    return filtered;
+  }, [entries, sortBy, searchQuery]);
+
   // Calculate pagination
-  const totalPages = useMemo(() => Math.ceil(entries.length / ITEMS_PER_PAGE), [entries.length]);
+  const totalPages = useMemo(() => Math.ceil(filteredAndSortedEntries.length / ITEMS_PER_PAGE), [filteredAndSortedEntries.length]);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
-  const displayedEntries = useMemo(() => entries.slice(startIndex, endIndex), [entries, startIndex, endIndex]);
+  const displayedEntries = useMemo(() => filteredAndSortedEntries.slice(startIndex, endIndex), [filteredAndSortedEntries, startIndex, endIndex]);
 
   // Calculate pagination pages to display
   const paginationPages = useMemo(() => {
@@ -175,29 +259,24 @@ export function Leaderboard() {
     const showEllipsis = totalPages > 7;
     
     if (!showEllipsis) {
-      // Show all pages if total pages <= 7
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      // Always show first page
       pages.push(1);
       
       if (currentPage <= 4) {
-        // Show pages 1-5, ellipsis, last
         for (let i = 2; i <= 5; i++) {
           pages.push(i);
         }
         pages.push('ellipsis');
         pages.push(totalPages);
       } else if (currentPage >= totalPages - 3) {
-        // Show first, ellipsis, last 5 pages
         pages.push('ellipsis');
         for (let i = totalPages - 4; i <= totalPages; i++) {
           pages.push(i);
         }
       } else {
-        // Show first, ellipsis, current-1, current, current+1, ellipsis, last
         pages.push('ellipsis');
         pages.push(currentPage - 1);
         pages.push(currentPage);
@@ -211,32 +290,27 @@ export function Leaderboard() {
   }, [totalPages, currentPage]);
 
   // Calculate statistics
-  const totalAddresses = useMemo(() => entries.length, [entries]);
+  const totalAddresses = useMemo(() => entries.length, [entries.length]);
   const totalCards = useMemo(
     () => entries.reduce((sum, entry) => sum + entry.cardsSentTotal, 0),
     [entries]
   );
 
+  // Get leader's card count for progress calculation
+  const leaderCards = useMemo(() => {
+    if (filteredAndSortedEntries.length === 0) return 1;
+    return filteredAndSortedEntries[0]?.cardsSentTotal || 1;
+  }, [filteredAndSortedEntries]);
+
   const handleRefresh = async () => {
-    // Update ZNS domains and recalculate leaderboard when user clicks refresh
     setIsRefreshing(true);
-    // Reset scroll flag so user position is scrolled to after refresh
     hasScrolledToUser.current = false;
     try {
-      // Update ZNS domains for all addresses
-      console.log('Updating ZNS domains...');
-      const znsResult = await updateZNSDomains();
-      if (znsResult.success) {
-        console.log(`ZNS domains updated: ${znsResult.domains_found} domains found, ${znsResult.records_updated} records updated`);
-      } else {
-        console.warn('ZNS domains update failed:', znsResult.message);
-      }
-      
-      // Recalculate and reload leaderboard
+      // Note: updateZNSDomains function needs to be implemented
+      // For now, we'll skip it and just recalculate the leaderboard
       loadEntries({ preserveData: true, recalculate: true });
     } catch (error) {
       console.error('Failed to refresh leaderboard:', error);
-      // Still try to reload even if ZNS update failed
       loadEntries({ preserveData: true, recalculate: true });
     }
   };
@@ -254,25 +328,11 @@ export function Leaderboard() {
   return (
     <>
       <CardHeader className="border-b border-gray-100">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex-1">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
             <h2 className="text-[20px] leading-[22px] font-bold text-[#0f172a] flex items-center gap-2">
-              Sender leaderboard
+              Sender Leaderboard
             </h2>
-            <div className="mt-3 flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-gray-400" />
-                <span className="text-[36px] leading-[48px] font-extrabold text-[#635bff]">{totalAddresses}</span>
-                <span className="text-[14px] leading-[16px] font-medium text-[#64748b]">addresses</span>
-              </div>
-              <Separator orientation="vertical" className="h-4" />
-              <div className="flex items-center gap-2">
-                <span className="text-[36px] leading-[48px] font-extrabold text-[#635bff]">{totalCards}</span>
-                <span className="text-[14px] leading-[16px] font-medium text-[#64748b]">cards total</span>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center">
             <Button
               onClick={handleRefresh}
               disabled={loading || isRefreshing}
@@ -283,6 +343,30 @@ export function Leaderboard() {
               />
             </Button>
           </div>
+          
+          {/* Improved statistics cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="h-5 w-5 text-blue-600" />
+                <span className="text-sm font-medium text-gray-600">Total Addresses</span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-bold text-blue-700">{totalAddresses}</span>
+                <span className="text-sm text-gray-500">addresses</span>
+              </div>
+            </div>
+            <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+              <div className="flex items-center gap-2 mb-2">
+                <Trophy className="h-5 w-5 text-purple-600" />
+                <span className="text-sm font-medium text-gray-600">Total Cards</span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-bold text-purple-700">{totalCards}</span>
+                <span className="text-sm text-gray-500">cards sent</span>
+              </div>
+            </div>
+          </div>
         </div>
       </CardHeader>
 
@@ -292,6 +376,35 @@ export function Leaderboard() {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+
+        {/* Search and filters */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search by address or domain..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1); // Reset to first page on search
+              }}
+              className="pl-9"
+            />
+          </div>
+          <Select value={sortBy} onValueChange={(v) => {
+            setSortBy(v as typeof sortBy);
+            setCurrentPage(1);
+          }}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="cards">Cards sent</SelectItem>
+              <SelectItem value="amount">Total amount</SelectItem>
+              <SelectItem value="date">Last activity</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
         {loading ? (
           <div className="space-y-3">
@@ -312,9 +425,12 @@ export function Leaderboard() {
               <EmptyMedia variant="icon">
                 <Trophy className="w-12 h-12 opacity-50" />
               </EmptyMedia>
-              <EmptyTitle>No entries yet</EmptyTitle>
+              <EmptyTitle>No entries found</EmptyTitle>
               <EmptyDescription>
-                No one has sent any cards yet. Be the first to appear on the leaderboard!
+                {searchQuery 
+                  ? 'No entries match your search. Try different keywords.'
+                  : 'No one has sent any cards yet. Be the first to appear on the leaderboard!'
+                }
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
@@ -329,43 +445,58 @@ export function Leaderboard() {
               const isCurrentUser =
                 normalizedAccount &&
                 entry.senderAddress?.toLowerCase() === normalizedAccount;
-              const rankBadgeVariant =
-                index === 0
-                  ? 'default'
-                  : index === 1
-                  ? 'secondary'
-                  : index === 2
-                  ? 'outline'
-                  : 'secondary';
+              const globalRank = startIndex + index + 1;
+              const progressPercentage = (entry.cardsSentTotal / leaderCards) * 100;
 
               return (
                 <div
                   key={entry.id}
                   ref={isCurrentUser ? userEntryRef : null}
-                  className={`group flex flex-col gap-4 rounded-2xl border p-4 transition hover:shadow-md md:flex-row md:items-center md:justify-between ${
+                  className={`group flex flex-col gap-3 rounded-2xl border p-3 md:p-4 transition-all hover:shadow-lg hover:scale-[1.01] ${
                     isCurrentUser 
-                      ? 'bg-[#f0f9ff] border-[#bae6fd]' 
+                      ? 'bg-[#f0f9ff] border-[#bae6fd] ring-2 ring-blue-200' 
+                      : globalRank <= 3
+                      ? 'bg-gradient-to-r from-yellow-50/50 to-transparent border-yellow-200'
                       : 'bg-white border-[#e2e8f0]'
                   }`}
                   style={{ boxShadow: '0 4px 12px -4px rgba(0, 0, 0, 0.04)' }}
                 >
-                  <div className="flex items-center gap-4">
-                    <Badge 
-                      variant={rankBadgeVariant}
-                      className={`${
-                        index === 0 
-                          ? 'bg-yellow-100 text-yellow-700 border-yellow-200' 
-                          : index === 1
-                          ? 'bg-slate-100 text-slate-600 border-slate-200'
-                          : index === 2
-                          ? 'bg-amber-100 text-amber-700 border-amber-200'
-                          : ''
-                      } min-w-[2.5rem] justify-center`}
-                    >
-                      {startIndex + index + 1}
-                    </Badge>
+                  <div className="flex items-center gap-3 md:gap-4">
+                    {/* Rank badge or medal */}
+                    <div className="flex-shrink-0">
+                      {globalRank <= 3 ? (
+                        <TopThreeMedal rank={globalRank} />
+                      ) : (
+                        <Badge 
+                          variant="secondary"
+                          className="min-w-[2.5rem] justify-center bg-gray-100 text-gray-700"
+                        >
+                          #{globalRank}
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Avatar */}
+                    {entry.senderAddress && (
+                      <div className="relative flex-shrink-0">
+                        <img 
+                          src={getAvatarUrl(entry.senderAddress)} 
+                          alt={primaryLabel}
+                          className="w-10 h-10 rounded-full border-2 border-gray-200"
+                          onError={(e) => {
+                            // Fallback to a placeholder if image fails to load
+                            (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="%23e2e8f0"/></svg>';
+                          }}
+                        />
+                        {isCurrentUser && (
+                          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-500 rounded-full border-2 border-white" />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Address and info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <p className="text-sm font-semibold text-gray-900 truncate cursor-help">
@@ -399,32 +530,62 @@ export function Leaderboard() {
                           </Tooltip>
                         )}
                       </div>
-                      {entry.znsDomain && (
-                        <div className="flex items-center gap-1 mt-1">
-                          <p className="text-xs font-medium text-[#635bff]">@{entry.znsDomain}</p>
-                        </div>
-                      )}
                       {isCurrentUser && (
                         <div className="flex items-center gap-1 mt-1">
                           <CheckCircle2 className="h-3 w-3 text-indigo-500" />
                           <p className="text-xs font-medium text-indigo-500">Your wallet</p>
                         </div>
                       )}
+                      <AchievementBadges cardsSent={entry.cardsSentTotal} rank={globalRank} />
+                    </div>
+
+                    {/* Stats - Desktop */}
+                    <div className="hidden md:block text-right">
+                      <div className="flex items-center gap-2 justify-end">
+                        <p className="text-sm font-semibold text-gray-900">
+                          {entry.cardsSentTotal} cards
+                        </p>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formatCurrencySummary(entry.amountSentByCurrency)}
+                      </p>
+                      {entry.lastSentAt && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          {new Date(entry.lastSentAt).toLocaleString()}
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <div className="text-left md:text-right">
-                    <div className="flex items-center gap-2 justify-end">
-                      <p className="text-sm font-semibold text-gray-900">
-                        {entry.cardsSentTotal} cards
-                      </p>
+
+                  {/* Progress bar */}
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-500">Progress to #1</span>
+                      <span className="font-medium text-gray-700">{progressPercentage.toFixed(1)}%</span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {formatCurrencySummary(entry.amountSentByCurrency)}
-                    </p>
+                    <Progress 
+                      value={progressPercentage} 
+                      className={`h-2 ${
+                        globalRank <= 3 ? 'bg-yellow-100' : ''
+                      }`}
+                    />
+                  </div>
+
+                  {/* Stats - Mobile */}
+                  <div className="flex md:hidden flex-col gap-1 text-xs pt-2 border-t border-gray-100">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Cards:</span>
+                      <span className="font-semibold">{entry.cardsSentTotal}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Amount:</span>
+                      <span className="font-semibold">{formatCurrencySummary(entry.amountSentByCurrency)}</span>
+                    </div>
                     {entry.lastSentAt && (
-                      <p className="text-xs text-gray-400 mt-1">
-                        {new Date(entry.lastSentAt).toLocaleString()}
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">Last sent:</span>
+                        <span className="text-gray-600">{new Date(entry.lastSentAt).toLocaleDateString()}</span>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -450,30 +611,28 @@ export function Leaderboard() {
                   />
                 </PaginationItem>
                 {paginationPages.map((page, idx) => {
-                    if (page === 'ellipsis') {
-                      return (
-                        <PaginationItem key={`ellipsis-${idx}`}>
-                          <PaginationEllipsis />
-                        </PaginationItem>
-                      );
-                    }
-                    const pageNumber = page as number;
-                    const isActive = pageNumber === currentPage;
+                  if (page === 'ellipsis') {
                     return (
-                      <PaginationItem key={pageNumber}>
-                        <PaginationLink
-                          href="#"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handlePageChange(pageNumber);
-                          }}
-                          isActive={isActive}
-                        >
-                          {pageNumber}
-                        </PaginationLink>
+                      <PaginationItem key={`ellipsis-${idx}`}>
+                        <PaginationEllipsis />
                       </PaginationItem>
                     );
-                  })}
+                  }
+                  return (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handlePageChange(page);
+                        }}
+                        isActive={page === currentPage}
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                })}
                 <PaginationItem>
                   <PaginationNext
                     href="#"
@@ -494,4 +653,3 @@ export function Leaderboard() {
     </>
   );
 }
-

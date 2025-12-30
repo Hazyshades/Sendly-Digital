@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { SplashScreen } from '../components/SplashScreen';
 import { useState } from 'react';
@@ -17,8 +17,6 @@ import { TwitchCallbackRoute } from '../pages/TwitchCallbackRoute';
 import { TwitterCallbackRoute } from '../pages/TwitterCallbackRoute';
 import { CircleMintRoute } from '../pages/CircleMintRoute';
 import { LeaderboardRoute } from '../pages/LeaderboardRoute';
-import { FAQRoute } from '../pages/FAQRoute';
-import { LitepaperRoute } from '../pages/LitepaperRoute';
 
 function AppRouter() {
   const [isLoading, setIsLoading] = useState(true);
@@ -48,7 +46,7 @@ function AppRouter() {
     <Routes>
       <Route path="/" element={<LandingRoute />} />
       <Route path="/dashboard" element={<AgentRoute />} />
-      <Route path="/agent" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/agent" element={<AgentRoute />} />
       <Route path="/create" element={<CreateRoute />} />
       <Route path="/my" element={<MyRoute />} />
       <Route path="/spend" element={<SpendRoute />} />
@@ -56,8 +54,6 @@ function AppRouter() {
       <Route path="/leaderboard" element={<LeaderboardRoute />} />
       <Route path="/terms" element={<TermsRoute />} />
       <Route path="/privacy" element={<PrivacyRoute />} />
-      <Route path="/faq" element={<FAQRoute />} />
-      <Route path="/litepaper" element={<LitepaperRoute />} />
       <Route path="/bridge" element={<BridgeRoute />} />
       <Route path="/gateway" element={<GatewayRoute />} />
       <Route path="/auth/twitch/callback" element={<TwitchCallbackRoute />} />
@@ -68,4 +64,3 @@ function AppRouter() {
 }
 
 export default AppRouter;
-

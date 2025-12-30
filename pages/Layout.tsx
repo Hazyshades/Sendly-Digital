@@ -40,7 +40,7 @@ export function Layout({ children }: LayoutProps) {
             <img 
               src="/new_year.png" 
               alt="Santa hat" 
-              className="absolute -top-4 left-[0.001em] w-6 h-6 object-contain z-10"
+              className="absolute -top-4 -left-2 w-8 h-10 object-contain z-10"
             />
           </span>
         </div>
@@ -92,4 +92,3 @@ export function Layout({ children }: LayoutProps) {
     </div>
   );
 }
-
