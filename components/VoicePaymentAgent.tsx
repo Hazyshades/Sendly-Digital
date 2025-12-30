@@ -36,7 +36,6 @@ export function VoicePaymentAgent() {
   const [error, setError] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [hasDeveloperWallet, setHasDeveloperWallet] = useState(false);
-  const [checkingWallet, setCheckingWallet] = useState(true);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -251,25 +250,23 @@ export function VoicePaymentAgent() {
   };
 
   // Checking for a Internal wallet for social networks
+  // Check is performed without showing loading indicator, as DeveloperWalletComponent already shows it
   useEffect(() => {
     const checkSocialWallet = async () => {
       // If MetaMask is connected - no need to check a social wallet
       if (isConnected) {
         setHasDeveloperWallet(false);
-        setCheckingWallet(false);
         return;
       }
 
       // If no social network is linked - do not check
       if (!authenticated || !privyUser) {
         setHasDeveloperWallet(false);
-        setCheckingWallet(false);
         return;
       }
 
       try {
-        setCheckingWallet(true);
-        // Check for a Internal wallet for linked social networks
+        // Check for a Internal wallet for linked social networks (without showing loading indicator)
         const socialPlatforms = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'];
         const blockchain = 'ARC-TESTNET';
         
@@ -304,8 +301,6 @@ export function VoicePaymentAgent() {
       } catch (error) {
         console.error('Error checking social wallet:', error);
         setHasDeveloperWallet(false);
-      } finally {
-        setCheckingWallet(false);
       }
     };
 
@@ -320,17 +315,9 @@ export function VoicePaymentAgent() {
     };
   }, []);
 
-  // Show the message only if there is neither MetaMask nor a social Internal wallet
+  // Don't show loading indicator here, as DeveloperWalletComponent already shows it at the top
+  // Just hide the component if there's no wallet
   if (!isConnected && !hasDeveloperWallet) {
-    if (checkingWallet) {
-      return (
-        <div className="p-6 text-center">
-          <Spinner className="w-6 h-6 mx-auto mb-2" />
-          <p className="text-sm text-gray-600">Checking wallet...</p>
-        </div>
-      );
-    }
-
     return null;
   }
 

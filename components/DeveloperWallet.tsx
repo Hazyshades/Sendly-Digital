@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useAccount, useWalletClient } from 'wagmi';
 import { toast } from 'sonner';
@@ -38,6 +38,9 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
   const [linkingTelegram, setLinkingTelegram] = useState(false);
   const [balances, setBalances] = useState<{ USDC: string; EURC: string } | null>(null);
   const [loadingBalances, setLoadingBalances] = useState(false);
+  const isCheckingRef = useRef(false);
+  const lastCheckParamsRef = useRef<string>('');
+  const checkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const isValidTelegramId = (value: string | null | undefined) => {
     if (!value) return false;
@@ -85,16 +88,85 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
   };
 
   useEffect(() => {
-    if (isConnected && address) {
-      // If MetaMask is connected - check wallet by address
-      checkWallet();
-    } else if (authenticated && privyUser && !isConnected) {
-      // If MetaMask is NOT connected, but a social account exists - check Internal wallet for the social account
-      checkSocialWallet();
-    } else {
-      setChecking(false);
+    // Clear previous timer if it exists
+    if (checkTimeoutRef.current) {
+      clearTimeout(checkTimeoutRef.current);
+      checkTimeoutRef.current = null;
     }
-  }, [isConnected, address, blockchain, authenticated, privyUser]);
+
+    // Create a stable key for checking (use only important data, not the entire privyUser object)
+    const privyUserId = privyUser?.id || '';
+    const checkKey = `${isConnected}-${address || ''}-${blockchain}-${authenticated}-${privyUserId}`;
+    
+    // If check is already in progress or parameters haven't changed, skip
+    if (isCheckingRef.current) {
+      return;
+    }
+
+    if (lastCheckParamsRef.current === checkKey) {
+      // Parameters haven't changed, no need to check again
+      // Make sure checking is set to false if check was already performed
+      if (!isCheckingRef.current) {
+        setChecking(false);
+      }
+      return;
+    }
+
+    // If there are no conditions for checking, just set checking to false
+    // But only if we're sure the data is loaded (not undefined)
+    const hasNoConditions = !isConnected && (authenticated === false || (authenticated === true && !privyUser));
+    if (hasNoConditions) {
+      setChecking(false);
+      lastCheckParamsRef.current = checkKey;
+      return;
+    }
+
+    // If data is still loading (authenticated === undefined), wait
+    if (!isConnected && authenticated === undefined) {
+      // Don't set checking to false, as data is still loading
+      return;
+    }
+
+    // Add a small delay for debounce (especially important for React StrictMode)
+    checkTimeoutRef.current = setTimeout(() => {
+      // Check again if parameters changed during the delay
+      const currentCheckKey = `${isConnected}-${address || ''}-${blockchain}-${authenticated}-${privyUser?.id || ''}`;
+      if (lastCheckParamsRef.current === currentCheckKey || isCheckingRef.current) {
+        // If parameters haven't changed or check is already in progress, reset checking
+        if (!isCheckingRef.current) {
+          setChecking(false);
+        }
+        return;
+      }
+
+      // Set check flag and save parameters
+      isCheckingRef.current = true;
+      lastCheckParamsRef.current = currentCheckKey;
+
+      if (isConnected && address) {
+        // If MetaMask is connected - check wallet by address
+        checkWallet().finally(() => {
+          isCheckingRef.current = false;
+        });
+      } else if (authenticated && privyUser && !isConnected) {
+        // If MetaMask is NOT connected, but a social account exists - check Internal wallet for the social account
+        checkSocialWallet().finally(() => {
+          isCheckingRef.current = false;
+        });
+      } else {
+        setChecking(false);
+        isCheckingRef.current = false;
+      }
+    }, 100); // Small delay for debounce
+
+    // Cleanup function
+    return () => {
+      if (checkTimeoutRef.current) {
+        clearTimeout(checkTimeoutRef.current);
+        checkTimeoutRef.current = null;
+      }
+    };
+  }, [isConnected, address, blockchain, authenticated, privyUser?.id]);
 
   // Load balances of the wallet
   useEffect(() => {
@@ -106,7 +178,10 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
   }, [wallet]);
 
   const checkWallet = async () => {
-    if (!address) return;
+    if (!address) {
+      setChecking(false);
+      return;
+    }
     
     try {
       setChecking(true);
@@ -124,6 +199,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
   const checkSocialWallet = async () => {
     if (!authenticated || !privyUser) {
       console.log('[DeveloperWallet] No authenticated user or privyUser');
+      setChecking(false);
       return;
     }
     
