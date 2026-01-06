@@ -77,9 +77,11 @@ export async function updateZnsDomainsGraph(): Promise<{
   message?: string 
 }> {
   try {
+    console.log('[updateZnsDomainsGraph] Starting ZNS domains update request...');
     const response = await apiCall('/leaderboard/update-zns-domains-graph', {
       method: 'POST',
     });
+    console.log('[updateZnsDomainsGraph] Response received:', response);
     return {
       success: response.success ?? true,
       addresses_checked: response.addresses_checked,
@@ -88,7 +90,11 @@ export async function updateZnsDomainsGraph(): Promise<{
       message: response.message,
     };
   } catch (error) {
-    console.error('Failed to update ZNS domains for graph:', error);
+    console.error('[updateZnsDomainsGraph] Failed to update ZNS domains for graph:', error);
+    console.error('[updateZnsDomainsGraph] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Failed to update ZNS domains for graph',

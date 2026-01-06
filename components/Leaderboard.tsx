@@ -43,11 +43,18 @@ const formatAddress = (value?: string | null) => {
   return `${value.slice(0, 6)}...${value.slice(-4)}`;
 };
 
+// USDC and EURC have 6 decimals, so divide by 1,000,000 to get the actual amount
+const TOKEN_DECIMALS_DIVISOR = 1_000_000;
+
 const formatCurrencySummary = (map: Record<string, number>) => {
   const parts = Object.entries(map)
     .filter(([, amount]) => amount > 0)
     .sort(([, a], [, b]) => b - a)
-    .map(([currency, amount]) => `${currency} ${amount.toFixed(2)}`);
+    .map(([currency, amount]) => {
+      // Divide by 1,000,000 to convert from smallest units to actual amount
+      const actualAmount = amount / TOKEN_DECIMALS_DIVISOR;
+      return `${currency} ${actualAmount.toFixed(2)}`;
+    });
 
   return parts.length ? parts.join(' • ') : '0';
 };
@@ -117,7 +124,7 @@ export function Leaderboard() {
   const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'cards' | 'amount' | 'date'>('cards');
-  const [filterType, setFilterType] = useState<'all' | 'zns'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'address' | 'twitter' | 'telegram' | 'twitch' | 'zns'>('all');
   const { address } = useAccount();
   const normalizedAccount = address?.toLowerCase() ?? null;
   const userEntryRef = useRef<HTMLDivElement>(null);
@@ -135,9 +142,9 @@ export function Leaderboard() {
       }
 
       try {
-        // Use leaderboard_stats_graph table (temporary)
+        // Use leaderboard_stats_graph_true table
         const data = await getLeaderboardSendersGraph({ limit: 100000 });
-        console.log(`[Leaderboard] Loaded ${data.length} entries from leaderboard_stats_graph`);
+        console.log(`[Leaderboard] Loaded ${data.length} entries from leaderboard_stats_graph_true`);
         setEntries(data);
         setError(null);
       } catch (err) {
@@ -213,6 +220,22 @@ export function Leaderboard() {
   const filteredAndSortedEntries = useMemo(() => {
     let filtered = [...entries];
     
+    // Platform filter
+    if (filterType !== 'all' && filterType !== 'zns') {
+      const platformMap: Record<string, string> = {
+        'address': 'address',
+        'twitter': 'twitter',
+        'telegram': 'telegram',
+        'twitch': 'twitch',
+      };
+      const targetPlatform = platformMap[filterType];
+      if (targetPlatform) {
+        filtered = filtered.filter(entry => 
+          entry.socialPlatform?.toLowerCase() === targetPlatform.toLowerCase()
+        );
+      }
+    }
+    
     // ZNS domains filter
     if (filterType === 'zns') {
       filtered = filtered.filter(entry => entry.znsDomain && entry.znsDomain.trim() !== '');
@@ -227,6 +250,62 @@ export function Leaderboard() {
       );
     }
     
+    // Aggregate entries by senderAddress (sum all platforms for the same address)
+    const aggregatedMap = new Map<string, LeaderboardEntry>();
+    
+    for (const entry of filtered) {
+      const addressKey = entry.senderAddress?.toLowerCase() || '';
+      if (!addressKey) continue;
+      
+      const existing = aggregatedMap.get(addressKey);
+      
+      if (!existing) {
+        // First entry for this address - use it as base
+        aggregatedMap.set(addressKey, { ...entry });
+      } else {
+        // Merge with existing entry
+        // Sum cards
+        existing.cardsSentTotal += entry.cardsSentTotal;
+        
+        // Sum amounts by currency
+        for (const [currency, amount] of Object.entries(entry.amountSentByCurrency || {})) {
+          existing.amountSentByCurrency[currency] = (existing.amountSentByCurrency[currency] || 0) + amount;
+        }
+        
+        // Sum total amount
+        existing.amountSentTotal += entry.amountSentTotal;
+        
+        // Take latest lastSentAt
+        const existingDate = existing.lastSentAt ? new Date(existing.lastSentAt).getTime() : 0;
+        const entryDate = entry.lastSentAt ? new Date(entry.lastSentAt).getTime() : 0;
+        if (entryDate > existingDate) {
+          existing.lastSentAt = entry.lastSentAt;
+          existing.lastRecipient = entry.lastRecipient || existing.lastRecipient;
+        }
+        
+        // Prefer non-null values for display fields
+        if (!existing.displayName && entry.displayName) {
+          existing.displayName = entry.displayName;
+        }
+        if (!existing.avatarUrl && entry.avatarUrl) {
+          existing.avatarUrl = entry.avatarUrl;
+        }
+        if (!existing.znsDomain && entry.znsDomain) {
+          existing.znsDomain = entry.znsDomain;
+        }
+        
+        // Keep the first socialPlatform or combine them (optional)
+        // For now, we'll keep the first one, but you could change this to show "multiple" or combine
+        if (existing.socialPlatform !== entry.socialPlatform) {
+          // If different platforms, we could set to 'multiple' or keep first
+          // existing.socialPlatform = 'multiple';
+        }
+      }
+    }
+    
+    // Convert map back to array
+    filtered = Array.from(aggregatedMap.values());
+    
     // Sort
     // For ZNS filter, always sort by cards sent
     const effectiveSortBy = filterType === 'zns' ? 'cards' : sortBy;
@@ -235,8 +314,9 @@ export function Leaderboard() {
         case 'cards':
           return b.cardsSentTotal - a.cardsSentTotal;
         case 'amount':
-          const aTotal = Object.values(a.amountSentByCurrency).reduce((sum, val) => sum + val, 0);
-          const bTotal = Object.values(b.amountSentByCurrency).reduce((sum, val) => sum + val, 0);
+          // Divide by 1,000,000 for 6 decimals when comparing amounts
+          const aTotal = Object.values(a.amountSentByCurrency).reduce((sum, val) => sum + val, 0) / TOKEN_DECIMALS_DIVISOR;
+          const bTotal = Object.values(b.amountSentByCurrency).reduce((sum, val) => sum + val, 0) / TOKEN_DECIMALS_DIVISOR;
           return bTotal - aTotal;
         case 'date':
           return new Date(b.lastSentAt || 0).getTime() - new Date(a.lastSentAt || 0).getTime();
@@ -302,8 +382,8 @@ export function Leaderboard() {
     if (filteredAndSortedEntries.length === 0) return 1;
     const leader = filteredAndSortedEntries[0];
     if (sortBy === 'amount') {
-      // For amount sorting, use USDC total
-      const usdcAmount = leader?.amountSentByCurrency?.['USDC'] || 0;
+      // For amount sorting, use USDC total (divide by 1,000,000 for 6 decimals)
+      const usdcAmount = (leader?.amountSentByCurrency?.['USDC'] || 0) / TOKEN_DECIMALS_DIVISOR;
       return usdcAmount > 0 ? usdcAmount : 1;
     }
     // For cards sorting, use card count
@@ -314,8 +394,8 @@ export function Leaderboard() {
     setIsRefreshing(true);
     hasScrolledToUser.current = false;
     try {
-      // Sync leaderboard_stats_graph from gift_cards_graph
-      console.log('[Leaderboard] Syncing leaderboard_stats_graph...');
+      // Sync leaderboard_stats_graph_true from gift_cards_graph
+      console.log('[Leaderboard] Syncing leaderboard_stats_graph_true...');
       const syncResult = await syncLeaderboardGraph();
       if (syncResult.success) {
         console.log(`[Leaderboard] Synced ${syncResult.entries_count || 0} entries`);
@@ -323,23 +403,35 @@ export function Leaderboard() {
         console.error('[Leaderboard] Sync failed:', syncResult.message);
       }
       
-      // Update ZNS domains for leaderboard_stats_graph
-      console.log('[Leaderboard] Updating ZNS domains...');
-      const znsResult = await updateZnsDomainsGraph();
-      if (znsResult.success) {
-        console.log(`[Leaderboard] Updated ZNS domains: ${znsResult.records_updated || 0} records`);
-        toast.success(`Updated ${znsResult.records_updated || 0} ZNS domains`);
-      } else {
-        console.error('[Leaderboard] ZNS update failed:', znsResult.message);
-        toast.error(`ZNS update failed: ${znsResult.message || 'Unknown error'}`);
+      // Update ZNS domains for leaderboard_stats_graph_true
+      console.log('[Leaderboard] Starting ZNS domains update...');
+      try {
+        const znsResult = await updateZnsDomainsGraph();
+        console.log('[Leaderboard] ZNS update result:', znsResult);
+        if (znsResult.success) {
+          console.log(`[Leaderboard] Updated ZNS domains: ${znsResult.records_updated || 0} records`);
+          if (znsResult.records_updated && znsResult.records_updated > 0) {
+            toast.success(`Updated ${znsResult.records_updated} ZNS domains`);
+          } else {
+            console.log('[Leaderboard] No ZNS domains found or updated');
+          }
+        } else {
+          console.error('[Leaderboard] ZNS update failed:', znsResult.message);
+          toast.error(`ZNS update failed: ${znsResult.message || 'Unknown error'}`);
+        }
+      } catch (znsError) {
+        console.error('[Leaderboard] Exception during ZNS update:', znsError);
+        toast.error(`ZNS update error: ${znsError instanceof Error ? znsError.message : 'Unknown error'}`);
       }
       
-      // Refresh from leaderboard_stats_graph
-      loadEntries({ preserveData: true, recalculate: false });
+      // Refresh from leaderboard_stats_graph_true
+      await loadEntries({ preserveData: true, recalculate: false });
     } catch (error) {
-      console.error('Failed to refresh leaderboard:', error);
+      console.error('[Leaderboard] Failed to refresh leaderboard:', error);
       toast.error('Failed to refresh leaderboard');
-      loadEntries({ preserveData: true, recalculate: false });
+      await loadEntries({ preserveData: true, recalculate: false });
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -429,6 +521,10 @@ export function Leaderboard() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All</SelectItem>
+              <SelectItem value="address">Address</SelectItem>
+              <SelectItem value="twitter">X</SelectItem>
+              <SelectItem value="telegram">Telegram</SelectItem>
+              <SelectItem value="twitch">Twitch</SelectItem>
               <SelectItem value="zns">ZNS domains</SelectItem>
             </SelectContent>
           </Select>
@@ -490,13 +586,13 @@ export function Leaderboard() {
               const globalRank = startIndex + index + 1;
               // Calculate progress based on sort type
               const progressPercentage = sortBy === 'amount'
-                ? // For amount sorting, use USDC amount
-                  ((entry.amountSentByCurrency?.['USDC'] || 0) / leaderValue) * 100
+                ? // For amount sorting, use USDC amount (divide by 1,000,000 for 6 decimals)
+                  (((entry.amountSentByCurrency?.['USDC'] || 0) / TOKEN_DECIMALS_DIVISOR) / leaderValue) * 100
                 : // For cards sorting, use card count
                   (entry.cardsSentTotal / leaderValue) * 100;
               
-              // Get USDC amount for display
-              const usdcAmount = entry.amountSentByCurrency?.['USDC'] || 0;
+              // Get USDC amount for display (divide by 1,000,000 for 6 decimals)
+              const usdcAmount = (entry.amountSentByCurrency?.['USDC'] || 0) / TOKEN_DECIMALS_DIVISOR;
               const isAmountSort = sortBy === 'amount';
 
               return (
