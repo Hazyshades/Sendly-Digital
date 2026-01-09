@@ -1169,11 +1169,12 @@ export class Web3Service {
     // Ensure we're on the correct chain before approving
     await this.ensureCorrectChain();
 
-    // Get chain ID from multiple sources to ensure consistency
+    // Get chain ID from wallet client (most reliable source)
     const walletChainId = await this.walletClient.getChainId();
     const targetChainId = arcTestnet.id;
     
-    // Also check directly from provider if available
+    // Check directly from provider for logging/debugging only
+    // Note: window.ethereum may return stale chain ID, so we only trust walletChainId
     let providerChainId = walletChainId;
     let providerName = 'Unknown';
     if (typeof window !== 'undefined' && (window as any).ethereum) {
@@ -1191,14 +1192,21 @@ export class Web3Service {
         }
         
         console.log(`Provider: ${providerName}, Chain ID: ${providerChainId}, Wallet chain ID: ${walletChainId}, Target: ${targetChainId}`);
+        
+        // Warn if provider chain ID doesn't match, but don't fail
+        if (providerChainId !== walletChainId) {
+          console.warn(`⚠️ Provider chain ID (${providerChainId}) doesn't match wallet chain ID (${walletChainId}). Using wallet chain ID.`);
+        }
       } catch (e) {
         console.warn('Could not get chain ID from provider:', e);
       }
     }
     
-    if (walletChainId !== targetChainId || providerChainId !== targetChainId) {
-      console.error(`Chain ID mismatch: wallet=${walletChainId}, provider=${providerChainId}, expected=${targetChainId}`);
-      throw new Error(`Please switch to Arc Testnet (Chain ID: ${targetChainId}) in your wallet. Current: ${providerChainId || walletChainId}`);
+    // Only check walletChainId (most reliable source from wagmi/viem)
+    // window.ethereum may return stale chain ID, so we don't rely on it
+    if (walletChainId !== targetChainId) {
+      console.error(`Chain ID mismatch: wallet=${walletChainId}, expected=${targetChainId}`);
+      throw new Error(`Please switch to Arc Testnet (Chain ID: ${targetChainId}) in your wallet. Current: ${walletChainId}`);
     }
 
     // Coinbase Wallet may have issues with Arc Testnet - show warning
