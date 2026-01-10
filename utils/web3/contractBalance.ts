@@ -85,11 +85,10 @@ export async function getContractBalanceViaRPC(
       abi: ERC20ABI,
       functionName: 'balanceOf',
       args: [contractAddress as `0x${string}`],
-    });
+    }) as bigint;
 
     // USDC has 6 decimals
-    const balanceWei = BigInt(balance);
-    const balanceUsd = Number(balanceWei) / 1_000_000;
+    const balanceUsd = Number(balance) / 1_000_000;
     
     console.log(`[ContractBalance] Found USDC balance via RPC: ${balanceUsd} USDC`);
     return balanceUsd;
