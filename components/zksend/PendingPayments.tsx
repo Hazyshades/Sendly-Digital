@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useAccount, useWalletClient } from 'wagmi';
 import { toast } from 'sonner';
 
-import { ReclaimProofRequest } from '@reclaimprotocol/js-sdk';
+import { ReclaimProofRequest, type Proof } from '@reclaimprotocol/js-sdk';
 
 import web3Service from '../../utils/web3/web3Service';
 import { generateSocialIdentityHash } from '../../utils/reclaim/identity';
@@ -94,17 +94,38 @@ export function PendingPayments() {
       const reclaimProofRequest = await ReclaimProofRequest.fromJsonString(reclaimProofRequestConfig);
 
       // Trigger UI (QR / extension / app clip)
-      await reclaimProofRequest.triggerReclaimFlow({ theme: 'dark' });
+      await reclaimProofRequest.triggerReclaimFlow();
 
       await reclaimProofRequest.startSession({
-        onSuccess: async (proofs: ReclaimProof[]) => {
+        onSuccess: async (proof: string | Proof | Proof[] | undefined) => {
           try {
-            const verify = await verifyReclaimProofs(proofs);
+            if (!proof) {
+              throw new Error('No proof received from Reclaim');
+            }
+
+            // Normalize proof to array format and convert to ReclaimProof
+            const normalizeProof = (p: string | Proof | Proof[]): ReclaimProof[] => {
+              if (Array.isArray(p)) {
+                return p as ReclaimProof[];
+              }
+              if (typeof p === 'string') {
+                const parsed = JSON.parse(p);
+                return Array.isArray(parsed) ? parsed : [parsed];
+              }
+              return [p as ReclaimProof];
+            };
+
+            const proofsArray = normalizeProof(proof);
+
+            console.log('[zkSEND] Received proofs:', JSON.stringify(proofsArray, null, 2));
+            console.log('[zkSEND] First proof structure:', JSON.stringify(proofsArray[0], null, 2));
+            
+            const verify = await verifyReclaimProofs(proofsArray);
             if (!verify.isValid) {
               throw new Error('Reclaim proof verification failed (backend)');
             }
 
-            const onchainProof = toOnchainReclaimProof(proofs[0]);
+            const onchainProof = toOnchainReclaimProof(proofsArray[0]);
             const txHash = await web3Service.claimZkSendPayment({
               paymentId,
               proof: onchainProof,
