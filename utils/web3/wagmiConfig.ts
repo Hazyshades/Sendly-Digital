@@ -34,12 +34,38 @@ export const arcTestnet = defineChain({
   },
 });
 
+// Tempo Testnet chain definition
+const tempoChainId = Number(import.meta.env.VITE_TEMPO_CHAIN_ID || 42431);
+const tempoName = import.meta.env.VITE_TEMPO_NAME || 'Tempo Testnet';
+const tempoRpcUrl = import.meta.env.VITE_TEMPO_RPC_URL || 'https://rpc.moderato.tempo.xyz';
+const tempoExplorerUrl = import.meta.env.VITE_TEMPO_BLOCK_EXPLORER_URL || 'https://explore.tempo.xyz';
+const tempoNativeSymbol = import.meta.env.VITE_TEMPO_SYMBOL || 'USD';
+const tempoNativeName = import.meta.env.VITE_TEMPO_CURRENCY_NAME || 'USD';
+const tempoNativeDecimals = Number(import.meta.env.VITE_TEMPO_DECIMALS || 18);
+
+export const tempoTestnet = defineChain({
+  id: tempoChainId,
+  name: tempoName,
+  nativeCurrency: {
+    name: tempoNativeName,
+    symbol: tempoNativeSymbol,
+    decimals: tempoNativeDecimals,
+  },
+  rpcUrls: {
+    default: { http: [tempoRpcUrl] },
+    public: { http: [tempoRpcUrl] },
+  },
+  blockExplorers: {
+    default: { name: 'Tempo Explorer', url: tempoExplorerUrl },
+  },
+});
+
 // RainbowKit configuration - getDefaultConfig automatically includes Rainbow Wallet
 export const config = getDefaultConfig({
   appName: 'Sendly NFT Gift Cards',
   projectId: projectId,
-  chains: [arcTestnet],
+  chains: [arcTestnet, tempoTestnet], // Добавляем обе сети
   ssr: false,
 });
 
-export const chains = [arcTestnet];
+export const chains = [arcTestnet, tempoTestnet];

@@ -2144,6 +2144,44 @@ export const TelegramCardVaultABI = [
 export const TikTokCardVaultABI = TwitchCardVaultABI;
 export const InstagramCardVaultABI = TwitchCardVaultABI;
 
+// Tempo Testnet Contract Addresses
+export const TEMPO_PATHUSD_ADDRESS =
+  import.meta.env.VITE_TEMPO_PATHUSD_ADDRESS ||
+  '0x20c0000000000000000000000000000000000000';
+
+export const TEMPO_ALPHAUSD_ADDRESS =
+  import.meta.env.VITE_TEMPO_ALPHAUSD_ADDRESS ||
+  '0x20c0000000000000000000000000000000000001';
+
+export const TEMPO_BETAUSD_ADDRESS =
+  import.meta.env.VITE_TEMPO_BETAUSD_ADDRESS ||
+  '0x20c0000000000000000000000000000000000002';
+
+export const TEMPO_THETAUSD_ADDRESS =
+  import.meta.env.VITE_TEMPO_THETAUSD_ADDRESS ||
+  '0x20c0000000000000000000000000000000000003';
+
+// Tempo Predeployed Contracts
+export const TEMPO_TIP20_FACTORY =
+  import.meta.env.VITE_TEMPO_TIP20_FACTORY ||
+  '0x20fc000000000000000000000000000000000000';
+
+export const TEMPO_FEE_MANAGER =
+  import.meta.env.VITE_TEMPO_FEE_MANAGER ||
+  '0xfeec000000000000000000000000000000000000';
+
+export const TEMPO_STABLECOIN_DEX =
+  import.meta.env.VITE_TEMPO_STABLECOIN_DEX ||
+  '0xdec0000000000000000000000000000000000000';
+
+export const TEMPO_TIP403_REGISTRY =
+  import.meta.env.VITE_TEMPO_TIP403_REGISTRY ||
+  '0x403c000000000000000000000000000000000000';
+
+// Tempo GiftCard Contract (будет установлен после деплоя)
+export const TEMPO_GIFTCARD_CONTRACT_ADDRESS =
+  import.meta.env.VITE_TEMPO_GIFTCARD_CONTRACT_ADDRESS || '';
+
 // ERC20 ABI for USDC/USDT
 export const ERC20ABI = [
   {

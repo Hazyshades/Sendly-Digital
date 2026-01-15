@@ -374,6 +374,16 @@ export const SUPPORTED_CHAINS: ChainConfig[] = [
     blockExplorer: 'https://testnet.arcscan.app',
     isTestnet: true,
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 }
+  },
+  {
+    chainId: 42431,
+    name: 'Tempo Testnet',
+    slug: 'tempo-testnet',
+    domain: 99,
+    bridgeKitId: 'Tempo_Testnet',
+    blockExplorer: 'https://explore.tempo.xyz',
+    isTestnet: true,
+    nativeCurrency: { name: 'USD', symbol: 'USD', decimals: 18 }
   }
 ];
 

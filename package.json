@@ -9,6 +9,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "circle:create-wallet": "node scripts/circleCreateWallet.mjs",
+    "deploy:tempo": "node contracts/deploy/deployToTempo.mjs",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
