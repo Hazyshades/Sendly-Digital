@@ -2,7 +2,7 @@ import { getContract, type Address, type WalletClient } from 'viem';
 import { tempoClient } from './client';
 import { GiftCardABI } from '../web3/constants';
 
-// Получение экземпляра контракта GiftCard
+// Get GiftCard contract instance
 export function getGiftCardContract(address: Address, walletClient?: WalletClient) {
   return getContract({
     address,
@@ -11,7 +11,7 @@ export function getGiftCardContract(address: Address, walletClient?: WalletClien
   });
 }
 
-// Пример: Создание подарочной карты
+// Example: Create a gift card
 export async function createGiftCard(
   contractAddress: Address,
   recipient: Address,
@@ -22,19 +22,19 @@ export async function createGiftCard(
   walletClient: WalletClient
 ) {
   if (!walletClient.account) {
-    throw new Error('Wallet client не имеет аккаунта');
+    throw new Error('Wallet client has no connected account');
   }
 
   const account = walletClient.account;
 
-  // Создаем контракт GiftCard с walletClient для записи (гарантированно write-enabled)
+  // Create GiftCard contract with walletClient for writing (write-enabled)
   const contract = getContract({
     address: contractAddress,
     abi: GiftCardABI,
     client: { public: tempoClient, wallet: walletClient },
   });
 
-  // Сначала нужно одобрить токен
+  // Approve token first
   const tokenContract = getContract({
     address: token,
     abi: [
@@ -52,10 +52,10 @@ export async function createGiftCard(
     client: { public: tempoClient, wallet: walletClient },
   });
 
-  // Одобрение токена
+  // Token approval
   await tokenContract.write.approve([contractAddress, amount], { account });
 
-  // Создание подарочной карты
+  // Gift card creation
   const hash = await contract.write.createGiftCard([
     recipient,
     amount,

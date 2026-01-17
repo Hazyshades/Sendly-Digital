@@ -64,7 +64,7 @@ export const tempoTestnet = defineChain({
 export const config = getDefaultConfig({
   appName: 'Sendly NFT Gift Cards',
   projectId: projectId,
-  chains: [arcTestnet, tempoTestnet], // Добавляем обе сети
+  chains: [arcTestnet, tempoTestnet], // Add both networks
   ssr: false,
 });
 

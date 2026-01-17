@@ -11,7 +11,7 @@ export function useTempo() {
 
   const isTempoNetwork = chainId === tempoTestnet.id;
 
-  // Получение баланса токена
+  // Get token balance
   const getTokenBalance = async (tokenAddress: string) => {
     if (!address || !isTempoNetwork || !publicClient) return null;
 
@@ -33,32 +33,32 @@ export function useTempo() {
 
       return formatEther(balance);
     } catch (error) {
-      console.error('Ошибка при получении баланса:', error);
+      console.error('Failed to fetch token balance:', error);
       return null;
     }
   };
 
-  // Отправка транзакции с указанием fee token
+  // Send a transaction (Tempo may support fee token extensions)
   const sendTempoTransaction = async (
     to: string,
     data: `0x${string}`,
     _feeToken?: string
   ) => {
     if (!walletClient || !isTempoNetwork) {
-      throw new Error('Кошелек не подключен или неверная сеть');
+      throw new Error('Wallet is not connected or wrong network selected');
     }
 
     try {
       const hash = await walletClient.sendTransaction({
         to: to as `0x${string}`,
         data,
-        // Для Tempo Transactions используем расширенные параметры
-        // feeToken будет обработан автоматически через Viem
+        // Tempo Transactions may support extended fee token parameters.
+        // feeToken is expected to be handled by Viem when/if supported.
       });
 
       return hash;
     } catch (error) {
-      console.error('Ошибка при отправке транзакции:', error);
+      console.error('Failed to send transaction:', error);
       throw error;
     }
   };

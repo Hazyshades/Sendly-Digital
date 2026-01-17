@@ -10,6 +10,7 @@ import App from './App.tsx'
 import '../styles/globals.css'
 import '@rainbow-me/rainbowkit/styles.css'
 import { config } from '../utils/web3/wagmiConfig'
+import { ChainProvider } from '../utils/chain/chainContext'
 
 const queryClient = new QueryClient()
 
@@ -22,8 +23,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <WagmiProvider config={config}>
           <QueryClientProvider client={queryClient}>
             <RainbowKitProvider locale="en">
-              <App />
-              <Analytics />
+              <ChainProvider>
+                <App />
+                <Analytics />
+              </ChainProvider>
             </RainbowKitProvider>
           </QueryClientProvider>
         </WagmiProvider>

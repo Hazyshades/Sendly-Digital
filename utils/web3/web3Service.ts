@@ -1,5 +1,6 @@
 import { createPublicClient, http, formatUnits, parseUnits } from 'viem';
 import { arcTestnet, tempoTestnet } from './wagmiConfig';
+import { getChainConfigByChainId, shouldDisableNativeBalanceChecks } from '../chain/chainConfig';
 import {
   CONTRACT_ADDRESS,
   VAULT_CONTRACT_ADDRESS,
@@ -56,7 +57,7 @@ export class Web3Service {
     });
   }
 
-  // Определяет, является ли адрес токеном Tempo (не поддерживает стандартные ERC20 функции)
+  // Determines if the address is a Tempo token (does not support standard ERC20 functions)
   private isTempoToken(tokenAddress: string): boolean {
     const addr = tokenAddress.toLowerCase();
     return addr.startsWith('0x20c') || 
@@ -66,7 +67,7 @@ export class Web3Service {
            addr.startsWith('0x403c');
   }
 
-  // Получает текущую сеть (ARC или Tempo)
+  // Get the current network (ARC or Tempo)
   private async getCurrentChain(): Promise<{ chain: any; chainId: number }> {
     if (!this.walletClient) {
       // Fallback to ARC if no wallet
@@ -150,7 +151,7 @@ export class Web3Service {
   private async createPublicClient() {
     const { chain, chainId } = await this.getCurrentChain();
     
-    // Определяем RPC URL в зависимости от сети
+    // Define RPC URL based on the network
     let rpcUrl: string;
     if (chainId === tempoTestnet.id) {
       rpcUrl = import.meta.env.VITE_TEMPO_RPC_URL || 'https://rpc.moderato.tempo.xyz';
@@ -207,11 +208,11 @@ export class Web3Service {
     try {
       const currentChain = await this.walletClient.getChainId();
       
-      // Проверяем, поддерживается ли текущая сеть (ARC или Tempo)
+      // Check if the current network is supported (ARC or Tempo)
       const isSupportedChain = currentChain === arcTestnet.id || currentChain === tempoTestnet.id;
       
       if (!isSupportedChain) {
-        // Если сеть не поддерживается, просим пользователя переключиться вручную
+        // If the network is not supported, ask the user to switch manually
         const supportedChains = `Arc Testnet (Chain ID: ${arcTestnet.id}) or Tempo Testnet (Chain ID: ${tempoTestnet.id})`;
         throw new Error(
           `Unsupported network. Please switch to ${supportedChains} in your wallet. ` +
@@ -219,7 +220,7 @@ export class Web3Service {
         );
       }
       
-      // Логируем текущую сеть для отладки
+      // Log the current network for debugging
       const networkName = currentChain === arcTestnet.id ? 'Arc Testnet' : 'Tempo Testnet';
       console.log(`✓ Connected to ${networkName} (Chain ID: ${currentChain})`);
 
@@ -1284,7 +1285,7 @@ export class Web3Service {
       }
     }
     
-    // Проверяем, что сеть поддерживается (ARC или Tempo)
+    // Check if the network is supported (ARC or Tempo)
     const isSupportedChain = walletChainId === arcTestnet.id || walletChainId === tempoTestnet.id;
     if (!isSupportedChain) {
       console.error(`Chain ID mismatch: wallet=${walletChainId}, supported chains: ARC (${arcTestnet.id}) or Tempo (${tempoTestnet.id})`);
@@ -1313,7 +1314,7 @@ export class Web3Service {
           });
         });
       } catch (error: any) {
-        // Если allowance не поддерживается (например, для некоторых токенов), пропускаем проверку
+        // If allowance is not supported (e.g. for some tokens), skip check
         if (error?.message?.includes('returned no data') || 
             error?.message?.includes('does not have the function') ||
             error?.message?.includes('is not a contract')) {

@@ -18,6 +18,7 @@ export interface LeaderboardEntry {
 interface FetchParams {
   platform?: string;
   limit?: number;
+  chainId?: number;
 }
 
 const toNumber = (value: unknown): number => {
@@ -149,6 +150,9 @@ export async function getLeaderboardSendersGraph(params: FetchParams = {}): Prom
     const searchParams = new URLSearchParams();
     if (params.limit) {
       searchParams.set('limit', String(params.limit));
+    }
+    if (params.chainId) {
+      searchParams.set('chain_id', String(params.chainId));
     }
 
     const query = searchParams.toString();

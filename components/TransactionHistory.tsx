@@ -14,6 +14,7 @@ import { createWalletClient, custom } from 'viem';
 import { arcTestnet } from '../utils/web3/wagmiConfig';
 import web3Service from '../utils/web3/web3Service';
 import { GiftCardsService } from '../utils/supabase/giftCards';
+import { useChain } from '../utils/chain/chainContext';
 
 interface Transaction {
   id: string;
@@ -40,6 +41,7 @@ interface Analytics {
 
 export function TransactionHistory() {
   const { address, isConnected } = useAccount();
+  const { selectedChainId } = useChain();
   const [dateFilter, setDateFilter] = useState('all');
   const [currencyFilter, setCurrencyFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -146,7 +148,7 @@ export function TransactionHistory() {
       
       // Load Supabase cache for received cards to enrich with tx_hash / created_at
       console.log('Loading received gift cards from Supabase...');
-      const supabaseReceivedCards = await GiftCardsService.getCardsByRecipientAddress(address);
+      const supabaseReceivedCards = await GiftCardsService.getCardsByRecipientAddress(address, selectedChainId);
       const supabaseReceivedMap = new Map(
         supabaseReceivedCards.map(card => [card.token_id, card])
       );
@@ -164,7 +166,7 @@ export function TransactionHistory() {
       
       // Load sent gift cards from Supabase cache
       console.log('Loading sent gift cards from Supabase...');
-      const supabaseSentCards = await GiftCardsService.getCardsBySender(address);
+      const supabaseSentCards = await GiftCardsService.getCardsBySender(address, selectedChainId);
       
       // Transform Supabase sent cards to match blockchain format
       const sentCards = supabaseSentCards.map(card => ({

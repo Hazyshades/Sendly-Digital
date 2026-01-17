@@ -50,6 +50,7 @@ import { generateBridgeUrlFromArc } from '../utils/bridge/bridgeUrlHelper';
 import { usePrivy } from '@privy-io/react-auth';
 import { DeveloperWalletService } from '../utils/circle/developerWalletService';
 import { apiCall } from '../utils/supabase/client';
+import { useChain } from '../utils/chain/chainContext';
 
 interface GiftCardData {
   recipientType: 'address' | 'twitter' | 'twitch' | 'telegram' | 'tiktok' | 'instagram';
@@ -232,6 +233,7 @@ export function CreateGiftCard() {
   const { address, isConnected, connector } = useAccount();
   const { data: walletClient } = useWalletClient();
   const { authenticated, user: privyUser } = usePrivy();
+  const { selectedChainId, selectedChain } = useChain();
   const connectedChainId = walletClient?.chain?.id;
   const isTempoNetwork = connectedChainId === tempoTestnet.id;
   const availableCurrencies = isTempoNetwork ? TEMPO_CURRENCIES : ARC_CURRENCIES;
@@ -366,9 +368,17 @@ export function CreateGiftCard() {
   }, [isTempoNetwork, walletSource]);
 
 
-  // Checking for the presence of a Internal wallet for social networks
+  // Checking for the presence of a Internal wallet for social networks (only on ARC)
   useEffect(() => {
     const checkSocialWallet = async () => {
+      // Internal Wallet is only available on ARC
+      if (!selectedChain?.capabilities.supportsInternalWallet) {
+        setHasDeveloperWallet(false);
+        setDeveloperWallet(null);
+        setCheckingWallet(false);
+        return;
+      }
+
       // If MetaMask is connected, ALWAYS check for developer wallet by address
       // This allows finding wallets created with user_id = MetaMask address
       // Even if user is not authenticated via Privy
@@ -526,7 +536,8 @@ export function CreateGiftCard() {
     let createAddress: string;
     let useDeveloperWallet = false;
     
-    if (walletSource === 'developer' && hasDeveloperWallet && developerWallet) {
+    // Internal Wallet is only available on ARC
+    if (walletSource === 'developer' && selectedChain?.capabilities.supportsInternalWallet && hasDeveloperWallet && developerWallet) {
       // Use Developer wallet
       createAddress = developerWallet.wallet_address;
       useDeveloperWallet = true;
@@ -538,8 +549,8 @@ export function CreateGiftCard() {
       // Fallback to MetaMask if available
       createAddress = address;
       useDeveloperWallet = false;
-    } else if (hasDeveloperWallet && developerWallet) {
-      // Fallback to Developer wallet if available
+    } else if (selectedChain?.capabilities.supportsInternalWallet && hasDeveloperWallet && developerWallet) {
+      // Fallback to Developer wallet if available (only on ARC)
       createAddress = developerWallet.wallet_address;
       useDeveloperWallet = true;
     } else {
@@ -1210,6 +1221,7 @@ export function CreateGiftCard() {
           message: formData.message,
           redeemed: false,
           tx_hash: result.txHash,
+          chain_id: selectedChainId,
         });
 
         // Also save to gift_cards_graph table for leaderboard calculations
@@ -1401,58 +1413,60 @@ export function CreateGiftCard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Form Section */}
         <div className="space-y-4">
-          {/* Wallet Source Selection - Always visible */}
-          <div>
-            <Label>Wallet source</Label>
-            <RadioGroup
-              value={walletSource}
-              onValueChange={(value: 'metamask' | 'developer') => setWalletSource(value)}
-              className="mt-2 space-y-2 rounded-lg border border-gray-200 bg-gray-50/50 p-3"
-            >
-              <div className={`flex items-center space-x-3 rounded-md p-2.5 transition-all duration-200 ${
-                walletSource === 'metamask' 
-                  ? 'bg-white shadow-sm border border-gray-300' 
-                  : 'hover:bg-white/60'
-              } ${!isConnected ? 'opacity-60' : ''}`}>
-                <RadioGroupItem 
-                  value="metamask" 
-                  id="wallet-metamask" 
-                  className="mt-0" 
-                  disabled={!isConnected}
-                />
-                <div className="flex items-center space-x-2.5 flex-1">
-                  <Wallet className="w-5 h-5 text-blue-600" />
-                  <Label htmlFor="wallet-metamask" className="cursor-pointer font-normal flex-1">
-                    {isConnected && address 
-                      ? `${walletName} (${address.slice(0, 6)}...${address.slice(-4)})`
-                      : `${walletName} (Not connected)`
-                    }
-                  </Label>
+          {/* Wallet Source Selection - Internal Wallet only visible on ARC */}
+          {selectedChain?.capabilities.supportsInternalWallet && (
+            <div>
+              <Label>Wallet source</Label>
+              <RadioGroup
+                value={walletSource}
+                onValueChange={(value: 'metamask' | 'developer') => setWalletSource(value)}
+                className="mt-2 space-y-2 rounded-lg border border-gray-200 bg-gray-50/50 p-3"
+              >
+                <div className={`flex items-center space-x-3 rounded-md p-2.5 transition-all duration-200 ${
+                  walletSource === 'metamask' 
+                    ? 'bg-white shadow-sm border border-gray-300' 
+                    : 'hover:bg-white/60'
+                } ${!isConnected ? 'opacity-60' : ''}`}>
+                  <RadioGroupItem 
+                    value="metamask" 
+                    id="wallet-metamask" 
+                    className="mt-0" 
+                    disabled={!isConnected}
+                  />
+                  <div className="flex items-center space-x-2.5 flex-1">
+                    <Wallet className="w-5 h-5 text-blue-600" />
+                    <Label htmlFor="wallet-metamask" className="cursor-pointer font-normal flex-1">
+                      {isConnected && address 
+                        ? `${walletName} (${address.slice(0, 6)}...${address.slice(-4)})`
+                        : `${walletName} (Not connected)`
+                      }
+                    </Label>
+                  </div>
                 </div>
-              </div>
-              <div className={`flex items-center space-x-3 rounded-md p-2.5 transition-all duration-200 ${
-                walletSource === 'developer' 
-                  ? 'bg-white shadow-sm border border-gray-300' 
-                  : 'hover:bg-white/60'
-              } ${!hasDeveloperWallet || !developerWallet ? 'opacity-60' : ''}`}>
-                <RadioGroupItem 
-                  value="developer" 
-                  id="wallet-developer" 
-                  className="mt-0" 
-                  disabled={!hasDeveloperWallet || !developerWallet}
-                />
-                <div className="flex items-center space-x-2.5 flex-1">
-                  <Wallet className="w-5 h-5 text-purple-600" />
-                  <Label htmlFor="wallet-developer" className="cursor-pointer font-normal flex-1">
-                    {hasDeveloperWallet && developerWallet?.wallet_address
-                      ? `Internal Wallet (${developerWallet.wallet_address.slice(0, 6)}...${developerWallet.wallet_address.slice(-4)})`
-                      : 'Internal Wallet (Not available)'
-                    }
-                  </Label>
+                <div className={`flex items-center space-x-3 rounded-md p-2.5 transition-all duration-200 ${
+                  walletSource === 'developer' 
+                    ? 'bg-white shadow-sm border border-gray-300' 
+                    : 'hover:bg-white/60'
+                } ${!hasDeveloperWallet || !developerWallet ? 'opacity-60' : ''}`}>
+                  <RadioGroupItem 
+                    value="developer" 
+                    id="wallet-developer" 
+                    className="mt-0" 
+                    disabled={!hasDeveloperWallet || !developerWallet}
+                  />
+                  <div className="flex items-center space-x-2.5 flex-1">
+                    <Wallet className="w-5 h-5 text-purple-600" />
+                    <Label htmlFor="wallet-developer" className="cursor-pointer font-normal flex-1">
+                      {hasDeveloperWallet && developerWallet?.wallet_address
+                        ? `Internal Wallet (${developerWallet.wallet_address.slice(0, 6)}...${developerWallet.wallet_address.slice(-4)})`
+                        : 'Internal Wallet (Not available)'
+                      }
+                    </Label>
+                  </div>
                 </div>
-              </div>
-            </RadioGroup>
-          </div>
+              </RadioGroup>
+            </div>
+          )}
           
           <div>
             <Label>Recipient type</Label>

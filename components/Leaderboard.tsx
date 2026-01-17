@@ -30,6 +30,7 @@ import {
 import { getLeaderboardSendersGraph, syncLeaderboardGraph, updateZnsDomainsGraph, LeaderboardEntry } from '../utils/leaderboard';
 import { useAccount } from 'wagmi';
 import { toast } from 'sonner';
+import { useChain } from '../utils/chain/chainContext';
 import { getContractBalance, getContractTransactionsCount } from '../utils/web3/contractBalance';
 import { CONTRACT_ADDRESS } from '../utils/web3/constants';
 
@@ -133,6 +134,7 @@ export function Leaderboard() {
   const [contractTransactionsCount, setContractTransactionsCount] = useState<number | null>(null);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const { address } = useAccount();
+  const { selectedChainId } = useChain();
   const normalizedAccount = address?.toLowerCase() ?? null;
   const userEntryRef = useRef<HTMLDivElement>(null);
   const hasScrolledToUser = useRef(false);
@@ -149,7 +151,7 @@ export function Leaderboard() {
 
       try {
         // Use leaderboard_stats_graph_true table
-        const data = await getLeaderboardSendersGraph({ limit: 100000 });
+        const data = await getLeaderboardSendersGraph({ limit: 100000, chainId: selectedChainId });
         console.log(`[Leaderboard] Loaded ${data.length} entries from leaderboard_stats_graph_true`);
         
         // Validate data format

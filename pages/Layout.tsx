@@ -7,6 +7,7 @@ import { PrivyConnectedAccounts } from '../components/PrivyConnectedAccounts';
 import { Toaster } from '../components/ui/sonner';
 import { NewsPanel } from '../components/NewsPanel';
 import { FeedbackPanel } from '../components/FeedbackPanel';
+import { ChainSelector } from '../components/ChainSelector';
 import { useState } from 'react';
 
 interface LayoutProps {
@@ -47,6 +48,7 @@ export function Layout({ children }: LayoutProps) {
         </div>
         
         <div className="flex items-center gap-4">
+          <ChainSelector />
           <PrivyConnectedAccounts />
           <button
             onClick={() => setIsPrivyModalOpen(true)}

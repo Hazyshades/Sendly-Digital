@@ -11,6 +11,7 @@ export interface GiftCardRecord {
   redeemed: boolean;
   tx_hash?: string | null;
   block_number?: number | null;
+  chain_id?: number; // Chain ID сети
   created_at?: string;
   updated_at?: string;
   last_synced_at?: string | null;
@@ -28,6 +29,7 @@ export interface GiftCardInsert {
   redeemed?: boolean;
   tx_hash?: string | null;
   block_number?: number | null;
+  chain_id?: number; // Chain ID сети
 }
 
 export interface GiftCardInfo {

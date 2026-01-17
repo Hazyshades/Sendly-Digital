@@ -2191,7 +2191,7 @@ export const TEMPO_TIP403_REGISTRY =
   import.meta.env.VITE_TEMPO_TIP403_REGISTRY ||
   '0x403c000000000000000000000000000000000000';
 
-// Tempo GiftCard Contract (будет установлен после деплоя)
+// Tempo GiftCard Contract (will be deployed after deployment)
 export const TEMPO_GIFTCARD_CONTRACT_ADDRESS =
   import.meta.env.VITE_TEMPO_GIFTCARD_CONTRACT_ADDRESS || '';
 

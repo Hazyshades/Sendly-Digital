@@ -1,6 +1,6 @@
 import { createPublicClient, http, defineChain } from 'viem';
 
-// Определение сети Tempo Testnet
+// Tempo Testnet chain definition
 export const tempoTestnet = defineChain({
   id: 42431,
   name: 'Tempo Testnet',
@@ -25,13 +25,13 @@ export const tempoTestnet = defineChain({
   },
 });
 
-// Создание публичного клиента для Tempo
+// Public client for Tempo
 export const tempoClient = createPublicClient({
   chain: tempoTestnet,
   transport: http(),
 });
 
-// Адреса предустановленных контрактов
+// Predeployed contract addresses
 export const TEMPO_CONTRACTS = {
   TIP20_FACTORY: '0x20fc000000000000000000000000000000000000' as const,
   FEE_MANAGER: '0xfeec000000000000000000000000000000000000' as const,
