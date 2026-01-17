@@ -47,6 +47,9 @@ const USD_WITHDRAW_SERVICES = ['visa', 'circle'] as const;
 type TechGiantService = (typeof TECH_GIANT_SERVICES)[number];
 type UsdWithdrawService = (typeof USD_WITHDRAW_SERVICES)[number];
 
+const ARC_TESTNET_CHAIN_ID = 5042002;
+const BASE_SEPOLIA_CHAIN_ID = 84532;
+
 const SERVICE_DISPLAY_NAMES: Record<string, string> = {
   amazon: 'Amazon',
   apple: 'Apple',
@@ -1182,6 +1185,9 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
           toast.success('Bridge completed! You can now proceed to Stripe checkout.');
         }}
         initialAmount={bridgeAmount}
+        fromChainId={ARC_TESTNET_CHAIN_ID}
+        toChainId={BASE_SEPOLIA_CHAIN_ID}
+        tokenSymbol={currentCard?.currency}
       />
     </div>
   );
