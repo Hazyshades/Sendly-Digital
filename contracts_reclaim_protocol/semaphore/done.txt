@@ -1,0 +1,23 @@
+Fixed Semaphore deployment in `deploySemaphore.mjs`.
+What was done:
+- added auto-deploy for the `PoseidonT3` library if no address is set;
+- implemented bytecode linking for Semaphore with the library (otherwise there was an invalid BytesLike error);
+- added a configurable RPC timeout and a fixed network via `.env`;
+- deployment now completes fully (Verifier -> PoseidonT3 -> Semaphore).
+
+Why:
+- without library linking the bytecode is invalid and the contract cannot be deployed;
+- timeout and a static network reduce failures with unstable RPC;
+- as a result we get correct addresses for all contracts after running the script.
+
+Deployment proof:
+- Semaphore deployment completed successfully (see PowerShell output).
+- addresses:
+  - SemaphoreVerifier: 0x3F5129176D5f6Ae795756b4BA62E7036184Ee02C
+  - PoseidonT3: 0x9B731e22C3d1fd74bad5C302efd6c345e6943333
+  - Semaphore: 0xdC3d4Ae07E2a8186ac996E8497e96bcAb9cfa124
+
+What else was done in the process:
+- prepared local Semaphore sources (contracts_zktls/semaphore/contracts) and a separate Hardhat config;
+- configured compilation of this specific folder to get artifacts for deployment;
+- updated README with correct compile/deploy commands.

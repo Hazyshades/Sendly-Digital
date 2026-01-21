@@ -204,7 +204,18 @@ contract ZkSend is Ownable, ReentrancyGuard {
     ) internal returns (bool) {
         require(verifierContract != address(0), "Verifier not configured");
         require(_expectedIdentityHash != bytes32(0), "Invalid identity hash");
-        require(_proof.signedClaim.claim.owner == _recipient, "Recipient mismatch");
+        // Prefer contextAddress (set by backend) to bind proof to recipient.
+        // Fallback to proof owner for backward compatibility.
+        string memory contextAddressStr = Reclaim(verifierContract).extractFieldFromContext(
+            _proof.claimInfo.context,
+            "contextAddress\":\""
+        );
+        if (bytes(contextAddressStr).length > 0) {
+            address contextAddress = parseAddress(contextAddressStr);
+            require(contextAddress == _recipient, "Recipient mismatch");
+        } else {
+            require(_proof.signedClaim.claim.owner == _recipient, "Recipient mismatch");
+        }
 
         // Verify proof using Reclaim Protocol Verifier contract
         Reclaim(verifierContract).verifyProof(_proof);
@@ -281,6 +292,38 @@ contract ZkSend is Ownable, ReentrancyGuard {
         emit VerifierContractUpdated(oldVerifier, _newVerifier);
     }
     
+    /**
+     * @notice Parse hex string address (0x...) into address type.
+     * @dev Reverts on invalid length or non-hex characters.
+     */
+    function parseAddress(string memory _addressString) internal pure returns (address) {
+        bytes memory b = bytes(_addressString);
+        require(b.length == 42, "Invalid address length");
+        require(b[0] == '0' && (b[1] == 'x' || b[1] == 'X'), "Invalid address prefix");
+
+        uint160 result = 0;
+        for (uint256 i = 2; i < 42; i++) {
+            result = (result << 4) | uint160(fromHexChar(uint8(b[i])));
+        }
+        return address(result);
+    }
+
+    /**
+     * @notice Convert a single hex character to its value.
+     */
+    function fromHexChar(uint8 c) internal pure returns (uint8) {
+        if (c >= 48 && c <= 57) {
+            return c - 48;
+        }
+        if (c >= 65 && c <= 70) {
+            return c - 55;
+        }
+        if (c >= 97 && c <= 102) {
+            return c - 87;
+        }
+        revert("Invalid hex character");
+    }
+
     /**
      * @notice Emergency withdraw (only owner)
      * @param _token Token address

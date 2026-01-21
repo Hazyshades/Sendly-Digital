@@ -279,6 +279,15 @@ function getReclaimProviderId(platform) {
   return undefined;
 }
 
+function buildIdentity(platform, username) {
+  const p = String(platform || '').toLowerCase().trim();
+  const u = String(username || '').toLowerCase().trim();
+  if (!p || !u) {
+    return '';
+  }
+  return `${p}:${u}`;
+}
+
 /**
  * Reclaim: build proof request config (server-side)
  * Docs: https://docs.reclaimprotocol.org/js-sdk/preparing-request
@@ -313,9 +322,14 @@ app.get('/api/reclaim/config', noAuth, async (req, res) => {
       providerId
     );
 
+    const identity = buildIdentity(platform, username);
+    if (!identity) {
+      return res.status(400).json({ error: 'Missing required query params: platform and username' });
+    }
+
     // Context is returned in proof and helps correlate with zkSEND payment
     const contextAddress = recipient || 'anonymous';
-    const contextMessage = JSON.stringify({ platform, username, paymentId, recipient });
+    const contextMessage = identity;
     reclaimProofRequest.setContext(contextAddress, contextMessage);
 
     // Optional: redirect user after proof generation (useful for mobile QR flow)
@@ -744,6 +758,10 @@ app.post('/api/reclaim/zkfetch/prove', noAuth, async (req, res) => {
     if (!recipient || typeof recipient !== 'string') {
       return res.status(400).json({ error: 'Missing body.recipient (string)' });
     }
+    const identity = buildIdentity(platform, username);
+    if (!identity) {
+      return res.status(400).json({ error: 'Missing body.platform or body.username (required for on-chain claim)' });
+    }
 
     const oauth1Token = oauth1?.token;
     const oauth1TokenSecret = oauth1?.tokenSecret;
@@ -781,12 +799,7 @@ app.post('/api/reclaim/zkfetch/prove', noAuth, async (req, res) => {
         : 'https://api.x.com/2/users/me?user.fields=username');
 
     const allowedUrls = [effectiveRequestUrl];
-    const contextMessage = JSON.stringify({
-      platform,
-      username,
-      paymentId,
-      recipient,
-    });
+    const contextMessage = identity;
 
     // Preflight check: verify Twitter token before invoking zkFetch
     try {

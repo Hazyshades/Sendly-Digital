@@ -100,7 +100,7 @@ contract Reclaim is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 	 * @dev This acts as a constructor for the upgradeable proxy contract
 	 */
 	function initialize(address _semaphoreAddress) external initializer {
-		__Ownable_init();
+		__Ownable_init(msg.sender);
 		epochDurationS = 1 days;
 		currentEpoch = 0;
 		semaphoreAddress = _semaphoreAddress;
