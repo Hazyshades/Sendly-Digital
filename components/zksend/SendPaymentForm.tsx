@@ -3,7 +3,12 @@ import { useAccount, useWalletClient } from 'wagmi';
 import { toast } from 'sonner';
 
 import web3Service from '../../utils/web3/web3Service';
-import { generateSocialIdentityHash } from '../../utils/reclaim/identity';
+import {
+  generateSocialIdentityHash,
+  normalizeSocialPlatform,
+  normalizeSocialUsername,
+} from '../../utils/reclaim/identity';
+import { createZkSendPaymentRecord } from '../../utils/zksend/zksendPaymentsAPI';
 
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -15,7 +20,9 @@ export function SendPaymentForm() {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
 
-  const [platform, setPlatform] = useState<'twitter' | 'telegram' | 'instagram' | 'tiktok'>('twitter');
+  const [platform, setPlatform] = useState<
+    'twitter' | 'twitch' | 'github' | 'instagram' | 'tiktok' | 'gmail' | 'linkedin'
+  >('twitter');
   const [username, setUsername] = useState('');
   const [amount, setAmount] = useState('');
   const [tokenType, setTokenType] = useState<'USDC' | 'EURC'>('USDC');
@@ -26,19 +33,41 @@ export function SendPaymentForm() {
       if (!isConnected || !address || !walletClient) {
         throw new Error('Connect wallet to create payment');
       }
-      if (!username.trim()) throw new Error('Enter username');
+      const normalizedUsername = normalizeSocialUsername(username.replace(/^@/, ''));
+      if (!normalizedUsername) throw new Error('Enter username');
       if (!amount || Number(amount) <= 0) throw new Error('Enter amount > 0');
 
       setLoading(true);
       await web3Service.initialize(walletClient, address);
 
-      const socialIdentityHash = generateSocialIdentityHash(platform, username.replace(/^@/, '').trim());
+      const normalizedPlatform = normalizeSocialPlatform(platform);
+      if (!normalizedPlatform) throw new Error('Unsupported platform');
+      const socialIdentityHash = generateSocialIdentityHash(normalizedPlatform, normalizedUsername);
+      if (!socialIdentityHash) throw new Error('Invalid social identity');
       const { paymentId, txHash } = await web3Service.createZkSendPayment({
         socialIdentityHash,
-        platform,
+        platform: normalizedPlatform,
         amount,
         tokenType,
       });
+
+      if (paymentId) {
+        try {
+          await createZkSendPaymentRecord({
+            paymentId,
+            senderAddress: address,
+            recipientIdentityHash: socialIdentityHash,
+            platform: normalizedPlatform,
+            amount,
+            currency: tokenType,
+            txHash,
+          });
+        } catch (dbError) {
+          console.warn('[zkSEND] Failed to store payment in DB:', dbError);
+        }
+      } else {
+        console.warn('[zkSEND] Payment created without paymentId; DB record was not stored.');
+      }
 
       toast.success(
         paymentId ? `Payment created. paymentId=${paymentId}` : `Payment created. TX: ${txHash.slice(0, 10)}...`
@@ -67,9 +96,12 @@ export function SendPaymentForm() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="twitter">Twitter / X</SelectItem>
-                <SelectItem value="telegram">Telegram</SelectItem>
+                <SelectItem value="twitch">Twitch</SelectItem>
+                <SelectItem value="github">GitHub</SelectItem>
                 <SelectItem value="instagram">Instagram</SelectItem>
                 <SelectItem value="tiktok">TikTok</SelectItem>
+                <SelectItem value="gmail">Gmail</SelectItem>
+                <SelectItem value="linkedin">LinkedIn</SelectItem>
               </SelectContent>
             </Select>
           </div>

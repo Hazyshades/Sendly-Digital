@@ -42,6 +42,8 @@ const TWITTER_CLIENT_SECRET = process.env.TWITTER_CLIENT_SECRET;
 // Twitter OAuth 1.0a (API key/secret)
 const TWITTER_API_KEY = process.env.TWITTER_API_KEY;
 const TWITTER_API_SECRET = process.env.TWITTER_API_SECRET;
+// Twitch OAuth (client id is public but kept server-side when possible)
+const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID;
 
 const oauth1RequestSecrets = new Map();
 
@@ -116,8 +118,12 @@ function buildOAuth1Header({ method, url, consumerKey, consumerSecret, token, to
 const RECLAIM_PROVIDER_ID_TWITTER =
   process.env.RECLAIM_PROVIDER_ID_TWITTER || 'e6fe962d-8b4e-4ce5-abcc-3d21c88bd64a';
 const RECLAIM_PROVIDER_ID_TELEGRAM = process.env.RECLAIM_PROVIDER_ID_TELEGRAM;
+const RECLAIM_PROVIDER_ID_TWITCH = process.env.RECLAIM_PROVIDER_ID_TWITCH || '6eefbc3f-9dd9-4466-a18f-ab9eea03d884'
 const RECLAIM_PROVIDER_ID_INSTAGRAM = process.env.RECLAIM_PROVIDER_ID_INSTAGRAM;
 const RECLAIM_PROVIDER_ID_TIKTOK = process.env.RECLAIM_PROVIDER_ID_TIKTOK;
+const RECLAIM_PROVIDER_ID_GMAIL = process.env.RECLAIM_PROVIDER_ID_GMAIL;
+const RECLAIM_PROVIDER_ID_LINKEDIN = process.env.RECLAIM_PROVIDER_ID_LINKEDIN;
+const RECLAIM_PROVIDER_ID_GITHUB = process.env.RECLAIM_PROVIDER_ID_GITHUB;
 
 async function fetchPrivyOAuthTokens(privyAccessToken) {
   if (!PRIVY_APP_ID) {
@@ -270,18 +276,54 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+const SUPPORTED_PLATFORMS = new Set([
+  'twitter',
+  'twitch',
+  'github',
+  'instagram',
+  'tiktok',
+  'gmail',
+  'linkedin',
+  'telegram',
+]);
+
+function safeDecode(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch (_) {
+    return value;
+  }
+}
+
+function normalizePlatform(platform) {
+  const decoded = safeDecode(String(platform || '')).trim().toLowerCase();
+  const normalized = decoded === 'x' ? 'twitter' : decoded;
+  return SUPPORTED_PLATFORMS.has(normalized) ? normalized : '';
+}
+
+function normalizeUsername(username) {
+  const decoded = safeDecode(String(username || '')).trim();
+  if (!decoded) return '';
+  return decoded.toLowerCase();
+}
+
 function getReclaimProviderId(platform) {
-  const p = String(platform || '').toLowerCase();
-  if (p === 'twitter' || p === 'x') return RECLAIM_PROVIDER_ID_TWITTER;
+  const p = normalizePlatform(platform);
+  if (!p) return undefined;
+  if (p === 'twitter') return RECLAIM_PROVIDER_ID_TWITTER;
   if (p === 'telegram') return RECLAIM_PROVIDER_ID_TELEGRAM;
+  if (p === 'twitch') return RECLAIM_PROVIDER_ID_TWITCH;
   if (p === 'instagram') return RECLAIM_PROVIDER_ID_INSTAGRAM;
   if (p === 'tiktok') return RECLAIM_PROVIDER_ID_TIKTOK;
+  if (p === 'gmail') return RECLAIM_PROVIDER_ID_GMAIL;
+  if (p === 'linkedin') return RECLAIM_PROVIDER_ID_LINKEDIN;
+  if (p === 'github') return RECLAIM_PROVIDER_ID_GITHUB;
   return undefined;
 }
 
 function buildIdentity(platform, username) {
-  const p = String(platform || '').toLowerCase().trim();
-  const u = String(username || '').toLowerCase().trim();
+  const p = normalizePlatform(platform);
+  const u = normalizeUsername(username);
   if (!p || !u) {
     return '';
   }
@@ -751,14 +793,27 @@ app.post('/api/reclaim/zkfetch/prove', noAuth, async (req, res) => {
       });
     }
 
-    const { requestUrl, accessToken, platform, username, paymentId, recipient, responseMatches, oauth1 } = req.body || {};
-    if (!requestUrl || typeof requestUrl !== 'string') {
-      return res.status(400).json({ error: 'Missing body.requestUrl (string)' });
-    }
+    const {
+      requestUrl,
+      accessToken,
+      platform,
+      username,
+      paymentId,
+      recipient,
+      responseMatches,
+      oauth1,
+      clientId,
+    } = req.body || {};
     if (!recipient || typeof recipient !== 'string') {
       return res.status(400).json({ error: 'Missing body.recipient (string)' });
     }
-    const identity = buildIdentity(platform, username);
+
+    const normalizedPlatform = normalizePlatform(platform);
+    if (!normalizedPlatform) {
+      return res.status(400).json({ error: 'Missing or unsupported body.platform' });
+    }
+
+    const identity = buildIdentity(normalizedPlatform, username);
     if (!identity) {
       return res.status(400).json({ error: 'Missing body.platform or body.username (required for on-chain claim)' });
     }
@@ -768,56 +823,80 @@ app.post('/api/reclaim/zkfetch/prove', noAuth, async (req, res) => {
     const useOAuth1 = typeof oauth1Token === 'string' && typeof oauth1TokenSecret === 'string';
 
     let effectiveAccessToken = typeof accessToken === 'string' ? accessToken : '';
-    if (!effectiveAccessToken) {
-      const authHeader = req.headers['authorization'];
-      if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
-        const privyAccessToken = authHeader.slice('Bearer '.length).trim();
-        if (!privyAccessToken) {
-          return res.status(401).json({ error: 'Missing Privy access token' });
-        }
+    let effectiveClientId = typeof clientId === 'string' ? clientId : '';
 
-        try {
-          const oauthTokens = await fetchPrivyOAuthTokens(privyAccessToken);
-          const twitterToken =
-            oauthTokens.find((t) => t?.provider === 'twitter' || t?.provider === 'twitter_oauth') || oauthTokens[0];
-          effectiveAccessToken = twitterToken?.access_token || '';
-        } catch (privyError) {
-          console.error('[Reclaim] Failed to fetch Privy OAuth tokens:', privyError);
-          return res.status(401).json({ error: 'Privy OAuth token retrieval failed' });
+    if (normalizedPlatform === 'twitter') {
+      if (!effectiveAccessToken) {
+        const authHeader = req.headers['authorization'];
+        if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+          const privyAccessToken = authHeader.slice('Bearer '.length).trim();
+          if (!privyAccessToken) {
+            return res.status(401).json({ error: 'Missing Privy access token' });
+          }
+
+          try {
+            const oauthTokens = await fetchPrivyOAuthTokens(privyAccessToken);
+            const twitterToken =
+              oauthTokens.find((t) => t?.provider === 'twitter' || t?.provider === 'twitter_oauth') || oauthTokens[0];
+            effectiveAccessToken = twitterToken?.access_token || '';
+          } catch (privyError) {
+            console.error('[Reclaim] Failed to fetch Privy OAuth tokens:', privyError);
+            return res.status(401).json({ error: 'Privy OAuth token retrieval failed' });
+          }
         }
       }
-    }
 
-    if (!effectiveAccessToken && !useOAuth1) {
-      return res.status(401).json({ error: 'Missing Twitter OAuth access token' });
+      if (!effectiveAccessToken && !useOAuth1) {
+        return res.status(401).json({ error: 'Missing Twitter OAuth access token' });
+      }
+    } else if (normalizedPlatform === 'twitch') {
+      if (!effectiveAccessToken) {
+        return res.status(401).json({ error: 'Missing Twitch OAuth access token' });
+      }
+      if (!effectiveClientId) {
+        effectiveClientId = TWITCH_CLIENT_ID || '';
+      }
+      if (!effectiveClientId) {
+        return res.status(400).json({ error: 'Missing Twitch client id' });
+      }
+    } else {
+      return res.status(400).json({ error: `Unsupported platform for zkFetch: ${normalizedPlatform}` });
     }
 
     const effectiveRequestUrl =
-      requestUrl ||
-      (useOAuth1
-        ? 'https://api.x.com/1.1/account/verify_credentials.json?include_email=false&skip_status=true'
-        : 'https://api.x.com/2/users/me?user.fields=username');
+      typeof requestUrl === 'string' && requestUrl.length > 0
+        ? requestUrl
+        : normalizedPlatform === 'twitter'
+        ? useOAuth1
+          ? 'https://api.x.com/1.1/account/verify_credentials.json?include_email=false&skip_status=true'
+          : 'https://api.x.com/2/users/me?user.fields=username'
+        : 'https://api.twitch.tv/helix/users';
 
     const allowedUrls = [effectiveRequestUrl];
     const contextMessage = identity;
 
-    // Preflight check: verify Twitter token before invoking zkFetch
+    // Preflight check: verify tokens before invoking zkFetch
     try {
       let preflightHeaders = {
         accept: 'application/json',
       };
-      if (useOAuth1) {
-        const { header } = buildOAuth1Header({
-          method: 'GET',
-          url: effectiveRequestUrl,
-          consumerKey: TWITTER_API_KEY,
-          consumerSecret: TWITTER_API_SECRET,
-          token: oauth1Token,
-          tokenSecret: oauth1TokenSecret,
-        });
-        preflightHeaders.Authorization = header;
+      if (normalizedPlatform === 'twitter') {
+        if (useOAuth1) {
+          const { header } = buildOAuth1Header({
+            method: 'GET',
+            url: effectiveRequestUrl,
+            consumerKey: TWITTER_API_KEY,
+            consumerSecret: TWITTER_API_SECRET,
+            token: oauth1Token,
+            tokenSecret: oauth1TokenSecret,
+          });
+          preflightHeaders.Authorization = header;
+        } else {
+          preflightHeaders.Authorization = `Bearer ${effectiveAccessToken}`;
+        }
       } else {
         preflightHeaders.Authorization = `Bearer ${effectiveAccessToken}`;
+        preflightHeaders['Client-Id'] = effectiveClientId;
       }
 
       const preflightRes = await fetch(effectiveRequestUrl, {
@@ -833,22 +912,22 @@ app.post('/api/reclaim/zkfetch/prove', noAuth, async (req, res) => {
           requestId: preflightRes.headers.get('x-request-id') || null,
           wwwAuthenticate: preflightRes.headers.get('www-authenticate') || null,
         };
-        console.error('[Reclaim] Twitter preflight error:', {
+        console.error(`[Reclaim] ${normalizedPlatform} preflight error:`, {
           status: preflightRes.status,
           headers,
           body: body.slice(0, 1000),
         });
         return res.status(preflightRes.status).json({
-          error: 'Twitter API returned an error for provided access token',
+          error: `${normalizedPlatform} API returned an error for provided access token`,
           status: preflightRes.status,
           headers,
           body: body.slice(0, 1000),
         });
       }
     } catch (preflightError) {
-      console.error('[Reclaim] Twitter preflight failed:', preflightError);
+      console.error(`[Reclaim] ${normalizedPlatform} preflight failed:`, preflightError);
       return res.status(502).json({
-        error: 'Failed to validate Twitter access token',
+        error: `Failed to validate ${normalizedPlatform} access token`,
       });
     }
 
@@ -862,18 +941,29 @@ app.post('/api/reclaim/zkfetch/prove', noAuth, async (req, res) => {
     const client = new ReclaimClient(RECLAIM_APP_ID, signature);
     let requestHeaders = { accept: 'application/json' };
     let proofHeaders = {};
-    if (useOAuth1) {
-      const { header } = buildOAuth1Header({
-        method: 'GET',
-        url: effectiveRequestUrl,
-        consumerKey: TWITTER_API_KEY,
-        consumerSecret: TWITTER_API_SECRET,
-        token: oauth1Token,
-        tokenSecret: oauth1TokenSecret,
-      });
-      proofHeaders = { Authorization: header };
+    if (normalizedPlatform === 'twitter') {
+      if (useOAuth1) {
+        const { header } = buildOAuth1Header({
+          method: 'GET',
+          url: effectiveRequestUrl,
+          consumerKey: TWITTER_API_KEY,
+          consumerSecret: TWITTER_API_SECRET,
+          token: oauth1Token,
+          tokenSecret: oauth1TokenSecret,
+        });
+        proofHeaders = { Authorization: header };
+      } else {
+        proofHeaders = { Authorization: `Bearer ${effectiveAccessToken}` };
+      }
     } else {
-      proofHeaders = { Authorization: `Bearer ${effectiveAccessToken}` };
+      requestHeaders = {
+        ...requestHeaders,
+        'Client-Id': effectiveClientId,
+      };
+      proofHeaders = {
+        Authorization: `Bearer ${effectiveAccessToken}`,
+        'Client-Id': effectiveClientId,
+      };
     }
 
     const proof = await client.zkFetch(
@@ -893,9 +983,11 @@ app.post('/api/reclaim/zkfetch/prove', noAuth, async (req, res) => {
           : [
               {
                 type: 'regex',
-                value: useOAuth1
-                  ? '"screen_name":"(?<username>[^"]+)"'
-                  : '"username":"(?<username>[^"]+)"',
+                value: normalizedPlatform === 'twitter'
+                  ? useOAuth1
+                    ? '"screen_name":"(?<username>[^"]+)"'
+                    : '"username":"(?<username>[^"]+)"'
+                  : '"login":"(?<username>[^"]+)"',
               },
             ],
       }
