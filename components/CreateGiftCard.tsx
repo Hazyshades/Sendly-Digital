@@ -1492,9 +1492,11 @@ export function CreateGiftCard() {
                     : ''
                 }`}
               />
-              <p className="text-xs text-gray-500 mt-1">
+             {/* <p className="text-xs text-gray-500 mt-1">
                 The recipient will need to login via Privy with Twitter to claim the card.
-              </p>
+              </p> */}
+                  <p className="text-xs text-gray-500 mt-1">
+If recipient never log in on Sendly with this social, please, DONT'T SEND the funds. Privy testnet is over.              </p> 
             </div>
           ) : formData.recipientType === 'twitch' ? (
             <div>

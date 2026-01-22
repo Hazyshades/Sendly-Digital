@@ -66,3 +66,4 @@ tmp/
 .cursorignore
 
 .cursor/
+/contracts_tempo/

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { SplashScreen } from '../components/SplashScreen';
+import { TopNoticeBanner } from '../components/TopNoticeBanner';
 import { useState } from 'react';
 import { LandingRoute } from '../pages/LandingRoute';
 import { AgentRoute } from '../pages/AgentRoute';
@@ -45,25 +46,28 @@ function AppRouter() {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<LandingRoute />} />
-      <Route path="/dashboard" element={<AgentRoute />} />
-      <Route path="/agent" element={<AgentRoute />} />
-      <Route path="/create" element={<CreateRoute />} />
-      <Route path="/my" element={<MyRoute />} />
-      <Route path="/spend" element={<SpendRoute />} />
-      <Route path="/history" element={<HistoryRoute />} />
-      <Route path="/leaderboard" element={<LeaderboardRoute />} />
-      <Route path="/terms" element={<TermsRoute />} />
-      <Route path="/privacy" element={<PrivacyRoute />} />
-      <Route path="/bridge" element={<BridgeRoute />} />
-      <Route path="/gateway" element={<GatewayRoute />} />
-      <Route path="/auth/twitch/callback" element={<TwitchCallbackRoute />} />
-      <Route path="/auth/twitter/callback" element={<TwitterCallbackRoute />} />
-      <Route path="/Circle-Mint" element={<CircleMintRoute />} />
-      <Route path="/blog" element={<BlogRoute />} />
-      <Route path="/blog/:slug" element={<BlogPostRoute />} />
-    </Routes>
+    <>
+      <TopNoticeBanner />
+      <Routes>
+        <Route path="/" element={<LandingRoute />} />
+        <Route path="/dashboard" element={<AgentRoute />} />
+        <Route path="/agent" element={<AgentRoute />} />
+        <Route path="/create" element={<CreateRoute />} />
+        <Route path="/my" element={<MyRoute />} />
+        <Route path="/spend" element={<SpendRoute />} />
+        <Route path="/history" element={<HistoryRoute />} />
+        <Route path="/leaderboard" element={<LeaderboardRoute />} />
+        <Route path="/terms" element={<TermsRoute />} />
+        <Route path="/privacy" element={<PrivacyRoute />} />
+        <Route path="/bridge" element={<BridgeRoute />} />
+        <Route path="/gateway" element={<GatewayRoute />} />
+        <Route path="/auth/twitch/callback" element={<TwitchCallbackRoute />} />
+        <Route path="/auth/twitter/callback" element={<TwitterCallbackRoute />} />
+        <Route path="/Circle-Mint" element={<CircleMintRoute />} />
+        <Route path="/blog" element={<BlogRoute />} />
+        <Route path="/blog/:slug" element={<BlogPostRoute />} />
+      </Routes>
+    </>
   );
 }
 
