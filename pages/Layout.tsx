@@ -8,6 +8,7 @@ import { Toaster } from '../components/ui/sonner';
 import { NewsPanel } from '../components/NewsPanel';
 import { FeedbackPanel } from '../components/FeedbackPanel';
 import { useState } from 'react';
+import { isZkHost, isZkLocalhost, toZkUrl } from '../utils/runtime/zkHost';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -16,11 +17,13 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const [isPrivyModalOpen, setIsPrivyModalOpen] = useState(false);
+  const zk = isZkHost();
+  const zkLocal = isZkLocalhost();
 
   const navigationItems = [
     { path: '/dashboard', label: 'Dashboard', icon: '🎤' },
     { path: '/create', label: 'Create', icon: '➕' },
-    { path: '/zksend', label: 'zkSEND', icon: '⚡' },
+    ...(zk ? [{ path: '/zksend', label: 'zkTLS', icon: '⚡' }] : []),
     { path: '/my', label: 'My Cards', icon: '🎴' },
     { path: '/spend', label: 'Spend', icon: '💳' },
     { path: '/history', label: 'History', icon: '📜' },
@@ -48,21 +51,24 @@ export function Layout({ children }: LayoutProps) {
         </div>
         
         <div className="flex items-center gap-4">
-          <PrivyConnectedAccounts />
-          <button
-            onClick={() => setIsPrivyModalOpen(true)}
-            className="bg-white/90 backdrop-blur-sm border border-gray-200 text-gray-900 hover:bg-white px-4 py-2 rounded-2xl transition-all duration-200 flex items-center gap-2 shadow-circle-card font-medium"
-          >
-            🔐 Social login
-          </button>
+          {!zkLocal ? (
+            <>
+              <PrivyConnectedAccounts />
+              <button
+                onClick={() => setIsPrivyModalOpen(true)}
+                className="bg-white/90 backdrop-blur-sm border border-gray-200 text-gray-900 hover:bg-white px-4 py-2 rounded-2xl transition-all duration-200 flex items-center gap-2 shadow-circle-card font-medium"
+              >
+                🔐 Social login
+              </button>
+            </>
+          ) : null}
           <ConnectButton />
         </div>
       </header>
       
-      <PrivyAuthModal 
-        isOpen={isPrivyModalOpen} 
-        onClose={() => setIsPrivyModalOpen(false)} 
-      />
+      {!zkLocal ? (
+        <PrivyAuthModal isOpen={isPrivyModalOpen} onClose={() => setIsPrivyModalOpen(false)} />
+      ) : null}
 
       <div className="container mx-auto px-6 pb-6 relative z-10">
         <div className="max-w-2xl mx-auto">
@@ -81,6 +87,14 @@ export function Layout({ children }: LayoutProps) {
                   {item.label}
                 </Link>
               ))}
+              {!zk ? (
+                <a
+                  href={toZkUrl(`${window.location.origin}/`)}
+                  className="flex-1 px-3 py-2 rounded-2xl text-center text-sm font-medium transition-all duration-200 bg-white/70 text-gray-700 hover:bg-white/90 backdrop-blur-sm"
+                >
+                  zkTLS
+                </a>
+              ) : null}
             </div>
           </nav>
 

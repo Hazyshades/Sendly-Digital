@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAccount, useWalletClient } from 'wagmi';
-import { usePrivy } from '@privy-io/react-auth';
 import { toast } from 'sonner';
 
 import web3Service from '../../utils/web3/web3Service';
@@ -15,12 +14,14 @@ import type { ReclaimProof } from '../../utils/reclaim/types';
 import { markZkSendPaymentClaimed } from '../../utils/zksend/zksendPaymentsAPI';
 import { EURC_ADDRESS, USDC_ADDRESS } from '../../utils/web3/constants';
 import { ReclaimProofRequest } from '@reclaimprotocol/js-sdk';
+import { usePrivySafe } from '../../utils/privy/usePrivySafe';
 
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+
+import type { ZkSendPlatform } from './ZkSendPanel';
 
 type PaymentRow = {
   paymentId: string;
@@ -32,37 +33,37 @@ type PaymentRow = {
   createdAt: number;
 };
 
-export function PendingPayments() {
+type Props = {
+  platform: ZkSendPlatform;
+  username: string;
+  isActive?: boolean;
+  onEditIdentity?: () => void;
+};
+
+export function PendingPayments({ platform, username, isActive, onEditIdentity }: Props) {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
-  const { authenticated, getAccessToken } = usePrivy();
+  const { authenticated, getAccessToken } = usePrivySafe();
   const reclaimApiBaseUrl =
     (import.meta.env.VITE_RECLAIM_API_URL as string | undefined) ||
     (import.meta.env.VITE_ZKTLS_API_URL as string | undefined) ||
     'http://localhost:3001';
 
-  const [platform, setPlatform] = useState<
-    'twitter' | 'twitch' | 'github' | 'instagram' | 'tiktok' | 'gmail' | 'linkedin'
-  >('twitter');
   const reclaimMinSignaturesRaw = Number(import.meta.env.VITE_RECLAIM_MIN_SIGNATURES ?? 2);
   const reclaimMinSignatures =
     Number.isFinite(reclaimMinSignaturesRaw) && reclaimMinSignaturesRaw > 0
       ? Math.floor(reclaimMinSignaturesRaw)
       : 2;
-  const [username, setUsername] = useState('');
   const [accessToken, setAccessToken] = useState('');
   const [twitchAccessToken, setTwitchAccessToken] = useState('');
   const [privyAccessToken, setPrivyAccessToken] = useState<string | null>(null);
   const [connectingTwitter, setConnectingTwitter] = useState(false);
-  const [clearingToken, setClearingToken] = useState(false);
-  const [connectingTwitterOAuth1, setConnectingTwitterOAuth1] = useState(false);
-  const [oauth1Token, setOauth1Token] = useState<string | null>(null);
-  const [oauth1TokenSecret, setOauth1TokenSecret] = useState<string | null>(null);
   const [connectingTwitch, setConnectingTwitch] = useState(false);
-  const [clearingTwitchToken, setClearingTwitchToken] = useState(false);
+  const [clearingToken, setClearingToken] = useState(false);
   const [reclaimProofs, setReclaimProofs] = useState<ReclaimProof[] | null>(null);
   const [proofLoading, setProofLoading] = useState(false);
   const [proofError, setProofError] = useState<string | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     if (accessToken) return;
@@ -102,20 +103,6 @@ export function PendingPayments() {
   }, [twitchAccessToken]);
 
   useEffect(() => {
-    if (oauth1Token && oauth1TokenSecret) return;
-    try {
-      const token = localStorage.getItem('twitter_oauth1_token');
-      const secret = localStorage.getItem('twitter_oauth1_secret');
-      if (token && secret) {
-        setOauth1Token(token);
-        setOauth1TokenSecret(secret);
-      }
-    } catch (error) {
-      console.warn('[zkSEND] Failed to load OAuth1 tokens:', error);
-    }
-  }, [oauth1Token, oauth1TokenSecret]);
-
-  useEffect(() => {
     let isActive = true;
     const loadPrivyToken = async () => {
       if (!authenticated) {
@@ -146,6 +133,7 @@ export function PendingPayments() {
   const [loadingList, setLoadingList] = useState(false);
   const [rows, setRows] = useState<PaymentRow[]>([]);
   const [claimingId, setClaimingId] = useState<string | null>(null);
+  const lastAutoLoadKeyRef = useRef<string | null>(null);
 
   const resolveCurrency = (tokenAddressOrSymbol: string) => {
     const normalized = tokenAddressOrSymbol.toLowerCase();
@@ -337,72 +325,6 @@ export function PendingPayments() {
     }
   };
 
-  const connectTwitterOAuth1 = async () => {
-    setConnectingTwitterOAuth1(true);
-    try {
-      const callbackUrl = `${window.location.origin}/auth/twitter-oauth1/callback`;
-      const response = await fetch(`${reclaimApiBaseUrl.replace(/\/$/, '')}/api/twitter/oauth1/request-token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callbackUrl }),
-      });
-
-      if (!response.ok) {
-        const text = await response.text().catch(() => '');
-        throw new Error(`OAuth1 request token failed: ${response.status} ${text}`);
-      }
-
-      const data = (await response.json()) as { oauthToken?: string };
-      if (!data.oauthToken) {
-        throw new Error('OAuth1 request token missing oauthToken');
-      }
-
-      const authUrl = `https://api.x.com/oauth/authorize?oauth_token=${encodeURIComponent(data.oauthToken)}`;
-      const width = 600;
-      const height = 700;
-      const left = window.screenX + (window.outerWidth - width) / 2;
-      const top = window.screenY + (window.outerHeight - height) / 2;
-      const popup = window.open(
-        authUrl,
-        'Twitter OAuth1',
-        `width=${width},height=${height},left=${left},top=${top},toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`
-      );
-
-      if (!popup) {
-        throw new Error('Popup blocked. Please allow popups for this site.');
-      }
-
-      const messageHandler = (event: MessageEvent) => {
-        if (event.data?.target === 'metamask-inpage' || event.data?.name === 'metamask-provider') {
-          return;
-        }
-        if (event.origin !== window.location.origin) {
-          return;
-        }
-        if (event.data && typeof event.data === 'object' && event.data.type === 'twitter_oauth1_token') {
-          const token = String(event.data.oauthToken || '');
-          const secret = String(event.data.oauthTokenSecret || '');
-          if (token && secret) {
-            localStorage.setItem('twitter_oauth1_token', token);
-            localStorage.setItem('twitter_oauth1_secret', secret);
-            setOauth1Token(token);
-            setOauth1TokenSecret(secret);
-            toast.success('Twitter OAuth1 connected');
-          }
-          window.removeEventListener('message', messageHandler);
-          if (popup) popup.close();
-        }
-      };
-
-      window.addEventListener('message', messageHandler);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Failed to connect Twitter OAuth1';
-      toast.error(msg);
-    } finally {
-      setConnectingTwitterOAuth1(false);
-    }
-  };
-
   const requestTwitchOAuthTokenImplicitFlow = async (clientId: string): Promise<string | null> => {
     return new Promise((resolve) => {
       const redirectUri = `${window.location.origin}/auth/twitch/callback`;
@@ -504,8 +426,28 @@ export function PendingPayments() {
     }
   };
 
+  const clearTwitterToken = () => {
+    setClearingToken(true);
+    try {
+      localStorage.removeItem('twitter_oauth');
+      localStorage.removeItem('twitter_oauth_token');
+      localStorage.removeItem('twitter_oauth_scope');
+      localStorage.removeItem('twitter_refresh_token');
+      sessionStorage.removeItem('twitter_oauth_state');
+      sessionStorage.removeItem('twitter_oauth_redirect');
+      sessionStorage.removeItem('twitter_code_verifier');
+      setAccessToken('');
+      toast.success('Twitter token cleared');
+    } catch (error) {
+      console.error('[zkSEND] Failed to clear Twitter token:', error);
+      toast.error('Failed to clear Twitter token');
+    } finally {
+      setClearingToken(false);
+    }
+  };
+
   const clearTwitchToken = () => {
-    setClearingTwitchToken(true);
+    setClearingToken(true);
     try {
       localStorage.removeItem('twitch_oauth');
       localStorage.removeItem('twitch_oauth_token');
@@ -517,30 +459,6 @@ export function PendingPayments() {
     } catch (error) {
       console.error('[zkSEND] Failed to clear Twitch token:', error);
       toast.error('Failed to clear Twitch token');
-    } finally {
-      setClearingTwitchToken(false);
-    }
-  };
-
-  const clearTwitterToken = () => {
-    setClearingToken(true);
-    try {
-      localStorage.removeItem('twitter_oauth');
-      localStorage.removeItem('twitter_oauth_token');
-      localStorage.removeItem('twitter_oauth_scope');
-      localStorage.removeItem('twitter_refresh_token');
-      localStorage.removeItem('twitter_oauth1_token');
-      localStorage.removeItem('twitter_oauth1_secret');
-      sessionStorage.removeItem('twitter_oauth_state');
-      sessionStorage.removeItem('twitter_oauth_redirect');
-      sessionStorage.removeItem('twitter_code_verifier');
-      setAccessToken('');
-      setOauth1Token(null);
-      setOauth1TokenSecret(null);
-      toast.success('Twitter token cleared');
-    } catch (error) {
-      console.error('[zkSEND] Failed to clear Twitter token:', error);
-      toast.error('Failed to clear Twitter token');
     } finally {
       setClearingToken(false);
     }
@@ -573,6 +491,18 @@ export function PendingPayments() {
     }
   };
 
+  useEffect(() => {
+    if (!isActive) return;
+    if (!identityHash) return;
+
+    const key = `${platform}:${identityHash}`;
+    if (lastAutoLoadKeyRef.current === key) return;
+    lastAutoLoadKeyRef.current = key;
+
+    void loadPending();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive, identityHash, platform]);
+
   const claim = async (paymentId: string) => {
     try {
       if (!isConnected || !address || !walletClient) {
@@ -583,12 +513,12 @@ export function PendingPayments() {
       const normalizedPlatform = normalizeSocialPlatform(platform);
       if (!normalizedPlatform) throw new Error('Unsupported platform');
       if (normalizedPlatform === 'twitter') {
-        if (!accessToken && !privyAccessToken && !(oauth1Token && oauth1TokenSecret)) {
-          throw new Error('Login with Privy, enter an OAuth access token, or connect Twitter OAuth1 to generate proof');
+        if (!accessToken && !privyAccessToken) {
+          throw new Error('Connect Twitter or login with Privy to generate proof');
         }
       }
       if (normalizedPlatform === 'twitch' && !twitchAccessToken) {
-        throw new Error('Connect Twitch or paste an access token to generate proof');
+        throw new Error('Connect Twitch to generate proof');
       }
 
       setClaimingId(paymentId);
@@ -650,9 +580,7 @@ export function PendingPayments() {
         throw new Error('Twitch Client ID not configured');
       }
       const requestUrl = isTwitter
-        ? oauth1Token && oauth1TokenSecret
-          ? 'https://api.x.com/1.1/account/verify_credentials.json?include_email=false&skip_status=true'
-          : 'https://api.x.com/2/users/me?user.fields=username'
+        ? 'https://api.x.com/2/users/me?user.fields=username'
         : 'https://api.twitch.tv/helix/users';
       const proveUrl = `${reclaimApiBaseUrl.replace(/\/$/, '')}/api/reclaim/zkfetch/prove`;
       const proveRes = await fetch(proveUrl, {
@@ -664,9 +592,6 @@ export function PendingPayments() {
         body: JSON.stringify({
           requestUrl,
           ...(isTwitter ? (accessToken ? { accessToken } : {}) : { accessToken: twitchAccessToken }),
-          ...(isTwitter && oauth1Token && oauth1TokenSecret
-            ? { oauth1: { token: oauth1Token, tokenSecret: oauth1TokenSecret } }
-            : {}),
           ...(isTwitter ? {} : { clientId: twitchClientId }),
           platform: normalizedPlatform,
           username: u,
@@ -676,9 +601,7 @@ export function PendingPayments() {
             {
               type: 'regex',
               value: isTwitter
-                ? oauth1Token && oauth1TokenSecret
-                  ? '"screen_name":"(?<username>[^"]+)"'
-                  : '"username":"(?<username>[^"]+)"'
+                ? '"username":"(?<username>[^"]+)"'
                 : '"login":"(?<username>[^"]+)"',
             },
           ],
@@ -765,92 +688,114 @@ export function PendingPayments() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Pending payments</CardTitle>
+        <CardTitle>Connections & pending</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Platform</Label>
-            <Select value={platform} onValueChange={(v) => setPlatform(v as any)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select platform" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="twitter">Twitter / X</SelectItem>
-            <SelectItem value="twitch">Twitch</SelectItem>
-            <SelectItem value="github">GitHub</SelectItem>
-                <SelectItem value="instagram">Instagram</SelectItem>
-                <SelectItem value="tiktok">TikTok</SelectItem>
-            <SelectItem value="gmail">Gmail</SelectItem>
-            <SelectItem value="linkedin">LinkedIn</SelectItem>
-              </SelectContent>
-            </Select>
+        <div className="flex flex-col gap-3 rounded-xl border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="text-sm font-medium">Identity</div>
+            <div className="text-xs text-muted-foreground">
+              {platform} · {username || '— enter username in Create tab'}
+            </div>
           </div>
-
-          <div className="space-y-2">
-            <Label>Username</Label>
-            <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@username" />
-          </div>
-          {platform === 'twitter' ? (
-            <div className="space-y-2">
-              <Label>OAuth access token</Label>
-              <Input
-                value={accessToken}
-                onChange={(e) => setAccessToken(e.target.value)}
-                placeholder="Paste access token for web proof"
-                type="password"
-              />
-              <div className="text-xs text-muted-foreground">
-                Required for zkFetch web-proof. The token stays in your browser.
-              </div>
-              <Button type="button" variant="secondary" onClick={connectTwitter} disabled={connectingTwitter}>
-                {connectingTwitter ? 'Connecting...' : 'Connect Twitter'}
-              </Button>
-              <Button type="button" variant="secondary" onClick={connectTwitterOAuth1} disabled={connectingTwitterOAuth1}>
-                {connectingTwitterOAuth1 ? 'Connecting OAuth1...' : 'Connect Twitter (OAuth1)'}
-              </Button>
-              <Button type="button" variant="ghost" onClick={clearTwitterToken} disabled={clearingToken}>
-                {clearingToken ? 'Clearing...' : 'Clear Twitter token'}
-              </Button>
-            </div>
-          ) : platform === 'twitch' ? (
-            <div className="space-y-2">
-              <Label>Twitch access token</Label>
-              <Input
-                value={twitchAccessToken}
-                onChange={(e) => setTwitchAccessToken(e.target.value)}
-                placeholder="Paste Twitch access token for web proof"
-                type="password"
-              />
-              <div className="text-xs text-muted-foreground">
-                Required for zkFetch web-proof. The token stays in your browser.
-              </div>
-              <Button type="button" variant="secondary" onClick={connectTwitch} disabled={connectingTwitch}>
-                {connectingTwitch ? 'Connecting...' : 'Connect Twitch'}
-              </Button>
-              <Button type="button" variant="ghost" onClick={clearTwitchToken} disabled={clearingTwitchToken}>
-                {clearingTwitchToken ? 'Clearing...' : 'Clear Twitch token'}
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2 md:col-span-2">
-              <Label>Reclaim proof</Label>
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="secondary" onClick={startReclaimFlow} disabled={proofLoading}>
-                  {proofLoading ? 'Generating...' : 'Generate proof'}
-                </Button>
-                {reclaimProofs?.length ? (
-                  <div className="text-xs text-muted-foreground self-center">Proof ready</div>
-                ) : null}
-              </div>
-              {proofError ? <div className="text-xs text-red-500">{proofError}</div> : null}
-            </div>
-          )}
+          {onEditIdentity ? (
+            <Button type="button" variant="outline" onClick={onEditIdentity} className="w-full sm:w-auto">
+              Edit
+            </Button>
+          ) : null}
         </div>
 
-        <Button onClick={loadPending} disabled={loadingList}>
-          {loadingList ? 'Loading...' : 'Show Pending Payments'}
-        </Button>
+        {platform === 'twitter' ? (
+          <div className="space-y-3">
+            <Button
+              type="button"
+              size="lg"
+              onClick={connectTwitter}
+              disabled={connectingTwitter}
+              className="w-full"
+            >
+              {connectingTwitter ? 'Connecting...' : accessToken ? 'Reconnect Twitter / X' : 'Connect Twitter / X'}
+            </Button>
+
+            {accessToken ? (
+              <div className="flex items-center justify-between gap-2 rounded-xl border bg-background p-3">
+                <div className="text-xs text-muted-foreground">Connected (token stored in this browser)</div>
+                <Button type="button" variant="ghost" onClick={clearTwitterToken} disabled={clearingToken}>
+                  {clearingToken ? 'Disconnecting...' : 'Disconnect'}
+                </Button>
+              </div>
+            ) : null}
+
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setShowAdvanced((v) => !v)}
+              className="w-full sm:w-auto"
+            >
+              {showAdvanced ? 'Hide advanced' : 'Advanced'}
+            </Button>
+
+            {showAdvanced ? (
+              <div className="space-y-2 rounded-xl border bg-background p-3">
+                <Label>Access token (manual)</Label>
+                <Input
+                  value={accessToken}
+                  onChange={(e) => setAccessToken(e.target.value)}
+                  placeholder="Will be kept only in your browser"
+                  type="password"
+                  aria-label="Twitter access token"
+                />
+                <div className="text-xs text-muted-foreground">
+                  Used for zkFetch web-proof. Prefer “Connect Twitter / X” above.
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : platform === 'twitch' ? (
+          <div className="space-y-3">
+            <Button
+              type="button"
+              size="lg"
+              onClick={connectTwitch}
+              disabled={connectingTwitch}
+              className="w-full"
+            >
+              {connectingTwitch ? 'Connecting...' : twitchAccessToken ? 'Reconnect Twitch' : 'Connect Twitch'}
+            </Button>
+
+            {twitchAccessToken ? (
+              <div className="flex items-center justify-between gap-2 rounded-xl border bg-background p-3">
+                <div className="text-xs text-muted-foreground">Connected (token stored in this browser)</div>
+                <Button type="button" variant="ghost" onClick={clearTwitchToken} disabled={clearingToken}>
+                  {clearingToken ? 'Disconnecting...' : 'Disconnect'}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="space-y-2 rounded-xl border bg-background p-3">
+            <div className="text-sm font-medium">Reclaim proof</div>
+            <div className="text-xs text-muted-foreground">
+              For this platform you’ll generate a Reclaim proof (no OAuth needed).
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="secondary" onClick={startReclaimFlow} disabled={proofLoading}>
+                {proofLoading ? 'Generating...' : reclaimProofs?.length ? 'Regenerate proof' : 'Generate proof'}
+              </Button>
+              {reclaimProofs?.length ? <div className="text-xs text-muted-foreground self-center">Proof ready</div> : null}
+            </div>
+            {proofError ? <div className="text-xs text-red-500">{proofError}</div> : null}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-xs text-muted-foreground">
+            {isActive ? 'Pending payments auto-load when this tab opens.' : 'Open this tab to auto-load pending payments.'}
+          </div>
+          <Button type="button" variant="outline" onClick={loadPending} disabled={loadingList} className="w-full sm:w-auto">
+            {loadingList ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </div>
 
         {rows.length === 0 ? (
           <div className="text-sm text-muted-foreground">No pending payments (or not loaded yet).</div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useAccount, useWalletClient } from 'wagmi';
 import { toast } from 'sonner';
 
@@ -15,32 +15,40 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 
-export function SendPaymentForm() {
+import type { ZkSendPlatform } from './ZkSendPanel';
+
+type Props = {
+  platform: ZkSendPlatform;
+  onPlatformChange: (platform: ZkSendPlatform) => void;
+  username: string;
+  onUsernameChange: (username: string) => void;
+  onGoToPending?: () => void;
+};
+
+export function SendPaymentForm({ platform, onPlatformChange, username, onUsernameChange, onGoToPending }: Props) {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
 
-  const [platform, setPlatform] = useState<
-    'twitter' | 'twitch' | 'github' | 'instagram' | 'tiktok' | 'gmail' | 'linkedin'
-  >('twitter');
-  const [username, setUsername] = useState('');
   const [amount, setAmount] = useState('');
   const [tokenType, setTokenType] = useState<'USDC' | 'EURC'>('USDC');
   const [loading, setLoading] = useState(false);
+
+  const normalizedUsername = useMemo(() => normalizeSocialUsername(username.replace(/^@/, '')), [username]);
+  const normalizedPlatform = useMemo(() => normalizeSocialPlatform(platform), [platform]);
 
   const onSubmit = async () => {
     try {
       if (!isConnected || !address || !walletClient) {
         throw new Error('Connect wallet to create payment');
       }
-      const normalizedUsername = normalizeSocialUsername(username.replace(/^@/, ''));
       if (!normalizedUsername) throw new Error('Enter username');
       if (!amount || Number(amount) <= 0) throw new Error('Enter amount > 0');
 
       setLoading(true);
       await web3Service.initialize(walletClient, address);
 
-      const normalizedPlatform = normalizeSocialPlatform(platform);
       if (!normalizedPlatform) throw new Error('Unsupported platform');
       const socialIdentityHash = generateSocialIdentityHash(normalizedPlatform, normalizedUsername);
       if (!socialIdentityHash) throw new Error('Invalid social identity');
@@ -84,14 +92,44 @@ export function SendPaymentForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Create zkSEND Payment</CardTitle>
+        <CardTitle>Create payment</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5">
         <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2 md:col-span-2">
+            <Label>Amount</Label>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Input
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                inputMode="decimal"
+                placeholder="0.00"
+                aria-label="Amount"
+                className="sm:flex-1"
+              />
+              <ToggleGroup
+                type="single"
+                value={tokenType}
+                onValueChange={(v) => (v ? setTokenType(v as 'USDC' | 'EURC') : null)}
+                variant="outline"
+                className="w-full sm:w-[220px]"
+                aria-label="Token"
+              >
+                <ToggleGroupItem value="USDC" aria-label="USDC">
+                  USDC
+                </ToggleGroupItem>
+                <ToggleGroupItem value="EURC" aria-label="EURC">
+                  EURC
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+            <div className="text-xs text-muted-foreground">Example: 10 {tokenType}</div>
+          </div>
+
           <div className="space-y-2">
             <Label>Platform</Label>
-            <Select value={platform} onValueChange={(v) => setPlatform(v as any)}>
-              <SelectTrigger>
+            <Select value={platform} onValueChange={(v) => onPlatformChange(v as ZkSendPlatform)}>
+              <SelectTrigger aria-label="Platform">
                 <SelectValue placeholder="Select platform" />
               </SelectTrigger>
               <SelectContent>
@@ -108,31 +146,31 @@ export function SendPaymentForm() {
 
           <div className="space-y-2">
             <Label>Username</Label>
-            <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@username" />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Amount</Label>
-            <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="10" />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Token</Label>
-            <Select value={tokenType} onValueChange={(v) => setTokenType(v as any)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select token" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="USDC">USDC</SelectItem>
-                <SelectItem value="EURC">EURC</SelectItem>
-              </SelectContent>
-            </Select>
+            <Input
+              value={username}
+              onChange={(e) => onUsernameChange(e.target.value)}
+              placeholder="@username"
+              aria-label="Username"
+            />
           </div>
         </div>
 
-        <Button onClick={onSubmit} disabled={loading}>
-          {loading ? 'Creating...' : 'Create Payment'}
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <Button
+            onClick={onSubmit}
+            disabled={loading}
+            size="lg"
+            className="w-full sm:w-auto bg-emerald-600 text-white hover:bg-emerald-600/90"
+          >
+            {loading ? 'Creating...' : 'Create payment'}
+          </Button>
+
+          {onGoToPending ? (
+            <Button type="button" variant="ghost" onClick={onGoToPending} className="w-full sm:w-auto">
+              View pending payments
+            </Button>
+          ) : null}
+        </div>
       </CardContent>
     </Card>
   );

@@ -1,5 +1,8 @@
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { defineChain } from 'viem';
+import { defineChain, http } from 'viem';
+import { createConfig } from 'wagmi';
+import { injected } from 'wagmi/connectors';
+import { isZkLocalhost } from '../runtime/zkHost';
 
 // Get WalletConnect project ID from environment for RainbowKit
 const projectId = import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID || 'c4f79f821944d9680842e34466bfbd52';
@@ -35,11 +38,20 @@ export const arcTestnet = defineChain({
 });
 
 // RainbowKit configuration - getDefaultConfig automatically includes Rainbow Wallet
-export const config = getDefaultConfig({
-  appName: 'Sendly NFT Gift Cards',
-  projectId: projectId,
-  chains: [arcTestnet],
-  ssr: false,
-});
+export const config = isZkLocalhost()
+  ? createConfig({
+      chains: [arcTestnet],
+      connectors: [injected()],
+      transports: {
+        [arcTestnet.id]: http(arcRpcUrl),
+      },
+      ssr: false,
+    })
+  : getDefaultConfig({
+      appName: 'Sendly NFT Gift Cards',
+      projectId: projectId,
+      chains: [arcTestnet],
+      ssr: false,
+    });
 
 export const chains = [arcTestnet];

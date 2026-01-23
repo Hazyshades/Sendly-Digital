@@ -10,15 +10,17 @@ import App from './App.tsx'
 import '../styles/globals.css'
 import '@rainbow-me/rainbowkit/styles.css'
 import { config } from '../utils/web3/wagmiConfig'
+import { isZkLocalhost } from '../utils/runtime/zkHost'
 
 const queryClient = new QueryClient()
 
 const privyAppId = import.meta.env.VITE_PRIVY_APP_ID || 'cmhg42ayn00p1l40c6jsf09pw'
+const disablePrivy = isZkLocalhost()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
-      <PrivyProvider appId={privyAppId}>
+      {disablePrivy ? (
         <WagmiProvider config={config}>
           <QueryClientProvider client={queryClient}>
             <RainbowKitProvider locale="en">
@@ -27,7 +29,18 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             </RainbowKitProvider>
           </QueryClientProvider>
         </WagmiProvider>
-      </PrivyProvider>
+      ) : (
+        <PrivyProvider appId={privyAppId}>
+          <WagmiProvider config={config}>
+            <QueryClientProvider client={queryClient}>
+              <RainbowKitProvider locale="en">
+                <App />
+                <Analytics />
+              </RainbowKitProvider>
+            </QueryClientProvider>
+          </WagmiProvider>
+        </PrivyProvider>
+      )}
     </BrowserRouter>
   </React.StrictMode>,
 ) 

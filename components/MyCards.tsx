@@ -14,7 +14,7 @@ import { createWalletClient, custom } from 'viem';
 import { arcTestnet } from '../utils/web3/wagmiConfig';
 import web3Service from '../utils/web3/web3Service';
 import { ClaimCards } from './ClaimCards';
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivySafe } from '../utils/privy/usePrivySafe';
 import { GiftCardsService, type GiftCardInsert } from '../utils/supabase/giftCards';
 import { DeveloperWalletService } from '../utils/circle/developerWalletService';
 
@@ -41,7 +41,7 @@ interface MyCardsProps {
 
 export function MyCards({ onSpendCard }: MyCardsProps) {
   const { address, isConnected } = useAccount();
-  const { authenticated, user } = usePrivy();
+  const { authenticated, user } = usePrivySafe();
   const telegramAccount = (user as any)?.telegram;
   const telegramUsername = ((telegramAccount?.username || telegramAccount?.telegramUserId || telegramAccount?.id || '') as string).replace(/^@/, '').trim();
   const [searchQuery, setSearchQuery] = useState('');

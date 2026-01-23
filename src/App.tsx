@@ -22,8 +22,47 @@ import { BlogRoute } from '../pages/BlogRoute';
 import { BlogPostRoute } from '../pages/BlogPostRoute';
 import { ReclaimCallbackRoute } from '../pages/ReclaimCallbackRoute';
 import { ZkSendRoute } from '../pages/ZkSendRoute';
+import { isZkHost, toZkUrl } from '../utils/runtime/zkHost';
 
-function AppRouter() {
+function SharedAppRoutes({ zkMode }: { zkMode: boolean }) {
+  return (
+    <Routes>
+      <Route path="/" element={<LandingRoute />} />
+      <Route path="/dashboard" element={<AgentRoute />} />
+      <Route path="/agent" element={<AgentRoute />} />
+      <Route path="/create" element={<CreateRoute />} />
+      <Route path="/my" element={<MyRoute />} />
+      <Route path="/spend" element={<SpendRoute />} />
+      <Route path="/history" element={<HistoryRoute />} />
+      <Route path="/leaderboard" element={<LeaderboardRoute />} />
+      <Route path="/terms" element={<TermsRoute />} />
+      <Route path="/privacy" element={<PrivacyRoute />} />
+      <Route path="/bridge" element={<BridgeRoute />} />
+      <Route path="/gateway" element={<GatewayRoute />} />
+      <Route path="/auth/twitch/callback" element={<TwitchCallbackRoute />} />
+      <Route path="/auth/twitter/callback" element={<TwitterCallbackRoute />} />
+      <Route path="/auth/twitter-oauth1/callback" element={<TwitterOAuth1CallbackRoute />} />
+      <Route path="/reclaim/callback" element={<ReclaimCallbackRoute />} />
+      <Route path="/zksend" element={zkMode ? <ZkSendRoute /> : <ZkHostRedirect />} />
+      <Route path="/Circle-Mint" element={<CircleMintRoute />} />
+      <Route path="/blog" element={<BlogRoute />} />
+      <Route path="/blog/:slug" element={<BlogPostRoute />} />
+    </Routes>
+  );
+}
+
+function ZkHostRedirect() {
+  useEffect(() => {
+    try {
+      window.location.assign(toZkUrl(window.location.href));
+    } catch (e) {
+      console.error('[zkTLS] Failed to redirect to zk host:', e);
+    }
+  }, []);
+  return <SplashScreen />;
+}
+
+function MainAppRouter() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -47,30 +86,16 @@ function AppRouter() {
     return <SplashScreen />;
   }
 
-  return (
-    <Routes>
-      <Route path="/" element={<LandingRoute />} />
-      <Route path="/dashboard" element={<AgentRoute />} />
-      <Route path="/agent" element={<AgentRoute />} />
-      <Route path="/create" element={<CreateRoute />} />
-      <Route path="/my" element={<MyRoute />} />
-      <Route path="/spend" element={<SpendRoute />} />
-      <Route path="/history" element={<HistoryRoute />} />
-      <Route path="/leaderboard" element={<LeaderboardRoute />} />
-      <Route path="/terms" element={<TermsRoute />} />
-      <Route path="/privacy" element={<PrivacyRoute />} />
-      <Route path="/bridge" element={<BridgeRoute />} />
-      <Route path="/gateway" element={<GatewayRoute />} />
-      <Route path="/auth/twitch/callback" element={<TwitchCallbackRoute />} />
-      <Route path="/auth/twitter/callback" element={<TwitterCallbackRoute />} />
-      <Route path="/auth/twitter-oauth1/callback" element={<TwitterOAuth1CallbackRoute />} />
-      <Route path="/reclaim/callback" element={<ReclaimCallbackRoute />} />
-      <Route path="/zksend" element={<ZkSendRoute />} />
-      <Route path="/Circle-Mint" element={<CircleMintRoute />} />
-      <Route path="/blog" element={<BlogRoute />} />
-      <Route path="/blog/:slug" element={<BlogPostRoute />} />
-    </Routes>
-  );
+  return <SharedAppRoutes zkMode={false} />;
+}
+
+function ZkAppRouter() {
+  return <SharedAppRoutes zkMode={true} />;
+}
+
+function AppRouter() {
+  const zk = isZkHost();
+  return zk ? <ZkAppRouter /> : <MainAppRouter />;
 }
 
 export default AppRouter;

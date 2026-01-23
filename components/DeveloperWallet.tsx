@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { usePrivy } from '@privy-io/react-auth';
 import { useAccount, useWalletClient } from 'wagmi';
 import { toast } from 'sonner';
 import { createWalletClient, custom, createPublicClient, http } from 'viem';
@@ -16,6 +15,7 @@ import { Separator } from './ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import { Loader2, Wallet, Copy, Check, ExternalLink, ArrowUpCircle, ChevronUp, ChevronDown, Info, Coins, Send } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { usePrivySafe } from '../utils/privy/usePrivySafe';
 
 interface DeveloperWalletProps {
   blockchain?: string;
@@ -25,7 +25,7 @@ interface DeveloperWalletProps {
 export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletCreated }: DeveloperWalletProps) {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
-  const { user: privyUser, authenticated } = usePrivy();
+  const { user: privyUser, authenticated } = usePrivySafe();
   const [wallet, setWallet] = useState<DeveloperWallet | null>(null);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);

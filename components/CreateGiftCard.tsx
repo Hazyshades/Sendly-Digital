@@ -33,7 +33,7 @@ import BridgeDialog from './BridgeDialog';
 import { GiftCardsService } from '../utils/supabase/giftCards';
 import { useNavigate } from 'react-router-dom';
 import { generateBridgeUrlFromArc } from '../utils/bridge/bridgeUrlHelper';
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivySafe } from '../utils/privy/usePrivySafe';
 import { DeveloperWalletService } from '../utils/circle/developerWalletService';
 import { apiCall } from '../utils/supabase/client';
 
@@ -196,7 +196,7 @@ function getWalletName(): string {
 export function CreateGiftCard() {
   const { address, isConnected, connector } = useAccount();
   const { data: walletClient } = useWalletClient();
-  const { authenticated, user: privyUser } = usePrivy();
+  const { authenticated, user: privyUser } = usePrivySafe();
   const [walletName, setWalletName] = useState<string>('Web3 Wallet');
   const navigate = useNavigate();
   const [hasDeveloperWallet, setHasDeveloperWallet] = useState(false);
