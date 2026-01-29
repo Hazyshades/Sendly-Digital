@@ -1,10 +1,11 @@
 import { getApiUrl } from '../supabase/client';
 import { publicAnonKey } from '../supabase/info';
 
+/** Base URL for zkSEND Edge Function. Use .../v1 (no function name); code appends /zk-sender/payments. */
 const SUPABASE_FUNCTION_URL =
   import.meta.env.VITE_SUPABASE_ZKSEND_FUNCTION_URL ||
   import.meta.env.VITE_SUPABASE_FUNCTION_URL ||
-  `${getApiUrl()}/smart-action`;
+  getApiUrl();
 
 export interface ZkSendPaymentRecord {
   id: string;
@@ -59,7 +60,7 @@ async function handleResponse(response: Response): Promise<ZkSendPaymentRecord> 
 }
 
 export async function createZkSendPaymentRecord(input: CreateZkSendPaymentInput): Promise<ZkSendPaymentRecord> {
-  const response = await fetch(`${SUPABASE_FUNCTION_URL}/zksend/payments`, {
+  const response = await fetch(`${SUPABASE_FUNCTION_URL}/zk-sender/payments`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -72,7 +73,7 @@ export async function createZkSendPaymentRecord(input: CreateZkSendPaymentInput)
 }
 
 export async function markZkSendPaymentClaimed(input: ClaimZkSendPaymentInput): Promise<ZkSendPaymentRecord> {
-  const response = await fetch(`${SUPABASE_FUNCTION_URL}/zksend/payments/${input.paymentId}/claim`, {
+  const response = await fetch(`${SUPABASE_FUNCTION_URL}/zk-sender/payments/${input.paymentId}/claim`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',

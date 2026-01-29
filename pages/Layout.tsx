@@ -2,13 +2,20 @@ import { Gift } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Link, useLocation } from 'react-router-dom';
 import { Card } from '../components/ui/card';
-import { PrivyAuthModal } from '../components/PrivyAuthModal';
-import { PrivyConnectedAccounts } from '../components/PrivyConnectedAccounts';
 import { Toaster } from '../components/ui/sonner';
 import { NewsPanel } from '../components/NewsPanel';
 import { FeedbackPanel } from '../components/FeedbackPanel';
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { isZkHost, isZkLocalhost, toZkUrl } from '../utils/runtime/zkHost';
+
+// Lazy load Privy components only when not on zk.localhost to prevent SDK loading
+const PrivyAuthModal = isZkLocalhost() 
+  ? null 
+  : lazy(() => import('../components/PrivyAuthModal').then(m => ({ default: m.PrivyAuthModal })));
+
+const PrivyConnectedAccounts = isZkLocalhost()
+  ? null
+  : lazy(() => import('../components/PrivyConnectedAccounts').then(m => ({ default: m.PrivyConnectedAccounts })));
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -51,23 +58,27 @@ export function Layout({ children }: LayoutProps) {
         </div>
         
         <div className="flex items-center gap-4">
-          {!zkLocal ? (
-            <>
+          {!zkLocal && PrivyConnectedAccounts ? (
+            <Suspense fallback={null}>
               <PrivyConnectedAccounts />
-              <button
-                onClick={() => setIsPrivyModalOpen(true)}
-                className="bg-white/90 backdrop-blur-sm border border-gray-200 text-gray-900 hover:bg-white px-4 py-2 rounded-2xl transition-all duration-200 flex items-center gap-2 shadow-circle-card font-medium"
-              >
-                🔐 Social login
-              </button>
-            </>
+            </Suspense>
+          ) : null}
+          {!zkLocal ? (
+            <button
+              onClick={() => setIsPrivyModalOpen(true)}
+              className="bg-white/90 backdrop-blur-sm border border-gray-200 text-gray-900 hover:bg-white px-4 py-2 rounded-2xl transition-all duration-200 flex items-center gap-2 shadow-circle-card font-medium"
+            >
+              🔐 Social login
+            </button>
           ) : null}
           <ConnectButton />
         </div>
       </header>
       
-      {!zkLocal ? (
-        <PrivyAuthModal isOpen={isPrivyModalOpen} onClose={() => setIsPrivyModalOpen(false)} />
+      {!zkLocal && PrivyAuthModal ? (
+        <Suspense fallback={null}>
+          <PrivyAuthModal isOpen={isPrivyModalOpen} onClose={() => setIsPrivyModalOpen(false)} />
+        </Suspense>
       ) : null}
 
       <div className="container mx-auto px-6 pb-6 relative z-10">

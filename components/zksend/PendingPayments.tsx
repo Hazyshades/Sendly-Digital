@@ -15,11 +15,17 @@ import { markZkSendPaymentClaimed } from '../../utils/zksend/zksendPaymentsAPI';
 import { EURC_ADDRESS, USDC_ADDRESS } from '../../utils/web3/constants';
 import { ReclaimProofRequest } from '@reclaimprotocol/js-sdk';
 import { usePrivySafe } from '../../utils/privy/usePrivySafe';
+import { isZkLocalhost } from '../../utils/runtime/zkHost';
 
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 
 import type { ZkSendPlatform } from './ZkSendPanel';
+import { connectTwitter, clearTwitterToken } from './Oauth/twitter';
+import { connectTwitch, clearTwitchToken } from './Oauth/twitch';
+import { connectGithub, clearGithubToken } from './Oauth/github';
+import { connectInstagram, clearInstagramToken } from './Oauth/instagram';
+import { connectTiktok, clearTiktokToken } from './Oauth/tiktok';
 
 type PaymentRow = {
   paymentId: string;
@@ -54,9 +60,15 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       : 2;
   const [accessToken, setAccessToken] = useState('');
   const [twitchAccessToken, setTwitchAccessToken] = useState('');
+  const [githubAccessToken, setGithubAccessToken] = useState('');
+  const [instagramAccessToken, setInstagramAccessToken] = useState('');
+  const [tiktokAccessToken, setTiktokAccessToken] = useState('');
   const [privyAccessToken, setPrivyAccessToken] = useState<string | null>(null);
   const [connectingTwitter, setConnectingTwitter] = useState(false);
   const [connectingTwitch, setConnectingTwitch] = useState(false);
+  const [connectingGithub, setConnectingGithub] = useState(false);
+  const [connectingInstagram, setConnectingInstagram] = useState(false);
+  const [connectingTiktok, setConnectingTiktok] = useState(false);
   const [clearingToken, setClearingToken] = useState(false);
   const [reclaimProofs, setReclaimProofs] = useState<ReclaimProof[] | null>(null);
   const [proofLoading, setProofLoading] = useState(false);
@@ -100,6 +112,60 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
   }, [twitchAccessToken]);
 
   useEffect(() => {
+    if (githubAccessToken) return;
+    try {
+      const stored =
+        localStorage.getItem('github_oauth_token') ||
+        localStorage.getItem('github_oauth') ||
+        localStorage.getItem('github_access_token');
+      if (!stored) return;
+      if (typeof stored === 'string' && stored.length > 0) {
+        setGithubAccessToken(stored);
+      }
+    } catch (error) {
+      console.warn('[zkSEND] Failed to load GitHub token:', error);
+    }
+  }, [githubAccessToken]);
+
+  useEffect(() => {
+    if (instagramAccessToken) return;
+    try {
+      const stored =
+        localStorage.getItem('instagram_oauth_token') ||
+        localStorage.getItem('instagram_oauth') ||
+        localStorage.getItem('instagram_access_token');
+      if (!stored) return;
+      if (typeof stored === 'string' && stored.length > 0) {
+        setInstagramAccessToken(stored);
+      }
+    } catch (error) {
+      console.warn('[zkSEND] Failed to load Instagram token:', error);
+    }
+  }, [instagramAccessToken]);
+
+  useEffect(() => {
+    if (tiktokAccessToken) return;
+    try {
+      const stored =
+        localStorage.getItem('tiktok_oauth_token') ||
+        localStorage.getItem('tiktok_oauth') ||
+        localStorage.getItem('tiktok_access_token');
+      if (!stored) return;
+      if (typeof stored === 'string' && stored.length > 0) {
+        setTiktokAccessToken(stored);
+      }
+    } catch (error) {
+      console.warn('[zkSEND] Failed to load TikTok token:', error);
+    }
+  }, [tiktokAccessToken]);
+
+  useEffect(() => {
+    // Privy is disabled for zk.localhost to prevent OAuth interception
+    if (isZkLocalhost()) {
+      setPrivyAccessToken(null);
+      return;
+    }
+
     let isActive = true;
     const loadPrivyToken = async () => {
       if (!authenticated) {
@@ -191,271 +257,111 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
     }
   };
 
-  const requestTwitterOAuthTokenFlow = async (): Promise<string | null> => {
-    return new Promise((resolve) => {
-      const twitterClientId = import.meta.env.VITE_TWITTER_CLIENT_ID as string | undefined;
-      if (!twitterClientId) {
-        toast.error('Twitter Client ID not configured');
-        resolve(null);
-        return;
-      }
-
-      const redirectUri = `${window.location.origin}/auth/twitter/callback`;
-      const scopes = 'users.read follows.read offline.access';
-      const state = Math.random().toString(36).substring(7);
-
-      const generateCodeVerifier = (): string => {
-        const array = new Uint8Array(32);
-        crypto.getRandomValues(array);
-        return btoa(String.fromCharCode(...array))
-          .replace(/\+/g, '-')
-          .replace(/\//g, '_')
-          .replace(/=/g, '');
-      };
-
-      const generateCodeChallenge = async (verifier: string): Promise<string> => {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(verifier);
-        const digest = await crypto.subtle.digest('SHA-256', data);
-        return btoa(String.fromCharCode(...new Uint8Array(digest)))
-          .replace(/\+/g, '-')
-          .replace(/\//g, '_')
-          .replace(/=/g, '');
-      };
-
-      const codeVerifier = generateCodeVerifier();
-
-      generateCodeChallenge(codeVerifier).then((codeChallenge) => {
-        sessionStorage.setItem('twitter_oauth_state', state);
-        sessionStorage.setItem('twitter_oauth_redirect', window.location.href);
-        sessionStorage.setItem('twitter_code_verifier', codeVerifier);
-
-        const authUrl = `https://x.com/i/oauth2/authorize?redirect_uri=${encodeURIComponent(
-          redirectUri
-        )}&response_type=code&scope=${encodeURIComponent(
-          scopes
-        )}&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256&client_id=${encodeURIComponent(
-          twitterClientId
-        )}`;
-
-        toast.info('Opening Twitter authorization...');
-
-        const width = 600;
-        const height = 700;
-        const left = window.screenX + (window.outerWidth - width) / 2;
-        const top = window.screenY + (window.outerHeight - height) / 2;
-
-        const popup = window.open(
-          authUrl,
-          'Twitter OAuth',
-          `width=${width},height=${height},left=${left},top=${top},toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`
-        );
-
-        if (!popup) {
-          toast.error('Popup blocked. Please allow popups for this site.');
-          resolve(null);
-          return;
-        }
-
-        const messageHandler = (event: MessageEvent) => {
-          if (event.data?.target === 'metamask-inpage' || event.data?.name === 'metamask-provider') {
-            return;
-          }
-
-          if (event.origin !== window.location.origin) {
-            return;
-          }
-
-          if (event.data && typeof event.data === 'object' && event.data.type === 'twitter_oauth_token' && event.data.accessToken) {
-            const token = event.data.accessToken as string;
-            localStorage.setItem('twitter_oauth', token);
-            localStorage.setItem('twitter_oauth_token', token);
-
-            window.removeEventListener('message', messageHandler);
-            if (popup) popup.close();
-            resolve(token);
-          } else if (event.data && typeof event.data === 'object' && event.data.type === 'twitter_oauth_error') {
-            window.removeEventListener('message', messageHandler);
-            if (popup) popup.close();
-            resolve(null);
-          }
-        };
-
-        window.addEventListener('message', messageHandler);
-
-        const checkStorage = setInterval(() => {
-          const token = localStorage.getItem('twitter_oauth_token') || localStorage.getItem('twitter_oauth');
-          if (token && token.length > 10) {
-            clearInterval(checkStorage);
-            window.removeEventListener('message', messageHandler);
-            if (popup) popup.close();
-            resolve(token);
-          }
-        }, 500);
-
-        const checkPopup = setInterval(() => {
-          if (popup?.closed) {
-            clearInterval(checkPopup);
-            clearInterval(checkStorage);
-            window.removeEventListener('message', messageHandler);
-            resolve(null);
-          }
-        }, 500);
-      });
-    });
-  };
-
-  const connectTwitter = async () => {
+  const handleConnectTwitter = async () => {
     setConnectingTwitter(true);
     try {
-      const token = await requestTwitterOAuthTokenFlow();
-      if (!token) {
-        throw new Error('Twitter authorization failed or was cancelled');
+      const token = await connectTwitter();
+      if (token) {
+        setAccessToken(token);
       }
-      setAccessToken(token);
-      toast.success('Twitter connected');
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Failed to connect Twitter';
-      toast.error(msg);
     } finally {
       setConnectingTwitter(false);
     }
   };
 
-  const requestTwitchOAuthTokenImplicitFlow = async (clientId: string): Promise<string | null> => {
-    return new Promise((resolve) => {
-      const redirectUri = `${window.location.origin}/auth/twitch/callback`;
-      const scopes = 'user:read:email';
-      const state = Math.random().toString(36).substring(7);
-
-      sessionStorage.setItem('twitch_oauth_state', state);
-      sessionStorage.setItem('twitch_oauth_redirect', window.location.href);
-
-      const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${encodeURIComponent(
-        clientId
-      )}&redirect_uri=${encodeURIComponent(
-        redirectUri
-      )}&response_type=token&scope=${encodeURIComponent(scopes)}&state=${state}`;
-
-      toast.info('Opening Twitch authorization...');
-
-      const width = 600;
-      const height = 700;
-      const left = window.screenX + (window.outerWidth - width) / 2;
-      const top = window.screenY + (window.outerHeight - height) / 2;
-
-      const popup = window.open(
-        authUrl,
-        'Twitch OAuth',
-        `width=${width},height=${height},left=${left},top=${top},toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`
-      );
-
-      if (!popup) {
-        toast.error('Popup blocked. Please allow popups for this site.');
-        resolve(null);
-        return;
-      }
-
-      const messageHandler = (event: MessageEvent) => {
-        if (event.data?.target === 'metamask-inpage' || event.data?.name === 'metamask-provider') {
-          return;
-        }
-
-        if (event.origin !== window.location.origin) {
-          return;
-        }
-
-        if (event.data && typeof event.data === 'object' && event.data.type === 'twitch_oauth_token' && event.data.accessToken) {
-          const token = String(event.data.accessToken);
-          window.removeEventListener('message', messageHandler);
-          if (popup) popup.close();
-          resolve(token);
-        } else if (event.data && typeof event.data === 'object' && event.data.type === 'twitch_oauth_error') {
-          window.removeEventListener('message', messageHandler);
-          if (popup) popup.close();
-          resolve(null);
-        }
-      };
-
-      window.addEventListener('message', messageHandler);
-
-      const checkStorage = setInterval(() => {
-        const token = localStorage.getItem('twitch_oauth_token') || localStorage.getItem('twitch_oauth');
-        if (token && token.length > 10) {
-          clearInterval(checkStorage);
-          window.removeEventListener('message', messageHandler);
-          if (popup) popup.close();
-          resolve(token);
-        }
-      }, 500);
-
-      const checkPopup = setInterval(() => {
-        if (popup?.closed) {
-          clearInterval(checkPopup);
-          clearInterval(checkStorage);
-          window.removeEventListener('message', messageHandler);
-          resolve(null);
-        }
-      }, 500);
-    });
-  };
-
-  const connectTwitch = async () => {
+  const handleConnectTwitch = async () => {
     setConnectingTwitch(true);
     try {
-      const twitchClientId = import.meta.env.VITE_TWITCH_CLIENT_ID as string | undefined;
-      if (!twitchClientId) {
-        throw new Error('Twitch Client ID not configured');
+      const token = await connectTwitch();
+      if (token) {
+        setTwitchAccessToken(token);
       }
-      const token = await requestTwitchOAuthTokenImplicitFlow(twitchClientId);
-      if (!token) {
-        throw new Error('Twitch authorization failed or was cancelled');
-      }
-      localStorage.setItem('twitch_oauth', token);
-      localStorage.setItem('twitch_oauth_token', token);
-      setTwitchAccessToken(token);
-      toast.success('Twitch connected');
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Failed to connect Twitch';
-      toast.error(msg);
     } finally {
       setConnectingTwitch(false);
     }
   };
 
-  const clearTwitterToken = () => {
+  const handleClearTwitterToken = () => {
     setClearingToken(true);
     try {
-      localStorage.removeItem('twitter_oauth');
-      localStorage.removeItem('twitter_oauth_token');
-      localStorage.removeItem('twitter_oauth_scope');
-      localStorage.removeItem('twitter_refresh_token');
-      sessionStorage.removeItem('twitter_oauth_state');
-      sessionStorage.removeItem('twitter_oauth_redirect');
-      sessionStorage.removeItem('twitter_code_verifier');
+      clearTwitterToken();
       setAccessToken('');
-      toast.success('Twitter token cleared');
-    } catch (error) {
-      console.error('[zkSEND] Failed to clear Twitter token:', error);
-      toast.error('Failed to clear Twitter token');
     } finally {
       setClearingToken(false);
     }
   };
 
-  const clearTwitchToken = () => {
+  const handleClearTwitchToken = () => {
     setClearingToken(true);
     try {
-      localStorage.removeItem('twitch_oauth');
-      localStorage.removeItem('twitch_oauth_token');
-      localStorage.removeItem('twitch_access_token');
-      sessionStorage.removeItem('twitch_oauth_state');
-      sessionStorage.removeItem('twitch_oauth_redirect');
+      clearTwitchToken();
       setTwitchAccessToken('');
-      toast.success('Twitch token cleared');
-    } catch (error) {
-      console.error('[zkSEND] Failed to clear Twitch token:', error);
-      toast.error('Failed to clear Twitch token');
+    } finally {
+      setClearingToken(false);
+    }
+  };
+
+  const handleConnectGithub = async () => {
+    setConnectingGithub(true);
+    try {
+      const token = await connectGithub();
+      if (token) {
+        setGithubAccessToken(token);
+      }
+    } finally {
+      setConnectingGithub(false);
+    }
+  };
+
+  const handleClearGithubToken = () => {
+    setClearingToken(true);
+    try {
+      clearGithubToken();
+      setGithubAccessToken('');
+    } finally {
+      setClearingToken(false);
+    }
+  };
+
+  const handleConnectInstagram = async () => {
+    setConnectingInstagram(true);
+    try {
+      const token = await connectInstagram();
+      if (token) {
+        setInstagramAccessToken(token);
+      }
+    } finally {
+      setConnectingInstagram(false);
+    }
+  };
+
+  const handleClearInstagramToken = () => {
+    setClearingToken(true);
+    try {
+      clearInstagramToken();
+      setInstagramAccessToken('');
+    } finally {
+      setClearingToken(false);
+    }
+  };
+
+  const handleConnectTiktok = async () => {
+    setConnectingTiktok(true);
+    try {
+      const token = await connectTiktok();
+      if (token) {
+        setTiktokAccessToken(token);
+      }
+    } finally {
+      setConnectingTiktok(false);
+    }
+  };
+
+  const handleClearTiktokToken = () => {
+    setClearingToken(true);
+    try {
+      clearTiktokToken();
+      setTiktokAccessToken('');
     } finally {
       setClearingToken(false);
     }
@@ -510,18 +416,40 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       const normalizedPlatform = normalizeSocialPlatform(platform);
       if (!normalizedPlatform) throw new Error('Unsupported platform');
       if (normalizedPlatform === 'twitter') {
-        if (!accessToken && !privyAccessToken) {
-          throw new Error('Connect Twitter or login with Privy to generate proof');
+        // For zk.localhost, Privy is disabled, so only check direct OAuth token
+        if (isZkLocalhost()) {
+          if (!accessToken) {
+            throw new Error('Connect Twitter to generate proof');
+          }
+        } else {
+          if (!accessToken && !privyAccessToken) {
+            throw new Error('Connect Twitter or login with Privy to generate proof');
+          }
         }
       }
       if (normalizedPlatform === 'twitch' && !twitchAccessToken) {
         throw new Error('Connect Twitch to generate proof');
       }
+      if (normalizedPlatform === 'github' && !githubAccessToken) {
+        throw new Error('Connect GitHub to generate proof');
+      }
+      if (normalizedPlatform === 'instagram' && !instagramAccessToken) {
+        throw new Error('Connect Instagram to generate proof');
+      }
+      if (normalizedPlatform === 'tiktok' && !tiktokAccessToken) {
+        throw new Error('Connect TikTok to generate proof');
+      }
 
       setClaimingId(paymentId);
       await web3Service.initialize(walletClient, address);
 
-      if (normalizedPlatform !== 'twitter' && normalizedPlatform !== 'twitch') {
+      if (
+        normalizedPlatform !== 'twitter' &&
+        normalizedPlatform !== 'twitch' &&
+        normalizedPlatform !== 'github' &&
+        normalizedPlatform !== 'instagram' &&
+        normalizedPlatform !== 'tiktok'
+      ) {
         if (!reclaimProofs || reclaimProofs.length === 0) {
           throw new Error('Generate Reclaim proof first');
         }
@@ -572,24 +500,67 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       }
 
       const isTwitter = normalizedPlatform === 'twitter';
-      const twitchClientId = import.meta.env.VITE_TWITCH_CLIENT_ID as string | undefined;
-      if (!isTwitter && !twitchClientId) {
-        throw new Error('Twitch Client ID not configured');
+      const isTwitch = normalizedPlatform === 'twitch';
+      const isGithub = normalizedPlatform === 'github';
+      const isInstagram = normalizedPlatform === 'instagram';
+      const isTiktok = normalizedPlatform === 'tiktok';
+
+      let requestUrl: string;
+      let accessTokenToUse: string | undefined;
+      let clientId: string | undefined;
+      let regexPattern: string;
+
+      if (isTwitter) {
+        requestUrl = 'https://api.x.com/2/users/me?user.fields=username';
+        accessTokenToUse = accessToken || undefined;
+        regexPattern = '"username":"(?<username>[^"]+)"';
+      } else if (isTwitch) {
+        const twitchClientId = import.meta.env.VITE_TWITCH_CLIENT_ID as string | undefined;
+        if (!twitchClientId) {
+          throw new Error('Twitch Client ID not configured');
+        }
+        requestUrl = 'https://api.twitch.tv/helix/users';
+        accessTokenToUse = twitchAccessToken;
+        clientId = twitchClientId;
+        regexPattern = '"login":"(?<username>[^"]+)"';
+      } else if (isGithub) {
+        requestUrl = 'https://api.github.com/user';
+        accessTokenToUse = githubAccessToken;
+        regexPattern = '"login":"(?<username>[^"]+)"';
+      } else if (isInstagram) {
+        const instagramClientId = import.meta.env.VITE_INSTAGRAM_CLIENT_ID as string | undefined;
+        if (!instagramClientId) {
+          throw new Error('Instagram Client ID not configured');
+        }
+        requestUrl = 'https://graph.instagram.com/me?fields=username';
+        accessTokenToUse = instagramAccessToken;
+        clientId = instagramClientId;
+        regexPattern = '"username":"(?<username>[^"]+)"';
+      } else if (isTiktok) {
+        const tiktokClientId = import.meta.env.VITE_TIKTOK_CLIENT_ID as string | undefined;
+        if (!tiktokClientId) {
+          throw new Error('TikTok Client ID not configured');
+        }
+        requestUrl = 'https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,avatar_url,display_name';
+        accessTokenToUse = tiktokAccessToken;
+        clientId = tiktokClientId;
+        regexPattern = '"display_name":"(?<username>[^"]+)"';
+      } else {
+        throw new Error('Unsupported platform for zkFetch');
       }
-      const requestUrl = isTwitter
-        ? 'https://api.x.com/2/users/me?user.fields=username'
-        : 'https://api.twitch.tv/helix/users';
+
       const proveUrl = `${reclaimApiBaseUrl.replace(/\/$/, '')}/api/reclaim/zkfetch/prove`;
       const proveRes = await fetch(proveUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(privyAccessToken ? { Authorization: `Bearer ${privyAccessToken}` } : {}),
+          // Only use Privy token if not on zk.localhost (where Privy is disabled) and for Twitter
+          ...(!isZkLocalhost() && privyAccessToken && isTwitter ? { Authorization: `Bearer ${privyAccessToken}` } : {}),
         },
         body: JSON.stringify({
           requestUrl,
-          ...(isTwitter ? (accessToken ? { accessToken } : {}) : { accessToken: twitchAccessToken }),
-          ...(isTwitter ? {} : { clientId: twitchClientId }),
+          ...(accessTokenToUse ? { accessToken: accessTokenToUse } : {}),
+          ...(clientId ? { clientId } : {}),
           platform: normalizedPlatform,
           username: u,
           paymentId,
@@ -597,9 +568,7 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
           responseMatches: [
             {
               type: 'regex',
-              value: isTwitter
-                ? '"username":"(?<username>[^"]+)"'
-                : '"login":"(?<username>[^"]+)"',
+              value: regexPattern,
             },
           ],
         }),
@@ -685,7 +654,7 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Connections & pending</CardTitle>
+        <CardTitle>Receive</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
 
@@ -695,42 +664,69 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
             <Button
               type="button"
               size="lg"
-              onClick={connectTwitter}
+              onClick={handleConnectTwitter}
               disabled={connectingTwitter || !isIdentityValid}
               className="w-full"
             >
               {connectingTwitter ? 'Connecting...' : accessToken ? 'Reconnect Twitter / X' : 'Connect Twitter / X'}
             </Button>
 
-            {accessToken ? (
-              <div className="flex items-center justify-between gap-2 rounded-xl border bg-background p-3">
-                <div className="text-xs text-muted-foreground">Connected (token stored in this browser)</div>
-                <Button type="button" variant="ghost" onClick={clearTwitterToken} disabled={clearingToken}>
-                  {clearingToken ? 'Disconnecting...' : 'Disconnect'}
-                </Button>
-              </div>
-            ) : null}
+           
           </div>
         ) : platform === 'twitch' ? (
           <div className="space-y-3">
             <Button
               type="button"
               size="lg"
-              onClick={connectTwitch}
+              onClick={handleConnectTwitch}
               disabled={connectingTwitch || !isIdentityValid}
               className="w-full"
             >
               {connectingTwitch ? 'Connecting...' : twitchAccessToken ? 'Reconnect Twitch' : 'Connect Twitch'}
             </Button>
 
-            {twitchAccessToken ? (
-              <div className="flex items-center justify-between gap-2 rounded-xl border bg-background p-3">
-                <div className="text-xs text-muted-foreground">Connected (token stored in this browser)</div>
-                <Button type="button" variant="ghost" onClick={clearTwitchToken} disabled={clearingToken}>
-                  {clearingToken ? 'Disconnecting...' : 'Disconnect'}
-                </Button>
-              </div>
-            ) : null}
+          
+          </div>
+        ) : platform === 'github' ? (
+          <div className="space-y-3">
+            <Button
+              type="button"
+              size="lg"
+              onClick={handleConnectGithub}
+              disabled={connectingGithub || !isIdentityValid}
+              className="w-full"
+            >
+              {connectingGithub ? 'Connecting...' : githubAccessToken ? 'Reconnect GitHub' : 'Connect GitHub'}
+            </Button>
+
+           
+          </div>
+        ) : platform === 'instagram' ? (
+          <div className="space-y-3">
+            <Button
+              type="button"
+              size="lg"
+              onClick={handleConnectInstagram}
+              disabled={connectingInstagram || !isIdentityValid}
+              className="w-full"
+            >
+              {connectingInstagram ? 'Connecting...' : instagramAccessToken ? 'Reconnect Instagram' : 'Connect Instagram'}
+            </Button>
+
+            
+          </div>
+        ) : platform === 'tiktok' ? (
+          <div className="space-y-3">
+            <Button
+              type="button"
+              size="lg"
+              onClick={handleConnectTiktok}
+              disabled={connectingTiktok || !isIdentityValid}
+              className="w-full"
+            >
+              {connectingTiktok ? 'Connecting...' : tiktokAccessToken ? 'Reconnect TikTok' : 'Connect TikTok'}
+            </Button>
+
           </div>
         ) : (
           <div className="space-y-2 rounded-xl border bg-background p-3">

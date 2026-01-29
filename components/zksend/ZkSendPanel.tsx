@@ -9,7 +9,7 @@ import { normalizeSocialUsername } from '../../utils/reclaim/identity';
 export type ZkSendPlatform = 'twitter' | 'twitch' | 'github' | 'instagram' | 'tiktok' | 'gmail' | 'linkedin';
 
 export function ZkSendPanel() {
-  const [activeTab, setActiveTab] = useState<'create' | 'connections'>('create');
+  const [activeTab, setActiveTab] = useState<'send' | 'receive'>('send');
   const [platform, setPlatform] = useState<ZkSendPlatform>('twitter');
   const [username, setUsername] = useState('');
 
@@ -18,34 +18,35 @@ export function ZkSendPanel() {
 
   return (
     <div className="space-y-6">
-      <IdentitySelector
-        platform={platform}
-        onPlatformChange={setPlatform}
-        username={username}
-        onUsernameChange={setUsername}
-        isConnected={false}
-      />
-
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="create">Create payment</TabsTrigger>
-          <TabsTrigger value="connections">Connections & pending</TabsTrigger>
+          <TabsTrigger value="send">Send</TabsTrigger>
+          <TabsTrigger value="receive">Receive</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="create" className="mt-4 space-y-6">
+        <TabsContent value="send" className="mt-4 space-y-6">
           <SendPaymentForm
             platform={platform}
+            onPlatformChange={setPlatform}
             username={username}
+            onUsernameChange={setUsername}
             isIdentityValid={isIdentityValid}
-            onGoToPending={() => setActiveTab('connections')}
+            onGoToPending={() => setActiveTab('receive')}
           />
         </TabsContent>
 
-        <TabsContent value="connections" className="mt-4 space-y-6">
+        <TabsContent value="receive" className="mt-4 space-y-6">
+          <IdentitySelector
+            platform={platform}
+            onPlatformChange={setPlatform}
+            username={username}
+            onUsernameChange={setUsername}
+            isConnected={false}
+          />
           <PendingPayments
             platform={platform}
             username={username}
-            isActive={activeTab === 'connections'}
+            isActive={activeTab === 'receive'}
             isIdentityValid={isIdentityValid}
           />
         </TabsContent>

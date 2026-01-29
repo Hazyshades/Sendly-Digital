@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { useAccount, useWalletClient } from 'wagmi';
+import { useAccount, useWalletClient, useBalance } from 'wagmi';
 import { toast } from 'sonner';
+import { Wallet } from 'lucide-react';
 
 import web3Service from '../../utils/web3/web3Service';
 import {
@@ -9,23 +10,45 @@ import {
   normalizeSocialUsername,
 } from '../../utils/reclaim/identity';
 import { createZkSendPaymentRecord } from '../../utils/zksend/zksendPaymentsAPI';
+import { USDC_ADDRESS, EURC_ADDRESS } from '../../utils/web3/constants';
 
 import { Button } from '../ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
+import { PlatformUsernameInput } from './PlatformUsernameInput';
 
 import type { ZkSendPlatform } from './ZkSendPanel';
 
 type Props = {
   platform: ZkSendPlatform;
+  onPlatformChange: (platform: ZkSendPlatform) => void;
   username: string;
+  onUsernameChange: (username: string) => void;
   isIdentityValid: boolean;
   onGoToPending?: () => void;
 };
 
-export function SendPaymentForm({ platform, username, isIdentityValid, onGoToPending }: Props) {
+const TOKEN_OPTIONS = [
+  { value: 'USDC' as const, label: 'USDC', address: USDC_ADDRESS },
+  { value: 'EURC' as const, label: 'EURC', address: EURC_ADDRESS },
+] as const;
+
+export function SendPaymentForm({
+  platform,
+  onPlatformChange,
+  username,
+  onUsernameChange,
+  isIdentityValid,
+  onGoToPending,
+}: Props) {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
 
@@ -33,15 +56,23 @@ export function SendPaymentForm({ platform, username, isIdentityValid, onGoToPen
   const [tokenType, setTokenType] = useState<'USDC' | 'EURC'>('USDC');
   const [loading, setLoading] = useState(false);
 
+  const tokenConfig = TOKEN_OPTIONS.find((t) => t.value === tokenType) ?? TOKEN_OPTIONS[0];
+  const { data: balance } = useBalance({
+    address: address ?? undefined,
+    token: tokenConfig.address as `0x${string}`,
+  });
+
   const normalizedUsername = useMemo(() => normalizeSocialUsername(username.replace(/^@/, '')), [username]);
   const normalizedPlatform = useMemo(() => normalizeSocialPlatform(platform), [platform]);
+
+  const balanceFormatted = balance?.formatted ?? '0.00';
 
   const onSubmit = async () => {
     try {
       if (!isConnected || !address || !walletClient) {
-        throw new Error('Connect wallet to create payment');
+        throw new Error('Connect wallet to send');
       }
-      if (!normalizedUsername) throw new Error('Enter username');
+      if (!normalizedUsername) throw new Error('Enter recipient');
       if (!amount || Number(amount) <= 0) throw new Error('Enter amount > 0');
 
       setLoading(true);
@@ -79,7 +110,16 @@ export function SendPaymentForm({ platform, username, isIdentityValid, onGoToPen
         paymentId ? `Payment created. paymentId=${paymentId}` : `Payment created. TX: ${txHash.slice(0, 10)}...`
       );
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to create payment';
+      let msg = 'Failed to send payment';
+
+      if (e instanceof Error) {
+        if (e.message.includes('User rejected the request')) {
+          msg = 'User rejected the request';
+        } else {
+          msg = e.message;
+        }
+      }
+
       console.error('[zkSEND] createPayment error:', e);
       toast.error(msg);
     } finally {
@@ -91,46 +131,59 @@ export function SendPaymentForm({ platform, username, isIdentityValid, onGoToPen
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Create payment</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="pt-6 space-y-6">
+        {/* Amount */}
         <div className="space-y-2">
-          <Label>Amount</Label>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="amount-input">Amount</Label>
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Wallet className="h-4 w-4" aria-hidden />
+              <span>{balanceFormatted}</span>
+            </div>
+          </div>
+          <div className="flex gap-2">
             <Input
+              id="amount-input"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               inputMode="decimal"
               placeholder="0.00"
               aria-label="Amount"
-              className="sm:flex-1"
-              disabled={!isIdentityValid}
+              className="flex-1"
             />
-            <ToggleGroup
-              type="single"
+            <Select
               value={tokenType}
-              onValueChange={(v) => (v ? setTokenType(v as 'USDC' | 'EURC') : null)}
-              variant="outline"
-              className="w-full sm:w-[220px]"
-              aria-label="Token"
-              disabled={!isIdentityValid}
+              onValueChange={(v) => setTokenType(v as 'USDC' | 'EURC')}
             >
-              <ToggleGroupItem value="USDC" aria-label="USDC">
-                USDC
-              </ToggleGroupItem>
-              <ToggleGroupItem value="EURC" aria-label="EURC">
-                EURC
-              </ToggleGroupItem>
-            </ToggleGroup>
+              <SelectTrigger className="w-[120px] gap-2" aria-label="Token">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TOKEN_OPTIONS.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div className="text-xs text-muted-foreground">Example: 10 {tokenType}</div>
         </div>
 
-        {!isIdentityValid && (
-          <div className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-            Please select platform and enter username above to create a payment
-          </div>
+        {/* To */}
+        <PlatformUsernameInput
+          platform={platform}
+          onPlatformChange={onPlatformChange}
+          username={username}
+          onUsernameChange={onUsernameChange}
+          label="To"
+          inputId="to-input"
+          ariaLabel="Recipient"
+        />
+
+        {!isIdentityValid && username.length > 0 && (
+          <p className="text-sm text-amber-600 dark:text-amber-500">
+            Select a platform above and enter a valid username to send.
+          </p>
         )}
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pt-2">
@@ -140,9 +193,8 @@ export function SendPaymentForm({ platform, username, isIdentityValid, onGoToPen
             size="lg"
             className="w-full sm:w-auto bg-emerald-600 text-white hover:bg-emerald-600/90 disabled:opacity-50"
           >
-            {loading ? 'Creating...' : 'Create payment'}
+            {loading ? 'Sending...' : 'Send'}
           </Button>
-
           {onGoToPending ? (
             <Button type="button" variant="ghost" onClick={onGoToPending} className="w-full sm:w-auto">
               View pending payments
@@ -153,4 +205,3 @@ export function SendPaymentForm({ platform, username, isIdentityValid, onGoToPen
     </Card>
   );
 }
-
