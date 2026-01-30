@@ -15,6 +15,7 @@ import { BridgeRoute } from '../pages/BridgeRoute';
 import { GatewayRoute } from '../pages/GatewayRoute';
 import { TwitchCallbackRoute } from '../pages/TwitchCallbackRoute';
 import { TwitterCallbackRoute } from '../pages/TwitterCallbackRoute';
+import { GitHubCallbackRoute } from '../pages/GitHubCallbackRoute';
 import { TwitterOAuth1CallbackRoute } from '../pages/TwitterOAuth1CallbackRoute';
 import { CircleMintRoute } from '../pages/CircleMintRoute';
 import { LeaderboardRoute } from '../pages/LeaderboardRoute';
@@ -41,6 +42,7 @@ function SharedAppRoutes({ zkMode }: { zkMode: boolean }) {
       <Route path="/gateway" element={<GatewayRoute />} />
       <Route path="/auth/twitch/callback" element={<TwitchCallbackRoute />} />
       <Route path="/auth/twitter/callback" element={<TwitterCallbackRoute />} />
+      <Route path="/auth/github/callback" element={<GitHubCallbackRoute />} />
       <Route path="/auth/twitter-oauth1/callback" element={<TwitterOAuth1CallbackRoute />} />
       <Route path="/reclaim/callback" element={<ReclaimCallbackRoute />} />
       <Route path="/zksend" element={zkMode ? <ZkSendRoute /> : <ZkHostRedirect />} />

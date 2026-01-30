@@ -20,9 +20,11 @@ export const requestGithubOAuthTokenFlow = async (): Promise<string | null> => {
     const codeVerifier = generateCodeVerifier();
 
     generateCodeChallenge(codeVerifier).then((codeChallenge) => {
-      sessionStorage.setItem('github_oauth_state', state);
-      sessionStorage.setItem('github_oauth_redirect', window.location.href);
-      sessionStorage.setItem('github_code_verifier', codeVerifier);
+      // Use localStorage so the callback page (loaded in popup) can read them;
+      // sessionStorage is not shared between parent and popup.
+      localStorage.setItem('github_oauth_state', state);
+      localStorage.setItem('github_oauth_redirect', window.location.href);
+      localStorage.setItem('github_code_verifier', codeVerifier);
 
       const authUrl = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(
         githubClientId
@@ -56,8 +58,10 @@ export const requestGithubOAuthTokenFlow = async (): Promise<string | null> => {
           if (popup) popup.close();
           resolve(token);
         } else if (event.data && typeof event.data === 'object' && event.data.type === 'github_oauth_error') {
+          const errorMsg = event.data.error as string | undefined;
           window.removeEventListener('message', messageHandler);
           if (popup) popup.close();
+          if (errorMsg) toast.error(errorMsg);
           resolve(null);
         }
       };
@@ -93,7 +97,7 @@ export const connectGithub = async (): Promise<string | null> => {
   try {
     const token = await requestGithubOAuthTokenFlow();
     if (!token) {
-      throw new Error('GitHub authorization failed or was cancelled');
+      throw new Error('GitHub authorization failed or was cancelled. Check the Authorization callback URL in GitHub OAuth App settings.');
     }
     toast.success('GitHub connected');
     return token;
@@ -112,6 +116,9 @@ export const clearGithubToken = (): void => {
     localStorage.removeItem('github_oauth');
     localStorage.removeItem('github_oauth_token');
     localStorage.removeItem('github_access_token');
+    localStorage.removeItem('github_oauth_state');
+    localStorage.removeItem('github_oauth_redirect');
+    localStorage.removeItem('github_code_verifier');
     sessionStorage.removeItem('github_oauth_state');
     sessionStorage.removeItem('github_oauth_redirect');
     sessionStorage.removeItem('github_code_verifier');

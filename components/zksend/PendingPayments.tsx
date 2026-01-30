@@ -48,10 +48,14 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
   const { authenticated, getAccessToken } = usePrivySafe();
-  const reclaimApiBaseUrl =
-    (import.meta.env.VITE_RECLAIM_API_URL as string | undefined) ||
-    (import.meta.env.VITE_ZKTLS_API_URL as string | undefined) ||
-    'http://localhost:3001';
+  const reclaimApiBaseUrl = (() => {
+    if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
+    const envUrl =
+      (import.meta.env.VITE_RECLAIM_API_URL as string | undefined) ||
+      (import.meta.env.VITE_ZKTLS_API_URL as string | undefined);
+    if (envUrl) return envUrl;
+    return 'http://localhost:3001';
+  })();
 
   const reclaimMinSignaturesRaw = Number(import.meta.env.VITE_RECLAIM_MIN_SIGNATURES ?? 2);
   const reclaimMinSignatures =

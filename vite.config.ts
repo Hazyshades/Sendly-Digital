@@ -46,11 +46,18 @@ export default defineConfig(({ mode }) => {
     }
   }
 
+  const zktlsTarget = env.VITE_ZKTLS_PROXY_TARGET || 'http://localhost:3001';
   const server: Record<string, unknown> = {
     port: 3000,
     host: true,
     open: useHttps ? 'https://localhost:3000' : true,
     strictPort: true,
+    proxy: {
+      '/api': {
+        target: zktlsTarget,
+        changeOrigin: true,
+      },
+    },
   };
 
   if (useHttps) {

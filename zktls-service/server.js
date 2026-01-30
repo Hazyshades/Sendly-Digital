@@ -44,6 +44,9 @@ const TWITTER_API_KEY = process.env.TWITTER_API_KEY;
 const TWITTER_API_SECRET = process.env.TWITTER_API_SECRET;
 // Twitch OAuth (client id is public but kept server-side when possible)
 const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID;
+// GitHub OAuth (server-side code exchange)
+const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
+const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
 
 const oauth1RequestSecrets = new Map();
 
@@ -548,6 +551,80 @@ app.post('/api/twitter/oauth/exchange', noAuth, async (req, res) => {
 });
 
 /**
+ * GitHub OAuth: exchange authorization code for access token (server-side).
+ */
+app.post('/api/github/oauth/exchange', noAuth, async (req, res) => {
+  try {
+    if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) {
+      return res.status(500).json({ error: 'Missing GITHUB_CLIENT_ID or GITHUB_CLIENT_SECRET' });
+    }
+
+    const { code, redirectUri, codeVerifier } = req.body || {};
+    if (!code || typeof code !== 'string') {
+      return res.status(400).json({ error: 'Missing body.code (string)' });
+    }
+    if (!redirectUri || typeof redirectUri !== 'string') {
+      return res.status(400).json({ error: 'Missing body.redirectUri (string)' });
+    }
+
+    const params = new URLSearchParams();
+    params.set('client_id', GITHUB_CLIENT_ID);
+    params.set('client_secret', GITHUB_CLIENT_SECRET);
+    params.set('code', code);
+    params.set('redirect_uri', redirectUri);
+    if (codeVerifier && typeof codeVerifier === 'string') {
+      params.set('code_verifier', codeVerifier);
+    }
+
+    const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+      },
+      body: params.toString(),
+    });
+
+    const bodyText = await tokenRes.text().catch(() => '');
+    if (!tokenRes.ok) {
+      console.error('[GitHub OAuth] token exchange failed:', {
+        status: tokenRes.status,
+        body: bodyText.slice(0, 1000),
+      });
+      return res.status(tokenRes.status).json({
+        error: 'GitHub token exchange failed',
+        status: tokenRes.status,
+        body: bodyText.slice(0, 1000),
+      });
+    }
+
+    let tokenJson;
+    try {
+      tokenJson = JSON.parse(bodyText);
+    } catch (parseError) {
+      return res.status(500).json({ error: 'Failed to parse GitHub token response' });
+    }
+
+    if (tokenJson.error) {
+      console.error('[GitHub OAuth] API error:', tokenJson);
+      return res.status(400).json({
+        error: tokenJson.error_description || tokenJson.error || 'GitHub token exchange failed',
+      });
+    }
+
+    return res.json({
+      success: true,
+      accessToken: tokenJson.access_token,
+      scope: tokenJson.scope,
+      tokenType: tokenJson.token_type || 'bearer',
+    });
+  } catch (error) {
+    console.error('[GitHub OAuth] exchange failed:', error);
+    return res.status(500).json({ error: error.message || 'GitHub OAuth exchange failed' });
+  }
+});
+
+/**
  * Twitter OAuth 1.0a: request token
  */
 app.post('/api/twitter/oauth1/request-token', noAuth, async (req, res) => {
@@ -859,6 +936,10 @@ app.post('/api/reclaim/zkfetch/prove', noAuth, async (req, res) => {
       if (!effectiveClientId) {
         return res.status(400).json({ error: 'Missing Twitch client id' });
       }
+    } else if (normalizedPlatform === 'github') {
+      if (!effectiveAccessToken) {
+        return res.status(401).json({ error: 'Missing GitHub OAuth access token' });
+      }
     } else {
       return res.status(400).json({ error: `Unsupported platform for zkFetch: ${normalizedPlatform}` });
     }
@@ -870,6 +951,8 @@ app.post('/api/reclaim/zkfetch/prove', noAuth, async (req, res) => {
         ? useOAuth1
           ? 'https://api.x.com/1.1/account/verify_credentials.json?include_email=false&skip_status=true'
           : 'https://api.x.com/2/users/me?user.fields=username'
+        : normalizedPlatform === 'github'
+        ? 'https://api.github.com/user'
         : 'https://api.twitch.tv/helix/users';
 
     const allowedUrls = [effectiveRequestUrl];
@@ -894,9 +977,11 @@ app.post('/api/reclaim/zkfetch/prove', noAuth, async (req, res) => {
         } else {
           preflightHeaders.Authorization = `Bearer ${effectiveAccessToken}`;
         }
-      } else {
+      } else if (normalizedPlatform === 'twitch') {
         preflightHeaders.Authorization = `Bearer ${effectiveAccessToken}`;
         preflightHeaders['Client-Id'] = effectiveClientId;
+      } else if (normalizedPlatform === 'github') {
+        preflightHeaders.Authorization = `Bearer ${effectiveAccessToken}`;
       }
 
       const preflightRes = await fetch(effectiveRequestUrl, {
@@ -955,7 +1040,7 @@ app.post('/api/reclaim/zkfetch/prove', noAuth, async (req, res) => {
       } else {
         proofHeaders = { Authorization: `Bearer ${effectiveAccessToken}` };
       }
-    } else {
+    } else if (normalizedPlatform === 'twitch') {
       requestHeaders = {
         ...requestHeaders,
         'Client-Id': effectiveClientId,
@@ -964,6 +1049,8 @@ app.post('/api/reclaim/zkfetch/prove', noAuth, async (req, res) => {
         Authorization: `Bearer ${effectiveAccessToken}`,
         'Client-Id': effectiveClientId,
       };
+    } else if (normalizedPlatform === 'github') {
+      proofHeaders = { Authorization: `Bearer ${effectiveAccessToken}` };
     }
 
     const proof = await client.zkFetch(
@@ -1224,6 +1311,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   POST /api/reclaim/zkfetch/signature`);
   console.log(`   POST /api/reclaim/zkfetch/prove`);
   console.log(`   POST /api/twitter/oauth/exchange`);
+  console.log(`   POST /api/github/oauth/exchange`);
   console.log(`   POST /api/twitter/oauth1/request-token`);
   console.log(`   POST /api/twitter/oauth1/access-token`);
   console.log(`   POST /api/twitter/diagnose`);
