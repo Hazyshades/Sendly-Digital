@@ -5,7 +5,7 @@ const SUPPORTED_SOCIAL_PLATFORMS = [
   'twitch',
   'github',
   'instagram',
-  'tiktok',
+  // 'tiktok',
   'gmail',
   'linkedin',
   'telegram',

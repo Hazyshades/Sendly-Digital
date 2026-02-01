@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Twitter, Twitch, Github, Instagram, Linkedin, Mail, Music2, ChevronDown } from 'lucide-react';
+import { X, Twitter, Twitch, Github, Instagram, Linkedin, Mail, ChevronDown } from 'lucide-react';
 
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -12,12 +12,13 @@ const PLATFORM_OPTIONS: {
   label: string;
   hint: string;
   icon: typeof Twitter;
+  disabled?: boolean;
 }[] = [
   { value: 'twitter', label: 'Twitter / X', hint: 'Send to handle', icon: Twitter },
   { value: 'twitch', label: 'Twitch', hint: 'Send to username', icon: Twitch },
   { value: 'github', label: 'GitHub', hint: 'Send to username', icon: Github },
-  { value: 'instagram', label: 'Instagram', hint: 'Send to username', icon: Instagram },
-  { value: 'tiktok', label: 'TikTok', hint: 'Send to username', icon: Music2 },
+  { value: 'instagram', label: 'Instagram', hint: 'Send to username', icon: Instagram, disabled: true },
+  // { value: 'tiktok', label: 'TikTok', hint: 'Send to username', icon: Music2 },
   { value: 'gmail', label: 'Gmail', hint: 'Send to email', icon: Mail },
   { value: 'linkedin', label: 'LinkedIn', hint: 'Send to username', icon: Linkedin },
 ];
@@ -93,15 +94,19 @@ export function PlatformUsernameInput({
             <div className="space-y-0.5">
               {PLATFORM_OPTIONS.map((opt) => {
                 const Icon = opt.icon;
+                const isDisabled = opt.disabled;
                 return (
                   <button
                     key={opt.value}
                     type="button"
+                    disabled={isDisabled}
+                    title={isDisabled ? 'Temporarily unavailable' : undefined}
                     onClick={() => {
-                      onPlatformChange(opt.value);
+                      if (isDisabled) return;
+                      onPlatformChange(opt.value as ZkSendPlatform);
                       setPlatformPopoverOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/60 text-left transition-colors ${platform === opt.value ? 'bg-muted/40' : ''}`}
+                    className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${platform === opt.value ? 'bg-muted/40' : ''} ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted/60'}`}
                   >
                     <div className="flex items-center gap-3">
                       <Icon className="h-4 w-4 shrink-0" />

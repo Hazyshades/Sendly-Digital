@@ -20,7 +20,7 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "components", "utils", "styles", "zktls-service/supabase"],
+  "include": ["src", "components", "utils", "styles", "hooks"],
   "exclude": ["components/ui/calendar.tsx", "components/ui/chart.tsx"],
   "references": [{ "path": "./tsconfig.node.json" }]
 } 

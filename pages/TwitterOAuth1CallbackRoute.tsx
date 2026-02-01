@@ -22,7 +22,7 @@ export function TwitterOAuth1CallbackRoute() {
     const params = new URLSearchParams(location.search);
     const oauthToken = params.get('oauth_token');
     const oauthVerifier = params.get('oauth_verifier');
-    const redirectUrl = sessionStorage.getItem('twitter_oauth_redirect') || '/dashboard';
+    const redirectUrl = localStorage.getItem('twitter_oauth1_redirect') || '/dashboard';
 
     const exchange = async () => {
       if (!oauthToken || !oauthVerifier) {
@@ -60,6 +60,7 @@ export function TwitterOAuth1CallbackRoute() {
           }
 
           if (window.opener && !window.opener.closed) {
+            localStorage.removeItem('twitter_oauth1_redirect');
             window.opener.postMessage(
               {
                 type: 'twitter_oauth1_token',
@@ -77,6 +78,7 @@ export function TwitterOAuth1CallbackRoute() {
         console.error('[OAuth1 Callback] exchange failed:', error);
       }
 
+      localStorage.removeItem('twitter_oauth1_redirect');
       navigate(redirectUrl);
     };
 

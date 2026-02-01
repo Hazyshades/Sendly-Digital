@@ -6,14 +6,14 @@
  * Input JSON format is based on testdata/input.json from zktls repository
  */
 
-// Load environment variables from .env file
-require('dotenv').config();
+// Load environment variables from .env file (prefer zktls-service/.env when running from project root)
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const express = require('express');
 const { exec } = require('child_process');
 const { promisify } = require('util');
 const fs = require('fs').promises;
-const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
 
@@ -53,6 +53,9 @@ const INSTAGRAM_CLIENT_SECRET = process.env.INSTAGRAM_CLIENT_SECRET;
 // Google/Gmail OAuth (server-side code exchange)
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+// LinkedIn OAuth (server-side code exchange)
+const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
+const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET;
 
 const oauth1RequestSecrets = new Map();
 
@@ -129,7 +132,7 @@ const RECLAIM_PROVIDER_ID_TWITTER =
 const RECLAIM_PROVIDER_ID_TELEGRAM = process.env.RECLAIM_PROVIDER_ID_TELEGRAM;
 const RECLAIM_PROVIDER_ID_TWITCH = process.env.RECLAIM_PROVIDER_ID_TWITCH || '6eefbc3f-9dd9-4466-a18f-ab9eea03d884'
 const RECLAIM_PROVIDER_ID_INSTAGRAM = process.env.RECLAIM_PROVIDER_ID_INSTAGRAM;
-const RECLAIM_PROVIDER_ID_TIKTOK = process.env.RECLAIM_PROVIDER_ID_TIKTOK;
+// const RECLAIM_PROVIDER_ID_TIKTOK = process.env.RECLAIM_PROVIDER_ID_TIKTOK;
 const RECLAIM_PROVIDER_ID_GMAIL = process.env.RECLAIM_PROVIDER_ID_GMAIL;
 const RECLAIM_PROVIDER_ID_LINKEDIN = process.env.RECLAIM_PROVIDER_ID_LINKEDIN;
 const RECLAIM_PROVIDER_ID_GITHUB = process.env.RECLAIM_PROVIDER_ID_GITHUB;
@@ -290,7 +293,7 @@ const SUPPORTED_PLATFORMS = new Set([
   'twitch',
   'github',
   'instagram',
-  'tiktok',
+  // 'tiktok',
   'gmail',
   'linkedin',
   'telegram',
@@ -323,7 +326,7 @@ function getReclaimProviderId(platform) {
   if (p === 'telegram') return RECLAIM_PROVIDER_ID_TELEGRAM;
   if (p === 'twitch') return RECLAIM_PROVIDER_ID_TWITCH;
   if (p === 'instagram') return RECLAIM_PROVIDER_ID_INSTAGRAM;
-  if (p === 'tiktok') return RECLAIM_PROVIDER_ID_TIKTOK;
+  // if (p === 'tiktok') return RECLAIM_PROVIDER_ID_TIKTOK;
   if (p === 'gmail') return RECLAIM_PROVIDER_ID_GMAIL;
   if (p === 'linkedin') return RECLAIM_PROVIDER_ID_LINKEDIN;
   if (p === 'github') return RECLAIM_PROVIDER_ID_GITHUB;
@@ -631,6 +634,80 @@ app.post('/api/github/oauth/exchange', noAuth, async (req, res) => {
 });
 
 /**
+ * LinkedIn OAuth: exchange authorization code for access token (server-side).
+ */
+app.post('/api/linkedin/oauth/exchange', noAuth, async (req, res) => {
+  try {
+    if (!LINKEDIN_CLIENT_ID || !LINKEDIN_CLIENT_SECRET) {
+      return res.status(500).json({ error: 'Missing LINKEDIN_CLIENT_ID or LINKEDIN_CLIENT_SECRET' });
+    }
+
+    const { code, redirectUri, codeVerifier } = req.body || {};
+    if (!code || typeof code !== 'string') {
+      return res.status(400).json({ error: 'Missing body.code (string)' });
+    }
+    if (!redirectUri || typeof redirectUri !== 'string') {
+      return res.status(400).json({ error: 'Missing body.redirectUri (string)' });
+    }
+
+    const params = new URLSearchParams();
+    params.set('grant_type', 'authorization_code');
+    params.set('code', code);
+    params.set('redirect_uri', redirectUri);
+    params.set('client_id', LINKEDIN_CLIENT_ID);
+    params.set('client_secret', LINKEDIN_CLIENT_SECRET);
+    if (codeVerifier && typeof codeVerifier === 'string') {
+      params.set('code_verifier', codeVerifier);
+    }
+
+    const tokenRes = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString(),
+    });
+
+    const bodyText = await tokenRes.text().catch(() => '');
+    if (!tokenRes.ok) {
+      console.error('[LinkedIn OAuth] token exchange failed:', {
+        status: tokenRes.status,
+        body: bodyText.slice(0, 1000),
+      });
+      return res.status(tokenRes.status).json({
+        error: 'LinkedIn token exchange failed',
+        status: tokenRes.status,
+        body: bodyText.slice(0, 1000),
+      });
+    }
+
+    let tokenJson;
+    try {
+      tokenJson = JSON.parse(bodyText);
+    } catch (parseError) {
+      return res.status(500).json({ error: 'Failed to parse LinkedIn token response' });
+    }
+
+    if (tokenJson.error) {
+      console.error('[LinkedIn OAuth] API error:', tokenJson);
+      return res.status(400).json({
+        error: tokenJson.error_description || tokenJson.error || 'LinkedIn token exchange failed',
+      });
+    }
+
+    return res.json({
+      success: true,
+      accessToken: tokenJson.access_token,
+      scope: tokenJson.scope,
+      tokenType: tokenJson.token_type || 'bearer',
+    });
+  } catch (error) {
+    console.error('[LinkedIn OAuth] exchange failed:', error);
+    return res.status(500).json({ error: error.message || 'LinkedIn OAuth exchange failed' });
+  }
+});
+
+/**
  * Instagram OAuth: exchange authorization code for access token (server-side).
  */
 app.post('/api/instagram/oauth/exchange', noAuth, async (req, res) => {
@@ -826,8 +903,15 @@ app.post('/api/twitter/oauth1/request-token', noAuth, async (req, res) => {
     const params = new URLSearchParams(bodyText);
     const oauthToken = params.get('oauth_token');
     const oauthTokenSecret = params.get('oauth_token_secret');
+    const callbackConfirmed = params.get('oauth_callback_confirmed');
     if (!oauthToken || !oauthTokenSecret) {
-      return res.status(500).json({ error: 'Missing oauth_token in response' });
+      return res.status(500).json({ error: 'Missing oauth_token or oauth_token_secret in response', body: bodyText.slice(0, 200) });
+    }
+    if (callbackConfirmed !== 'true') {
+      return res.status(400).json({
+        error: 'oauth_callback_confirmed not true - ensure callback URL is added to your X App in developer.x.com',
+        hint: 'App settings → User authentication → Callback URL. Add e.g. https://zk.localhost:3000/auth/twitter-oauth1/callback or https://127.0.0.1:3000/auth/twitter-oauth1/callback',
+      });
     }
 
     oauth1RequestSecrets.set(oauthToken, oauthTokenSecret);
@@ -864,7 +948,7 @@ app.post('/api/twitter/oauth1/access-token', noAuth, async (req, res) => {
       return res.status(400).json({ error: 'Unknown oauthToken; restart OAuth1 flow' });
     }
 
-    const url = 'https://api.x.com/oauth/access_token';
+    const url = `https://api.x.com/oauth/access_token?oauth_token=${encodeURIComponent(oauthToken)}&oauth_verifier=${encodeURIComponent(oauthVerifier)}`;
     const { header } = buildOAuth1Header({
       method: 'POST',
       url,
@@ -872,19 +956,11 @@ app.post('/api/twitter/oauth1/access-token', noAuth, async (req, res) => {
       consumerSecret: TWITTER_API_SECRET,
       token: oauthToken,
       tokenSecret,
-      extraParams: { oauth_verifier: oauthVerifier },
     });
-
-    const bodyParams = new URLSearchParams();
-    bodyParams.set('oauth_verifier', oauthVerifier);
 
     const tokenRes = await fetch(url, {
       method: 'POST',
-      headers: {
-        Authorization: header,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: bodyParams.toString(),
+      headers: { Authorization: header },
     });
 
     const bodyText = await tokenRes.text().catch(() => '');
@@ -1470,6 +1546,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   POST /api/reclaim/zkfetch/prove`);
   console.log(`   POST /api/twitter/oauth/exchange`);
   console.log(`   POST /api/github/oauth/exchange`);
+  console.log(`   POST /api/linkedin/oauth/exchange`);
   console.log(`   POST /api/instagram/oauth/exchange`);
   console.log(`   POST /api/twitter/oauth1/request-token`);
   console.log(`   POST /api/twitter/oauth1/access-token`);

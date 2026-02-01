@@ -33,13 +33,31 @@ export function toOnchainReclaimProof(proof: ReclaimProof): ReclaimOnchainProof 
     epoch: proof?.epoch,
   };
 
-  if (!resolvedClaimData || !resolvedClaimData.identifier || !resolvedClaimData.owner) {
+  type ClaimDataWithRequired = {
+    provider?: string;
+    parameters?: string;
+    context?: string;
+    identifier: string;
+    owner: string;
+    timestampS?: string | number;
+    epoch?: string | number;
+  };
+
+  if (
+    !resolvedClaimData ||
+    !('identifier' in resolvedClaimData) ||
+    !resolvedClaimData.identifier ||
+    !('owner' in resolvedClaimData) ||
+    !resolvedClaimData.owner
+  ) {
     console.error('[toOnchainReclaimProof] Proof structure:', JSON.stringify(proof, null, 2));
     throw new Error(
       'Reclaim proof is missing claimData. Expected fields: identifier, owner, timestampS, epoch. ' +
       'Check console for full proof structure.'
     );
   }
+
+  const claim = resolvedClaimData as ClaimDataWithRequired;
 
   const signatures =
     Array.isArray(proof?.signatures) && proof.signatures.length > 0
@@ -54,18 +72,18 @@ export function toOnchainReclaimProof(proof: ReclaimProof): ReclaimOnchainProof 
 
   return {
     claimInfo: {
-      provider: String(resolvedClaimData.provider || ''),
-      parameters: String(resolvedClaimData.parameters || ''),
-      context: String(resolvedClaimData.context || ''),
+      provider: String(claim.provider || ''),
+      parameters: String(claim.parameters || ''),
+      context: String(claim.context || ''),
     },
     signedClaim: {
       claim: {
-        identifier: String(resolvedClaimData.identifier) as `0x${string}`,
-        owner: String(resolvedClaimData.owner) as `0x${string}`,
-        timestampS: toUint32(resolvedClaimData.timestampS, 'timestampS'),
-        epoch: toUint32(resolvedClaimData.epoch, 'epoch'),
+        identifier: String(claim.identifier) as `0x${string}`,
+        owner: String(claim.owner) as `0x${string}`,
+        timestampS: toUint32(claim.timestampS, 'timestampS'),
+        epoch: toUint32(claim.epoch, 'epoch'),
       },
-      signatures: signatures.map((s) => String(s) as `0x${string}`),
+      signatures: signatures.map((s: unknown) => String(s) as `0x${string}`),
     },
   };
 }

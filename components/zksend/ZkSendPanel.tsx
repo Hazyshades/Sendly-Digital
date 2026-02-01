@@ -6,7 +6,7 @@ import { IdentitySelector } from './IdentitySelector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { normalizeSocialUsername } from '../../utils/reclaim/identity';
 
-export type ZkSendPlatform = 'twitter' | 'twitch' | 'github' | 'instagram' | 'tiktok' | 'gmail' | 'linkedin';
+export type ZkSendPlatform = 'twitter' | 'twitch' | 'github' | 'instagram' /* | 'tiktok' */ | 'gmail' | 'linkedin';
 
 export function ZkSendPanel() {
   const [activeTab, setActiveTab] = useState<'send' | 'receive'>('send');

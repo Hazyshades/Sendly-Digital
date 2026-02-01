@@ -1,106 +1,150 @@
 import { toast } from 'sonner';
-import { generateCodeVerifier, generateCodeChallenge, createPopupWindow } from './utils';
+import { createPopupWindow } from './utils';
+
+const getZkTlsApiUrl = (): string => {
+  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
+  const envUrl =
+    (import.meta.env.VITE_RECLAIM_API_URL as string | undefined) ||
+    (import.meta.env.VITE_ZKTLS_API_URL as string | undefined);
+  if (envUrl) return envUrl;
+  return 'http://localhost:3001';
+};
+
+export type TwitterOAuth1Tokens = {
+  oauthToken: string;
+  oauthTokenSecret: string;
+  screenName?: string;
+};
 
 /**
- * Request Twitter OAuth token using PKCE flow
+ * Request Twitter OAuth 1.0a token (request token -> authorize -> access token)
  */
-export const requestTwitterOAuthTokenFlow = async (): Promise<string | null> => {
+export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | null> => {
   return new Promise((resolve) => {
-    const twitterClientId = import.meta.env.VITE_TWITTER_CLIENT_ID as string | undefined;
-    if (!twitterClientId) {
-      toast.error('Twitter Client ID not configured');
-      resolve(null);
-      return;
-    }
+    const apiUrl = getZkTlsApiUrl().replace(/\/$/, '');
+    const origin = window.location.origin;
+    const baseCallback =
+      (import.meta.env.VITE_TWITTER_OAUTH1_CALLBACK as string | undefined) ||
+      `${origin}/auth/twitter-oauth1/callback`;
+    const callbackUrl = baseCallback.replace(/\/$/, '');
 
-    const redirectUri = `${window.location.origin}/auth/twitter/callback`;
-    const scopes = 'users.read follows.read offline.access';
-    const state = Math.random().toString(36).substring(7);
+    const run = async () => {
+      try {
+        const res = await fetch(`${apiUrl}/api/twitter/oauth1/request-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callbackUrl }),
+        });
 
-    const codeVerifier = generateCodeVerifier();
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          let errMsg = `Request token failed: ${res.status}`;
+          try {
+            const errJson = JSON.parse(text) as { error?: string; hint?: string };
+            if (errJson.error) errMsg = errJson.error;
+            if (errJson.hint) errMsg += `. ${errJson.hint}`;
+          } catch {
+            if (text) errMsg += `: ${text.slice(0, 100)}`;
+          }
+          toast.error(errMsg);
+          resolve(null);
+          return;
+        }
 
-    generateCodeChallenge(codeVerifier).then((codeChallenge) => {
-      sessionStorage.setItem('twitter_oauth_state', state);
-      sessionStorage.setItem('twitter_oauth_redirect', window.location.href);
-      sessionStorage.setItem('twitter_code_verifier', codeVerifier);
+        const data = (await res.json()) as { success?: boolean; oauthToken?: string };
+        if (!data.oauthToken) {
+          toast.error('No oauth_token in response');
+          resolve(null);
+          return;
+        }
 
-      const authUrl = `https://x.com/i/oauth2/authorize?redirect_uri=${encodeURIComponent(
-        redirectUri
-      )}&response_type=code&scope=${encodeURIComponent(
-        scopes
-      )}&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256&client_id=${encodeURIComponent(
-        twitterClientId
-      )}`;
+        const authorizeUrl = `https://api.x.com/oauth/authorize?oauth_token=${encodeURIComponent(data.oauthToken)}`;
 
-      toast.info('Opening Twitter authorization...');
+        localStorage.setItem('twitter_oauth1_redirect', window.location.href);
 
-      const popup = createPopupWindow(authUrl, 'Twitter OAuth');
+        toast.info('Opening Twitter authorization...');
 
-      if (!popup) {
-        toast.error('Popup blocked. Please allow popups for this site.');
+        const popup = createPopupWindow(authorizeUrl, 'Twitter OAuth 1.0a');
+
+        if (!popup) {
+          toast.error('Popup blocked. Please allow popups for this site.');
+          resolve(null);
+          return;
+        }
+
+        const messageHandler = (event: MessageEvent) => {
+          if (event.data?.target === 'metamask-inpage' || event.data?.name === 'metamask-provider') {
+            return;
+          }
+          if (event.origin !== window.location.origin) return;
+
+          if (
+            event.data &&
+            typeof event.data === 'object' &&
+            event.data.type === 'twitter_oauth1_token' &&
+            event.data.oauthToken &&
+            event.data.oauthTokenSecret
+          ) {
+            window.removeEventListener('message', messageHandler);
+            if (popup) popup.close();
+            resolve({
+              oauthToken: event.data.oauthToken as string,
+              oauthTokenSecret: event.data.oauthTokenSecret as string,
+              screenName: event.data.screenName as string | undefined,
+            });
+          }
+        };
+
+        window.addEventListener('message', messageHandler);
+
+        const checkStorage = setInterval(() => {
+          const token = localStorage.getItem('twitter_oauth1_token');
+          const secret = localStorage.getItem('twitter_oauth1_secret');
+          if (token && secret) {
+            clearInterval(checkStorage);
+            window.removeEventListener('message', messageHandler);
+            if (popup) popup.close();
+            resolve({ oauthToken: token, oauthTokenSecret: secret });
+          }
+        }, 500);
+
+        const checkPopup = setInterval(() => {
+          if (popup?.closed) {
+            clearInterval(checkPopup);
+            clearInterval(checkStorage);
+            window.removeEventListener('message', messageHandler);
+            resolve(null);
+          }
+        }, 500);
+      } catch (error) {
+        console.error('[Twitter OAuth1] request token error:', error);
+        toast.error('Failed to start Twitter authorization');
         resolve(null);
-        return;
       }
+    };
 
-      const messageHandler = (event: MessageEvent) => {
-        if (event.data?.target === 'metamask-inpage' || event.data?.name === 'metamask-provider') {
-          return;
-        }
-
-        if (event.origin !== window.location.origin) {
-          return;
-        }
-
-        if (event.data && typeof event.data === 'object' && event.data.type === 'twitter_oauth_token' && event.data.accessToken) {
-          const token = event.data.accessToken as string;
-          localStorage.setItem('twitter_oauth', token);
-          localStorage.setItem('twitter_oauth_token', token);
-
-          window.removeEventListener('message', messageHandler);
-          if (popup) popup.close();
-          resolve(token);
-        } else if (event.data && typeof event.data === 'object' && event.data.type === 'twitter_oauth_error') {
-          window.removeEventListener('message', messageHandler);
-          if (popup) popup.close();
-          resolve(null);
-        }
-      };
-
-      window.addEventListener('message', messageHandler);
-
-      const checkStorage = setInterval(() => {
-        const token = localStorage.getItem('twitter_oauth_token') || localStorage.getItem('twitter_oauth');
-        if (token && token.length > 10) {
-          clearInterval(checkStorage);
-          window.removeEventListener('message', messageHandler);
-          if (popup) popup.close();
-          resolve(token);
-        }
-      }, 500);
-
-      const checkPopup = setInterval(() => {
-        if (popup?.closed) {
-          clearInterval(checkPopup);
-          clearInterval(checkStorage);
-          window.removeEventListener('message', messageHandler);
-          resolve(null);
-        }
-      }, 500);
-    });
+    run();
   });
 };
 
 /**
- * Connect to Twitter OAuth
+ * Connect to Twitter via OAuth 1.0a
  */
 export const connectTwitter = async (): Promise<string | null> => {
   try {
-    const token = await requestTwitterOAuthTokenFlow();
-    if (!token) {
+    const tokens = await requestTwitterOAuth1Flow();
+    if (!tokens) {
       throw new Error('Twitter authorization failed or was cancelled');
     }
+
+    localStorage.setItem('twitter_oauth1_token', tokens.oauthToken);
+    localStorage.setItem('twitter_oauth1_secret', tokens.oauthTokenSecret);
+    if (tokens.screenName) {
+      localStorage.setItem('twitter_oauth1_screen_name', tokens.screenName);
+    }
+
     toast.success('Twitter connected');
-    return token;
+    return tokens.oauthToken;
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to connect Twitter';
     toast.error(msg);
@@ -109,20 +153,15 @@ export const connectTwitter = async (): Promise<string | null> => {
 };
 
 /**
- * Clear Twitter OAuth token from storage
+ * Clear Twitter OAuth 1.0a tokens from storage
  */
 export const clearTwitterToken = (): void => {
   try {
-    localStorage.removeItem('twitter_oauth');
-    localStorage.removeItem('twitter_oauth_token');
-    localStorage.removeItem('twitter_oauth_scope');
-    localStorage.removeItem('twitter_refresh_token');
-    sessionStorage.removeItem('twitter_oauth_state');
-    sessionStorage.removeItem('twitter_oauth_redirect');
-    sessionStorage.removeItem('twitter_code_verifier');
-    toast.success('Twitter token cleared');
+    localStorage.removeItem('twitter_oauth1_token');
+    localStorage.removeItem('twitter_oauth1_secret');
+    localStorage.removeItem('twitter_oauth1_screen_name');
+    localStorage.removeItem('twitter_oauth1_redirect');
   } catch (error) {
     console.error('[zkSEND] Failed to clear Twitter token:', error);
-    toast.error('Failed to clear Twitter token');
   }
 };

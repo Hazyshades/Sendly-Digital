@@ -21,12 +21,13 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 
 import type { ZkSendPlatform } from './ZkSendPanel';
-import { connectTwitter, clearTwitterToken } from './Oauth/twitter';
-import { connectTwitch, clearTwitchToken } from './Oauth/twitch';
-import { connectGithub, clearGithubToken } from './Oauth/github';
-import { connectInstagram, clearInstagramToken } from './Oauth/instagram';
-import { connectTiktok, clearTiktokToken } from './Oauth/tiktok';
-import { connectGmail, clearGmailToken } from './Oauth/gmail';
+import { connectTwitter } from './Oauth/twitter';
+import { connectTwitch } from './Oauth/twitch';
+import { connectGithub } from './Oauth/github';
+import { connectInstagram } from './Oauth/instagram';
+// import { connectTiktok } from './Oauth/tiktok';
+import { connectGmail } from './Oauth/gmail';
+import { connectLinkedIn } from './Oauth/linkedin';
 
 type PaymentRow = {
   paymentId: string;
@@ -64,19 +65,22 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       ? Math.floor(reclaimMinSignaturesRaw)
       : 2;
   const [accessToken, setAccessToken] = useState('');
+  const [oauth1Token, setOauth1Token] = useState('');
+  const [oauth1TokenSecret, setOauth1TokenSecret] = useState('');
   const [twitchAccessToken, setTwitchAccessToken] = useState('');
   const [githubAccessToken, setGithubAccessToken] = useState('');
   const [instagramAccessToken, setInstagramAccessToken] = useState('');
-  const [tiktokAccessToken, setTiktokAccessToken] = useState('');
+  // const [tiktokAccessToken, setTiktokAccessToken] = useState('');
   const [gmailAccessToken, setGmailAccessToken] = useState('');
+  const [linkedinAccessToken, setLinkedinAccessToken] = useState('');
   const [privyAccessToken, setPrivyAccessToken] = useState<string | null>(null);
   const [connectingTwitter, setConnectingTwitter] = useState(false);
   const [connectingTwitch, setConnectingTwitch] = useState(false);
   const [connectingGithub, setConnectingGithub] = useState(false);
   const [connectingInstagram, setConnectingInstagram] = useState(false);
-  const [connectingTiktok, setConnectingTiktok] = useState(false);
+  // const [connectingTiktok, setConnectingTiktok] = useState(false);
   const [connectingGmail, setConnectingGmail] = useState(false);
-  const [clearingToken, setClearingToken] = useState(false);
+  const [connectingLinkedIn, setConnectingLinkedIn] = useState(false);
   const [reclaimProofs, setReclaimProofs] = useState<ReclaimProof[] | null>(null);
   const [proofLoading, setProofLoading] = useState(false);
   const [proofError, setProofError] = useState<string | null>(null);
@@ -101,6 +105,20 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       console.warn('[zkSEND] Failed to parse stored Twitter token:', error);
     }
   }, [accessToken]);
+
+  useEffect(() => {
+    if (oauth1Token && oauth1TokenSecret) return;
+    try {
+      const token = localStorage.getItem('twitter_oauth1_token');
+      const secret = localStorage.getItem('twitter_oauth1_secret');
+      if (token && secret) {
+        setOauth1Token(token);
+        setOauth1TokenSecret(secret);
+      }
+    } catch (error) {
+      console.warn('[zkSEND] Failed to load Twitter OAuth1 tokens:', error);
+    }
+  }, [oauth1Token, oauth1TokenSecret]);
 
   useEffect(() => {
     if (twitchAccessToken) return;
@@ -150,21 +168,21 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
     }
   }, [instagramAccessToken]);
 
-  useEffect(() => {
-    if (tiktokAccessToken) return;
-    try {
-      const stored =
-        localStorage.getItem('tiktok_oauth_token') ||
-        localStorage.getItem('tiktok_oauth') ||
-        localStorage.getItem('tiktok_access_token');
-      if (!stored) return;
-      if (typeof stored === 'string' && stored.length > 0) {
-        setTiktokAccessToken(stored);
-      }
-    } catch (error) {
-      console.warn('[zkSEND] Failed to load TikTok token:', error);
-    }
-  }, [tiktokAccessToken]);
+  // useEffect(() => {
+  //   if (tiktokAccessToken) return;
+  //   try {
+  //     const stored =
+  //       localStorage.getItem('tiktok_oauth_token') ||
+  //       localStorage.getItem('tiktok_oauth') ||
+  //       localStorage.getItem('tiktok_access_token');
+  //     if (!stored) return;
+  //     if (typeof stored === 'string' && stored.length > 0) {
+  //       setTiktokAccessToken(stored);
+  //     }
+  //   } catch (error) {
+  //     console.warn('[zkSEND] Failed to load TikTok token:', error);
+  //   }
+  // }, [tiktokAccessToken]);
 
   useEffect(() => {
     if (gmailAccessToken) return;
@@ -181,6 +199,22 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       console.warn('[zkSEND] Failed to load Gmail token:', error);
     }
   }, [gmailAccessToken]);
+
+  useEffect(() => {
+    if (linkedinAccessToken) return;
+    try {
+      const stored =
+        localStorage.getItem('linkedin_oauth_token') ||
+        localStorage.getItem('linkedin_oauth') ||
+        localStorage.getItem('linkedin_access_token');
+      if (!stored) return;
+      if (typeof stored === 'string' && stored.length > 0) {
+        setLinkedinAccessToken(stored);
+      }
+    } catch (error) {
+      console.warn('[zkSEND] Failed to load LinkedIn token:', error);
+    }
+  }, [linkedinAccessToken]);
 
   useEffect(() => {
     // Privy is disabled for zk.localhost to prevent OAuth interception
@@ -285,7 +319,13 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
     try {
       const token = await connectTwitter();
       if (token) {
-        setAccessToken(token);
+        const secret = localStorage.getItem('twitter_oauth1_secret');
+        if (secret) {
+          setOauth1Token(token);
+          setOauth1TokenSecret(secret);
+        } else {
+          setAccessToken(token);
+        }
       }
     } finally {
       setConnectingTwitter(false);
@@ -304,26 +344,6 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
     }
   };
 
-  const handleClearTwitterToken = () => {
-    setClearingToken(true);
-    try {
-      clearTwitterToken();
-      setAccessToken('');
-    } finally {
-      setClearingToken(false);
-    }
-  };
-
-  const handleClearTwitchToken = () => {
-    setClearingToken(true);
-    try {
-      clearTwitchToken();
-      setTwitchAccessToken('');
-    } finally {
-      setClearingToken(false);
-    }
-  };
-
   const handleConnectGithub = async () => {
     setConnectingGithub(true);
     try {
@@ -333,16 +353,6 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       }
     } finally {
       setConnectingGithub(false);
-    }
-  };
-
-  const handleClearGithubToken = () => {
-    setClearingToken(true);
-    try {
-      clearGithubToken();
-      setGithubAccessToken('');
-    } finally {
-      setClearingToken(false);
     }
   };
 
@@ -358,37 +368,27 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
     }
   };
 
-  const handleClearInstagramToken = () => {
-    setClearingToken(true);
-    try {
-      clearInstagramToken();
-      setInstagramAccessToken('');
-    } finally {
-      setClearingToken(false);
-    }
-  };
+  // const handleConnectTiktok = async () => {
+  //   setConnectingTiktok(true);
+  //   try {
+  //     const token = await connectTiktok();
+  //     if (token) {
+  //       setTiktokAccessToken(token);
+  //     }
+  //   } finally {
+  //     setConnectingTiktok(false);
+  //   }
+  // };
 
-  const handleConnectTiktok = async () => {
-    setConnectingTiktok(true);
-    try {
-      const token = await connectTiktok();
-      if (token) {
-        setTiktokAccessToken(token);
-      }
-    } finally {
-      setConnectingTiktok(false);
-    }
-  };
-
-  const handleClearTiktokToken = () => {
-    setClearingToken(true);
-    try {
-      clearTiktokToken();
-      setTiktokAccessToken('');
-    } finally {
-      setClearingToken(false);
-    }
-  };
+  // const handleClearTiktokToken = () => {
+  //   setClearingToken(true);
+  //   try {
+  //     clearTiktokToken();
+  //     setTiktokAccessToken('');
+  //   } finally {
+  //     setClearingToken(false);
+  //   }
+  // };
 
   const handleConnectGmail = async () => {
     setConnectingGmail(true);
@@ -402,13 +402,15 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
     }
   };
 
-  const handleClearGmailToken = () => {
-    setClearingToken(true);
+  const handleConnectLinkedIn = async () => {
+    setConnectingLinkedIn(true);
     try {
-      clearGmailToken();
-      setGmailAccessToken('');
+      const token = await connectLinkedIn();
+      if (token) {
+        setLinkedinAccessToken(token);
+      }
     } finally {
-      setClearingToken(false);
+      setConnectingLinkedIn(false);
     }
   };
 
@@ -461,13 +463,13 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       const normalizedPlatform = normalizeSocialPlatform(platform);
       if (!normalizedPlatform) throw new Error('Unsupported platform');
       if (normalizedPlatform === 'twitter') {
-        // For zk.localhost, Privy is disabled, so only check direct OAuth token
+        const hasOAuth1 = Boolean(oauth1Token && oauth1TokenSecret);
         if (isZkLocalhost()) {
-          if (!accessToken) {
+          if (!hasOAuth1) {
             throw new Error('Connect Twitter to generate proof');
           }
         } else {
-          if (!accessToken && !privyAccessToken) {
+          if (!hasOAuth1 && !accessToken && !privyAccessToken) {
             throw new Error('Connect Twitter or login with Privy to generate proof');
           }
         }
@@ -481,8 +483,11 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       if (normalizedPlatform === 'instagram' && !instagramAccessToken) {
         throw new Error('Connect Instagram to generate proof');
       }
-      if (normalizedPlatform === 'tiktok' && !tiktokAccessToken) {
-        throw new Error('Connect TikTok to generate proof');
+      // if (normalizedPlatform === 'tiktok' && !tiktokAccessToken) {
+      //   throw new Error('Connect TikTok to generate proof');
+      // }
+      if (normalizedPlatform === 'linkedin' && !linkedinAccessToken) {
+        throw new Error('Connect LinkedIn to generate proof');
       }
 
       setClaimingId(paymentId);
@@ -493,7 +498,8 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
         normalizedPlatform !== 'twitch' &&
         normalizedPlatform !== 'github' &&
         normalizedPlatform !== 'instagram' &&
-        normalizedPlatform !== 'tiktok'
+        // normalizedPlatform !== 'tiktok' &&
+        normalizedPlatform !== 'linkedin'
       ) {
         if (!reclaimProofs || reclaimProofs.length === 0) {
           throw new Error('Generate Reclaim proof first');
@@ -548,7 +554,8 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       const isTwitch = normalizedPlatform === 'twitch';
       const isGithub = normalizedPlatform === 'github';
       const isInstagram = normalizedPlatform === 'instagram';
-      const isTiktok = normalizedPlatform === 'tiktok';
+      // const isTiktok = normalizedPlatform === 'tiktok';
+      const isLinkedIn = normalizedPlatform === 'linkedin';
 
       let requestUrl: string;
       let accessTokenToUse: string | undefined;
@@ -556,9 +563,15 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       let regexPattern: string;
 
       if (isTwitter) {
-        requestUrl = 'https://api.x.com/2/users/me?user.fields=username';
-        accessTokenToUse = accessToken || undefined;
-        regexPattern = '"username":"(?<username>[^"]+)"';
+        const useOAuth1 = Boolean(oauth1Token && oauth1TokenSecret);
+        if (useOAuth1) {
+          requestUrl = 'https://api.x.com/1.1/account/verify_credentials.json?include_email=false&skip_status=true';
+          regexPattern = '"screen_name":"(?<username>[^"]+)"';
+        } else {
+          requestUrl = 'https://api.x.com/2/users/me?user.fields=username';
+          accessTokenToUse = accessToken || undefined;
+          regexPattern = '"username":"(?<username>[^"]+)"';
+        }
       } else if (isTwitch) {
         const twitchClientId = import.meta.env.VITE_TWITCH_CLIENT_ID as string | undefined;
         if (!twitchClientId) {
@@ -581,15 +594,19 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
         accessTokenToUse = instagramAccessToken;
         clientId = instagramClientId;
         regexPattern = '"username":"(?<username>[^"]+)"';
-      } else if (isTiktok) {
-        const tiktokClientId = import.meta.env.VITE_TIKTOK_CLIENT_ID as string | undefined;
-        if (!tiktokClientId) {
-          throw new Error('TikTok Client ID not configured');
-        }
-        requestUrl = 'https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,avatar_url,display_name';
-        accessTokenToUse = tiktokAccessToken;
-        clientId = tiktokClientId;
-        regexPattern = '"display_name":"(?<username>[^"]+)"';
+      // } else if (isTiktok) {
+      //   const tiktokClientId = import.meta.env.VITE_TIKTOK_CLIENT_ID as string | undefined;
+      //   if (!tiktokClientId) {
+      //     throw new Error('TikTok Client ID not configured');
+      //   }
+      //   requestUrl = 'https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,avatar_url,display_name';
+      //   accessTokenToUse = tiktokAccessToken;
+      //   clientId = tiktokClientId;
+      //   regexPattern = '"display_name":"(?<username>[^"]+)"';
+      } else if (isLinkedIn) {
+        requestUrl = 'https://api.linkedin.com/v2/userinfo';
+        accessTokenToUse = linkedinAccessToken;
+        regexPattern = '"name":"(?<username>[^"]+)"';
       } else {
         throw new Error('Unsupported platform for zkFetch');
       }
@@ -605,6 +622,9 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
         body: JSON.stringify({
           requestUrl,
           ...(accessTokenToUse ? { accessToken: accessTokenToUse } : {}),
+          ...(oauth1Token && oauth1TokenSecret && isTwitter
+            ? { oauth1: { token: oauth1Token, tokenSecret: oauth1TokenSecret } }
+            : {}),
           ...(clientId ? { clientId } : {}),
           platform: normalizedPlatform,
           username: u,
@@ -713,10 +733,12 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
               disabled={connectingTwitter || !isIdentityValid}
               className="w-full"
             >
-              {connectingTwitter ? 'Connecting...' : accessToken ? 'Reconnect Twitter / X' : 'Connect Twitter / X'}
+              {connectingTwitter
+                ? 'Connecting...'
+                : oauth1Token || accessToken
+                  ? 'Reconnect Twitter / X'
+                  : 'Connect Twitter / X'}
             </Button>
-
-           
           </div>
         ) : platform === 'twitch' ? (
           <div className="space-y-3">
@@ -729,8 +751,6 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
             >
               {connectingTwitch ? 'Connecting...' : twitchAccessToken ? 'Reconnect Twitch' : 'Connect Twitch'}
             </Button>
-
-          
           </div>
         ) : platform === 'github' ? (
           <div className="space-y-3">
@@ -743,8 +763,6 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
             >
               {connectingGithub ? 'Connecting...' : githubAccessToken ? 'Reconnect GitHub' : 'Connect GitHub'}
             </Button>
-
-           
           </div>
         ) : platform === 'instagram' ? (
           <div className="space-y-3">
@@ -757,21 +775,6 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
             >
               {connectingInstagram ? 'Connecting...' : instagramAccessToken ? 'Reconnect Instagram' : 'Connect Instagram'}
             </Button>
-
-            
-          </div>
-        ) : platform === 'tiktok' ? (
-          <div className="space-y-3">
-            <Button
-              type="button"
-              size="lg"
-              onClick={handleConnectTiktok}
-              disabled={connectingTiktok || !isIdentityValid}
-              className="w-full"
-            >
-              {connectingTiktok ? 'Connecting...' : tiktokAccessToken ? 'Reconnect TikTok' : 'Connect TikTok'}
-            </Button>
-
           </div>
         ) : platform === 'gmail' ? (
           <div className="space-y-3">
@@ -784,7 +787,18 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
             >
               {connectingGmail ? 'Connecting...' : gmailAccessToken ? 'Reconnect Gmail' : 'Connect Gmail'}
             </Button>
-
+          </div>
+        ) : platform === 'linkedin' ? (
+          <div className="space-y-3">
+            <Button
+              type="button"
+              size="lg"
+              onClick={handleConnectLinkedIn}
+              disabled={connectingLinkedIn || !isIdentityValid}
+              className="w-full"
+            >
+              {connectingLinkedIn ? 'Connecting...' : linkedinAccessToken ? 'Reconnect LinkedIn' : 'Connect LinkedIn'}
+            </Button>
           </div>
         ) : (
           <div className="space-y-2 rounded-xl border bg-background p-3">
@@ -842,7 +856,7 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
                   onClick={() => claim(p.paymentId)}
                   disabled={claimingId === p.paymentId}
                 >
-                  {claimingId === p.paymentId ? 'Claiming...' : 'Claim via Reclaim'}
+                  {claimingId === p.paymentId ? 'Claiming...' : 'Claim'}
                 </Button>
               </div>
             ))}

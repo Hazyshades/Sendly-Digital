@@ -8,8 +8,10 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "circle:create-wallet": "node scripts/circleCreateWallet.mjs",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "backfill:zksend": "node scripts/backfill-zksend-from-subgraph.mjs"
   },
   "dependencies": {
     "@circle-fin/adapter-viem-v2": "^1.0.1",

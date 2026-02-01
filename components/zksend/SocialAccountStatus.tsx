@@ -25,7 +25,6 @@ const platformIcons: Record<ZkSendPlatform, typeof Twitter> = {
   github: Github,
   instagram: Instagram,
   linkedin: Linkedin,
-  tiktok: Instagram,
   gmail: Mail,
 };
 
@@ -35,7 +34,6 @@ const platformLabels: Record<ZkSendPlatform, string> = {
   github: 'GitHub',
   instagram: 'Instagram',
   linkedin: 'LinkedIn',
-  tiktok: 'TikTok',
   gmail: 'Gmail',
 };
 

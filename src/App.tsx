@@ -16,6 +16,7 @@ import { GatewayRoute } from '../pages/GatewayRoute';
 import { TwitchCallbackRoute } from '../pages/TwitchCallbackRoute';
 import { TwitterCallbackRoute } from '../pages/TwitterCallbackRoute';
 import { GitHubCallbackRoute } from '../pages/GitHubCallbackRoute';
+import { LinkedInCallbackRoute } from '../pages/LinkedInCallbackRoute';
 import { InstagramCallbackRoute } from '../pages/InstagramCallbackRoute';
 import { GmailCallbackRoute } from '../pages/GmailCallbackRoute';
 import { TwitterOAuth1CallbackRoute } from '../pages/TwitterOAuth1CallbackRoute';
@@ -45,6 +46,7 @@ function SharedAppRoutes({ zkMode }: { zkMode: boolean }) {
       <Route path="/auth/twitch/callback" element={<TwitchCallbackRoute />} />
       <Route path="/auth/twitter/callback" element={<TwitterCallbackRoute />} />
       <Route path="/auth/github/callback" element={<GitHubCallbackRoute />} />
+      <Route path="/auth/linkedin/callback" element={<LinkedInCallbackRoute />} />
       <Route path="/auth/instagram/callback" element={<InstagramCallbackRoute />} />
       <Route path="/auth/gmail/callback" element={<GmailCallbackRoute />} />
       <Route path="/auth/twitter-oauth1/callback" element={<TwitterOAuth1CallbackRoute />} />

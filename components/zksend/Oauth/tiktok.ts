@@ -1,3 +1,4 @@
+/* TikTok OAuth - commented out
 import { toast } from 'sonner';
 import { generateCodeVerifier, generateCodeChallenge, createPopupWindow } from './utils';
 
@@ -121,3 +122,4 @@ export const clearTiktokToken = (): void => {
     toast.error('Failed to clear TikTok token');
   }
 };
+*/
