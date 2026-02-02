@@ -17,6 +17,8 @@ import { ReclaimProofRequest } from '@reclaimprotocol/js-sdk';
 import { usePrivySafe } from '../../utils/privy/usePrivySafe';
 import { isZkLocalhost } from '../../utils/runtime/zkHost';
 
+const ARC_EXPLORER_URL = import.meta.env.VITE_ARC_BLOCK_EXPLORER_URL || 'https://testnet.arcscan.app';
+
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 
@@ -254,7 +256,12 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
   const [rows, setRows] = useState<PaymentRow[]>([]);
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [claimingAll, setClaimingAll] = useState(false);
+  const [lastClaimedTxHash, setLastClaimedTxHash] = useState<string | null>(null);
   const lastAutoLoadKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (rows.length > 0) setLastClaimedTxHash(null);
+  }, [rows.length]);
 
   const resolveCurrency = (tokenAddressOrSymbol: string) => {
     const normalized = tokenAddressOrSymbol.toLowerCase();
@@ -546,7 +553,20 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
           }
         }
 
-        toast.success(`Payment claimed. TX: ${txHash.slice(0, 10)}...`);
+        setLastClaimedTxHash(txHash);
+        toast.success(
+          <span>
+            Payment claimed.{' '}
+            <a
+              href={`${ARC_EXPLORER_URL}/tx/${txHash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline font-medium"
+            >
+              TX: {txHash.slice(0, 10)}...
+            </a>
+          </span>
+        );
         await loadPending();
         return;
       }
@@ -707,7 +727,20 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
         }
       }
 
-      toast.success(`Payment claimed. TX: ${txHash.slice(0, 10)}...`);
+      setLastClaimedTxHash(txHash);
+      toast.success(
+        <span>
+          Payment claimed.{' '}
+          <a
+            href={`${ARC_EXPLORER_URL}/tx/${txHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline font-medium"
+          >
+            TX: {txHash.slice(0, 10)}...
+          </a>
+        </span>
+      );
       await loadPending();
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to claim payment';
@@ -802,7 +835,20 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
             })
           )
         );
-        toast.success(`All payments claimed. TX: ${txHash.slice(0, 10)}...`);
+        setLastClaimedTxHash(txHash);
+        toast.success(
+          <span>
+            All payments claimed.{' '}
+            <a
+              href={`${ARC_EXPLORER_URL}/tx/${txHash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline font-medium"
+            >
+              TX: {txHash.slice(0, 10)}...
+            </a>
+          </span>
+        );
         await loadPending();
         return;
       }
@@ -934,7 +980,20 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
         )
       );
 
-      toast.success(`All payments claimed. TX: ${txHash.slice(0, 10)}...`);
+      setLastClaimedTxHash(txHash);
+      toast.success(
+        <span>
+          All payments claimed.{' '}
+          <a
+            href={`${ARC_EXPLORER_URL}/tx/${txHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline font-medium"
+          >
+            TX: {txHash.slice(0, 10)}...
+          </a>
+        </span>
+      );
       await loadPending();
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to claim all payments';
@@ -1066,25 +1125,40 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
         </div>
 
         {rows.length === 0 ? (
-          <div className="text-sm text-muted-foreground">No pending payments (or not loaded yet).</div>
+          <div className="text-sm text-muted-foreground">
+            {lastClaimedTxHash ? (
+              <a
+                href={`${ARC_EXPLORER_URL}/tx/${lastClaimedTxHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline font-medium text-foreground hover:opacity-80"
+              >
+                Payment claimed. View transaction: {lastClaimedTxHash.slice(0, 10)}...
+              </a>
+            ) : (
+              'No pending payments (or not loaded yet).'
+            )}
+          </div>
         ) : (
           <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                onClick={claimAll}
-                disabled={
-                  claimingAll ||
-                  !isConnected ||
-                  !address ||
-                  !isIdentityValid ||
-                  loadingList
-                }
-                className="w-full sm:w-auto"
-              >
-                {claimingAll ? 'Claiming all...' : `Claim all (${rows.length} payment${rows.length === 1 ? '' : 's'})`}
-              </Button>
-            </div>
+            {rows.length > 1 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  onClick={claimAll}
+                  disabled={
+                    claimingAll ||
+                    !isConnected ||
+                    !address ||
+                    !isIdentityValid ||
+                    loadingList
+                  }
+                  className="w-full sm:w-auto"
+                >
+                  {claimingAll ? 'Claiming all...' : `Claim all (${rows.length} payments)`}
+                </Button>
+              </div>
+            )}
             {rows.map((p) => (
               <div
                 key={p.paymentId}
