@@ -21,7 +21,7 @@ export function ReclaimCallbackRoute() {
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="text-sm text-muted-foreground">
-            If you arrived here after generating proof — return to the <b>/zksend</b> page and click Claim again
+            If you arrived here after generating proof — return to the <b>/payments</b> page and click Claim again
             if automatic claiming didn't work.
           </div>
           {paymentId ? <div className="text-sm">paymentId: {paymentId}</div> : null}

@@ -47,10 +47,18 @@ export default defineConfig(({ mode }) => {
   }
 
   const zktlsTarget = env.VITE_ZKTLS_PROXY_TARGET || 'http://localhost:3001';
+  // Port 443 → origin https://zk.localhost (no port). Required for Telegram Login Widget:
+  // Telegram's frame-ancestors CSP often ignores port in /setdomain; only https://zk.localhost is allowed.
+  const usePort443 = env.VITE_DEV_PORT_443 === 'true' || env.VITE_DEV_PORT_443 === '1';
+  const devPort = usePort443 ? 443 : 3000;
   const server: Record<string, unknown> = {
-    port: 3000,
+    port: devPort,
     host: true,
-    open: useHttps ? 'https://localhost:3000' : true,
+    open: useHttps
+      ? usePort443
+        ? 'https://zk.localhost'
+        : 'https://localhost:3000'
+      : true,
     strictPort: true,
     proxy: {
       '/api': {
@@ -64,7 +72,13 @@ export default defineConfig(({ mode }) => {
     if (httpsConfig.key && httpsConfig.cert) {
       server.https = { key: httpsConfig.key, cert: httpsConfig.cert };
       console.log('✓ HTTPS enabled with mkcert certificates');
-      console.log('✓ Server will be available at: https://localhost:3000');
+      if (usePort443) {
+        console.log('✓ Telegram Widget mode: open https://zk.localhost (port 443)');
+        console.log('  On Windows you may need to run the terminal as Administrator to bind port 443.');
+        console.log('  Ensure mkcert certs include zk.localhost: mkcert zk.localhost localhost');
+      } else {
+        console.log('✓ Server will be available at: https://localhost:3000');
+      }
     } else {
       console.warn('⚠️  Falling back to auto-generated self-signed certificate');
       console.warn('   This may cause ERR_SSL_VERSION_OR_CIPHER_MISMATCH in Chrome');

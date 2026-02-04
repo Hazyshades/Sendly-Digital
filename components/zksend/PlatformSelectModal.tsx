@@ -1,4 +1,4 @@
-import { Twitter, Twitch, Github, Instagram, Linkedin, Mail } from 'lucide-react';
+import { Twitter, Twitch, Github, MessageCircle, Instagram, Linkedin, Mail } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ const platformIcons: Record<ZkSendPlatform, typeof Twitter> = {
   twitter: Twitter,
   twitch: Twitch,
   github: Github,
+  telegram: MessageCircle,
   instagram: Instagram,
   linkedin: Linkedin,
   gmail: Mail,
@@ -22,6 +23,7 @@ const platformLabels: Record<ZkSendPlatform, string> = {
   twitter: 'Twitter / X',
   twitch: 'Twitch',
   github: 'GitHub',
+  telegram: 'Telegram',
   instagram: 'Instagram',
   linkedin: 'LinkedIn',
   gmail: 'Gmail',
@@ -31,6 +33,7 @@ const ALL_PLATFORMS: ZkSendPlatform[] = [
   'twitter',
   'twitch',
   'github',
+  'telegram',
   'instagram',
   'linkedin',
   // 'tiktok',

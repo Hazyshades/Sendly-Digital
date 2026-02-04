@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Twitter, Twitch, Github, Instagram, Linkedin, Mail, ChevronDown } from 'lucide-react';
+import { X, Twitter, Twitch, Github, MessageCircle, Instagram, Linkedin, Mail, ChevronDown } from 'lucide-react';
 
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -17,6 +17,7 @@ const PLATFORM_OPTIONS: {
   { value: 'twitter', label: 'Twitter / X', hint: 'Send to handle', icon: Twitter },
   { value: 'twitch', label: 'Twitch', hint: 'Send to username', icon: Twitch },
   { value: 'github', label: 'GitHub', hint: 'Send to username', icon: Github },
+  { value: 'telegram', label: 'Telegram', hint: 'Send to username', icon: MessageCircle },
   { value: 'instagram', label: 'Instagram', hint: 'Send to username', icon: Instagram, disabled: true },
   // { value: 'tiktok', label: 'TikTok', hint: 'Send to username', icon: Music2 },
   { value: 'gmail', label: 'Gmail', hint: 'Send to email', icon: Mail },

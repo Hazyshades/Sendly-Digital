@@ -26,6 +26,7 @@ import type { ZkSendPlatform } from './ZkSendPanel';
 import { connectTwitter } from './Oauth/twitter';
 import { connectTwitch } from './Oauth/twitch';
 import { connectGithub } from './Oauth/github';
+import { connectTelegram } from './Oauth/telegram';
 import { connectInstagram } from './Oauth/instagram';
 // import { connectTiktok } from './Oauth/tiktok';
 import { connectGmail } from './Oauth/gmail';
@@ -71,6 +72,7 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
   const [oauth1TokenSecret, setOauth1TokenSecret] = useState('');
   const [twitchAccessToken, setTwitchAccessToken] = useState('');
   const [githubAccessToken, setGithubAccessToken] = useState('');
+  const [telegramAccessToken, setTelegramAccessToken] = useState('');
   const [instagramAccessToken, setInstagramAccessToken] = useState('');
   // const [tiktokAccessToken, setTiktokAccessToken] = useState('');
   const [gmailAccessToken, setGmailAccessToken] = useState('');
@@ -79,6 +81,7 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
   const [connectingTwitter, setConnectingTwitter] = useState(false);
   const [connectingTwitch, setConnectingTwitch] = useState(false);
   const [connectingGithub, setConnectingGithub] = useState(false);
+  const [connectingTelegram, setConnectingTelegram] = useState(false);
   const [connectingInstagram, setConnectingInstagram] = useState(false);
   // const [connectingTiktok, setConnectingTiktok] = useState(false);
   const [connectingGmail, setConnectingGmail] = useState(false);
@@ -153,6 +156,21 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       console.warn('[zkSEND] Failed to load GitHub token:', error);
     }
   }, [githubAccessToken]);
+
+  useEffect(() => {
+    if (telegramAccessToken) return;
+    try {
+      const stored =
+        localStorage.getItem('telegram_oauth_token') ||
+        localStorage.getItem('telegram_oauth');
+      if (!stored) return;
+      if (typeof stored === 'string' && stored.length > 0) {
+        setTelegramAccessToken(stored);
+      }
+    } catch (error) {
+      console.warn('[zkSEND] Failed to load Telegram token:', error);
+    }
+  }, [telegramAccessToken]);
 
   useEffect(() => {
     if (instagramAccessToken) return;
@@ -364,6 +382,18 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
     }
   };
 
+  const handleConnectTelegram = async () => {
+    setConnectingTelegram(true);
+    try {
+      const token = await connectTelegram();
+      if (token) {
+        setTelegramAccessToken(token);
+      }
+    } finally {
+      setConnectingTelegram(false);
+    }
+  };
+
   const handleConnectInstagram = async () => {
     setConnectingInstagram(true);
     try {
@@ -494,6 +524,9 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       // if (normalizedPlatform === 'tiktok' && !tiktokAccessToken) {
       //   throw new Error('Connect TikTok to generate proof');
       // }
+      if (normalizedPlatform === 'telegram' && !telegramAccessToken) {
+        throw new Error('Connect Telegram to generate proof');
+      }
       if (normalizedPlatform === 'linkedin' && !linkedinAccessToken) {
         throw new Error('Connect LinkedIn to generate proof');
       }
@@ -505,6 +538,7 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
         normalizedPlatform !== 'twitter' &&
         normalizedPlatform !== 'twitch' &&
         normalizedPlatform !== 'github' &&
+        normalizedPlatform !== 'telegram' &&
         normalizedPlatform !== 'instagram' &&
         // normalizedPlatform !== 'tiktok' &&
         normalizedPlatform !== 'linkedin'
@@ -574,6 +608,7 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       const isTwitter = normalizedPlatform === 'twitter';
       const isTwitch = normalizedPlatform === 'twitch';
       const isGithub = normalizedPlatform === 'github';
+      const isTelegram = normalizedPlatform === 'telegram';
       const isInstagram = normalizedPlatform === 'instagram';
       // const isTiktok = normalizedPlatform === 'tiktok';
       const isLinkedIn = normalizedPlatform === 'linkedin';
@@ -605,6 +640,10 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       } else if (isGithub) {
         requestUrl = 'https://api.github.com/user';
         accessTokenToUse = githubAccessToken;
+        regexPattern = '"login":"(?<username>[^"]+)"';
+      } else if (isTelegram) {
+        requestUrl = `${reclaimApiBaseUrl.replace(/\/$/, '')}/api/telegram/me`;
+        accessTokenToUse = telegramAccessToken;
         regexPattern = '"login":"(?<username>[^"]+)"';
       } else if (isInstagram) {
         const instagramClientId = import.meta.env.VITE_INSTAGRAM_CLIENT_ID as string | undefined;
@@ -776,6 +815,9 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       if (normalizedPlatform === 'github' && !githubAccessToken) {
         throw new Error('Connect GitHub to generate proof');
       }
+      if (normalizedPlatform === 'telegram' && !telegramAccessToken) {
+        throw new Error('Connect Telegram to generate proof');
+      }
       if (normalizedPlatform === 'instagram' && !instagramAccessToken) {
         throw new Error('Connect Instagram to generate proof');
       }
@@ -796,6 +838,7 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
         normalizedPlatform !== 'twitter' &&
         normalizedPlatform !== 'twitch' &&
         normalizedPlatform !== 'github' &&
+        normalizedPlatform !== 'telegram' &&
         normalizedPlatform !== 'instagram' &&
         normalizedPlatform !== 'linkedin'
       ) {
@@ -856,6 +899,7 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       const isTwitter = normalizedPlatform === 'twitter';
       const isTwitch = normalizedPlatform === 'twitch';
       const isGithub = normalizedPlatform === 'github';
+      const isTelegram = normalizedPlatform === 'telegram';
       const isInstagram = normalizedPlatform === 'instagram';
       const isLinkedIn = normalizedPlatform === 'linkedin';
 
@@ -884,6 +928,10 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       } else if (isGithub) {
         requestUrl = 'https://api.github.com/user';
         accessTokenToUse = githubAccessToken;
+        regexPattern = '"login":"(?<username>[^"]+)"';
+      } else if (isTelegram) {
+        requestUrl = `${reclaimApiBaseUrl.replace(/\/$/, '')}/api/telegram/me`;
+        accessTokenToUse = telegramAccessToken;
         regexPattern = '"login":"(?<username>[^"]+)"';
       } else if (isInstagram) {
         const instagramClientId = import.meta.env.VITE_INSTAGRAM_CLIENT_ID as string | undefined;
@@ -1050,6 +1098,18 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
               className="w-full"
             >
               {connectingGithub ? 'Connecting...' : githubAccessToken ? 'Reconnect GitHub' : 'Connect GitHub'}
+            </Button>
+          </div>
+        ) : platform === 'telegram' ? (
+          <div className="space-y-3">
+            <Button
+              type="button"
+              size="lg"
+              onClick={handleConnectTelegram}
+              disabled={connectingTelegram || !isIdentityValid}
+              className="w-full"
+            >
+              {connectingTelegram ? 'Connecting...' : telegramAccessToken ? 'Reconnect Telegram' : 'Connect Telegram'}
             </Button>
           </div>
         ) : platform === 'instagram' ? (

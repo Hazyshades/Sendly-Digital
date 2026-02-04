@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { SplashScreen } from '../components/SplashScreen';
 import { useState } from 'react';
@@ -20,6 +20,7 @@ import { LinkedInCallbackRoute } from '../pages/LinkedInCallbackRoute';
 import { InstagramCallbackRoute } from '../pages/InstagramCallbackRoute';
 import { GmailCallbackRoute } from '../pages/GmailCallbackRoute';
 import { TwitterOAuth1CallbackRoute } from '../pages/TwitterOAuth1CallbackRoute';
+import { TelegramAuthRoute } from '../pages/TelegramAuthRoute';
 import { CircleMintRoute } from '../pages/CircleMintRoute';
 import { LeaderboardRoute } from '../pages/LeaderboardRoute';
 import { BlogRoute } from '../pages/BlogRoute';
@@ -50,8 +51,10 @@ function SharedAppRoutes({ zkMode }: { zkMode: boolean }) {
       <Route path="/auth/instagram/callback" element={<InstagramCallbackRoute />} />
       <Route path="/auth/gmail/callback" element={<GmailCallbackRoute />} />
       <Route path="/auth/twitter-oauth1/callback" element={<TwitterOAuth1CallbackRoute />} />
+      <Route path="/auth/telegram" element={<TelegramAuthRoute />} />
       <Route path="/reclaim/callback" element={<ReclaimCallbackRoute />} />
-      <Route path="/zksend" element={zkMode ? <ZkSendRoute /> : <ZkHostRedirect />} />
+      <Route path="/payments" element={zkMode ? <ZkSendRoute /> : <ZkHostRedirect />} />
+      <Route path="/zksend" element={<Navigate to="/payments" replace />} />
       <Route path="/Circle-Mint" element={<CircleMintRoute />} />
       <Route path="/blog" element={<BlogRoute />} />
       <Route path="/blog/:slug" element={<BlogPostRoute />} />

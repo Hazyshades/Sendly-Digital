@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Twitter, Twitch, Github, Instagram, Linkedin, Mail, CheckCircle2, AlertCircle, RefreshCw, LogOut, UserPlus, Settings } from 'lucide-react';
+import { Twitter, Twitch, Github, MessageCircle, Instagram, Linkedin, Mail, CheckCircle2, AlertCircle, RefreshCw, LogOut, UserPlus, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { useTwitterConnection } from '../../hooks/useTwitterConnection';
@@ -23,6 +23,7 @@ const platformIcons: Record<ZkSendPlatform, typeof Twitter> = {
   twitter: Twitter,
   twitch: Twitch,
   github: Github,
+  telegram: MessageCircle,
   instagram: Instagram,
   linkedin: Linkedin,
   gmail: Mail,
@@ -32,6 +33,7 @@ const platformLabels: Record<ZkSendPlatform, string> = {
   twitter: 'Twitter / X',
   twitch: 'Twitch',
   github: 'GitHub',
+  telegram: 'Telegram',
   instagram: 'Instagram',
   linkedin: 'LinkedIn',
   gmail: 'Gmail',
@@ -102,14 +104,14 @@ export function SocialAccountStatus() {
   const clearing = platform === 'twitter' ? clearingTwitter : platform === 'twitch' ? clearingTwitch : platform === 'gmail' ? clearingGmail : false;
 
   const handleRefreshPending = () => {
-    navigate('/zksend');
+    navigate('/payments');
     setTimeout(() => {
       window.dispatchEvent(new CustomEvent('refresh-pending-payments'));
     }, 100);
   };
 
   const goToConnections = () => {
-    navigate('/zksend');
+    navigate('/payments');
     setActiveTab('connections');
   };
 
@@ -158,6 +160,7 @@ export function SocialAccountStatus() {
     if (platform === 'twitter') return 'bg-black';
     if (platform === 'twitch') return 'bg-purple-600';
     if (platform === 'github') return 'bg-gray-800';
+    if (platform === 'telegram') return 'bg-sky-500';
     if (platform === 'instagram') return 'bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500';
     if (platform === 'linkedin') return 'bg-blue-600';
     if (platform === 'gmail') return 'bg-red-600';

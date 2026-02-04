@@ -56,6 +56,8 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 // LinkedIn OAuth (server-side code exchange)
 const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
 const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET;
+// Telegram Login Widget (hash verification + JWT for /api/telegram/me)
+const TELEGRAM_BOT_TOKEN = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
 
 const oauth1RequestSecrets = new Map();
 
@@ -634,6 +636,162 @@ app.post('/api/github/oauth/exchange', noAuth, async (req, res) => {
 });
 
 /**
+ * Telegram Login Widget: verify hash and issue JWT.
+ * See https://core.telegram.org/widgets/login
+ */
+function buildTelegramDataCheckString(params, excludePhotoUrl) {
+  const keys = Object.keys(params)
+    .filter((k) => k !== 'hash' && params[k] != null && (excludePhotoUrl ? k !== 'photo_url' : true))
+    .sort();
+  return keys.map((k) => `${k}=${params[k]}`).join('\n');
+}
+
+function verifyTelegramWidgetHash(params, hash) {
+  if (!TELEGRAM_BOT_TOKEN) {
+    return { ok: false, full: null, noPhoto: null };
+  }
+  const secretKey = crypto.createHash('sha256').update(TELEGRAM_BOT_TOKEN).digest();
+  const expectedHash = String(hash || '').toLowerCase();
+  // Try with all received fields first
+  const fullString = buildTelegramDataCheckString(params, false);
+  const fullHash = crypto.createHmac('sha256', secretKey).update(fullString).digest('hex');
+  if (fullHash === expectedHash) {
+    return { ok: true, full: { dataCheckString: fullString, computed: fullHash }, noPhoto: null };
+  }
+  // Some widget versions omit photo_url from the signed data; try without it
+  if (params.photo_url != null) {
+    const noPhotoString = buildTelegramDataCheckString(params, true);
+    const noPhotoHash = crypto.createHmac('sha256', secretKey).update(noPhotoString).digest('hex');
+    if (noPhotoHash === expectedHash) {
+      return { ok: true, full: null, noPhoto: { dataCheckString: noPhotoString, computed: noPhotoHash } };
+    }
+    return {
+      ok: false,
+      full: { dataCheckString: fullString, computed: fullHash },
+      noPhoto: { dataCheckString: noPhotoString, computed: noPhotoHash },
+    };
+  }
+  return { ok: false, full: { dataCheckString: fullString, computed: fullHash }, noPhoto: null };
+}
+
+function base64urlEncode(input) {
+  const buf = Buffer.isBuffer(input) ? input : Buffer.from(String(input), 'utf8');
+  return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+function signTelegramJWT(telegramUserId, username) {
+  if (!TELEGRAM_BOT_TOKEN) throw new Error('TELEGRAM_BOT_TOKEN not configured');
+  const now = Math.floor(Date.now() / 1000);
+  const payload = { telegram_user_id: telegramUserId, username: username || '', exp: now + 3600, iat: now };
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const headerB64 = base64urlEncode(JSON.stringify(header));
+  const payloadB64 = base64urlEncode(JSON.stringify(payload));
+  const signInput = `${headerB64}.${payloadB64}`;
+  const sig = crypto.createHmac('sha256', TELEGRAM_BOT_TOKEN).update(signInput).digest();
+  const sigB64 = base64urlEncode(sig);
+  return `${headerB64}.${payloadB64}.${sigB64}`;
+}
+
+function verifyTelegramJWT(token) {
+  if (!TELEGRAM_BOT_TOKEN || !token) return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  try {
+    const payloadJson = Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+    const payload = JSON.parse(payloadJson);
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
+    const signInput = `${parts[0]}.${parts[1]}`;
+    const expectedSig = crypto.createHmac('sha256', TELEGRAM_BOT_TOKEN).update(signInput).digest();
+    const expectedB64 = base64urlEncode(expectedSig);
+    if (expectedB64 !== parts[2]) return null;
+    return { telegram_user_id: payload.telegram_user_id, username: payload.username || '' };
+  } catch (_) {
+    return null;
+  }
+}
+
+app.post('/api/telegram/verify', noAuth, async (req, res) => {
+  try {
+    if (!TELEGRAM_BOT_TOKEN) {
+      return res.status(500).json({ error: 'Telegram bot token not configured' });
+    }
+    const body = req.body || {};
+    const reqHash = body.hash;
+    if (body.id == null || !reqHash) {
+      return res.status(400).json({ error: 'Missing id or hash' });
+    }
+    // Build params from received fields only (excluding hash); include empty string to match Telegram's signed data
+    const params = {};
+    for (const key of Object.keys(body)) {
+      if (key === 'hash') continue;
+      const v = body[key];
+      if (v === undefined) continue;
+      params[key] = v === null ? '' : String(v).trim();
+    }
+    const verifyResult = verifyTelegramWidgetHash(params, reqHash);
+    if (!verifyResult.ok) {
+      console.warn('[Telegram] Hash verification failed. Received keys:', Object.keys(params).sort().join(', '));
+      console.warn('[Telegram] Hash verification failed. Expected hash (from Telegram):', String(reqHash || ''));
+      if (verifyResult.full) {
+        console.warn('[Telegram] Hash verification failed. Computed hash (full):', verifyResult.full.computed);
+        console.warn('[Telegram] Hash verification failed. data_check_string (full):', verifyResult.full.dataCheckString);
+      }
+      if (verifyResult.noPhoto) {
+        console.warn('[Telegram] Hash verification failed. Computed hash (no_photo_url):', verifyResult.noPhoto.computed);
+        console.warn('[Telegram] Hash verification failed. data_check_string (no_photo_url):', verifyResult.noPhoto.dataCheckString);
+      }
+      return res.status(400).json({ error: 'Invalid Telegram widget hash' });
+    }
+    const authDate = parseInt(params.auth_date, 10);
+    if (!Number.isNaN(authDate) && Date.now() / 1000 - authDate > 86400) {
+      return res.status(400).json({ error: 'Telegram auth data too old' });
+    }
+    const accessToken = signTelegramJWT(params.id, params.username || '');
+    return res.json({ success: true, accessToken, username: params.username || '' });
+  } catch (error) {
+    console.error('[Telegram] verify failed:', error);
+    return res.status(500).json({ error: error.message || 'Telegram verify failed' });
+  }
+});
+
+app.get('/api/telegram/me', noAuth, (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || typeof authHeader !== 'string' || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+    }
+    const token = authHeader.slice(7).trim();
+    const payload = verifyTelegramJWT(token);
+    if (!payload) {
+      return res.status(401).json({ error: 'Invalid or expired Telegram token' });
+    }
+    return res.json({ login: payload.username || '' });
+  } catch (error) {
+    console.error('[Telegram] /me failed:', error);
+    return res.status(500).json({ error: error.message || 'Telegram /me failed' });
+  }
+});
+
+// Debug: verify which bot the token belongs to
+app.get('/api/telegram/bot-info', noAuth, async (req, res) => {
+  try {
+    if (!TELEGRAM_BOT_TOKEN) {
+      return res.status(500).json({ error: 'Telegram bot token not configured' });
+    }
+    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe`;
+    const botRes = await fetch(url, { method: 'GET' });
+    const json = await botRes.json().catch(() => ({}));
+    if (!botRes.ok || !json?.ok) {
+      return res.status(502).json({ error: 'Failed to fetch bot info from Telegram', status: botRes.status, body: json });
+    }
+    return res.json({ ok: true, result: json.result });
+  } catch (error) {
+    console.error('[Telegram] bot-info failed:', error);
+    return res.status(500).json({ error: error.message || 'Telegram bot-info failed' });
+  }
+});
+
+/**
  * LinkedIn OAuth: exchange authorization code for access token (server-side).
  */
 app.post('/api/linkedin/oauth/exchange', noAuth, async (req, res) => {
@@ -1178,6 +1336,10 @@ app.post('/api/reclaim/zkfetch/prove', noAuth, async (req, res) => {
       if (!effectiveAccessToken) {
         return res.status(401).json({ error: 'Missing GitHub OAuth access token' });
       }
+    } else if (normalizedPlatform === 'telegram') {
+      if (!effectiveAccessToken) {
+        return res.status(401).json({ error: 'Missing Telegram JWT (connect Telegram first)' });
+      }
     } else {
       return res.status(400).json({ error: `Unsupported platform for zkFetch: ${normalizedPlatform}` });
     }
@@ -1191,6 +1353,8 @@ app.post('/api/reclaim/zkfetch/prove', noAuth, async (req, res) => {
           : 'https://api.x.com/2/users/me?user.fields=username'
         : normalizedPlatform === 'github'
         ? 'https://api.github.com/user'
+        : normalizedPlatform === 'telegram'
+        ? `${req.protocol}://${req.get('host') || 'localhost'}/api/telegram/me`
         : 'https://api.twitch.tv/helix/users';
 
     const allowedUrls = [effectiveRequestUrl];
@@ -1198,54 +1362,64 @@ app.post('/api/reclaim/zkfetch/prove', noAuth, async (req, res) => {
 
     // Preflight check: verify tokens before invoking zkFetch
     try {
-      let preflightHeaders = {
-        accept: 'application/json',
-      };
-      if (normalizedPlatform === 'twitter') {
-        if (useOAuth1) {
-          const { header } = buildOAuth1Header({
-            method: 'GET',
-            url: effectiveRequestUrl,
-            consumerKey: TWITTER_API_KEY,
-            consumerSecret: TWITTER_API_SECRET,
-            token: oauth1Token,
-            tokenSecret: oauth1TokenSecret,
+      if (normalizedPlatform === 'telegram') {
+        // Telegram: verify JWT locally to avoid fetch to self (TLS cert issues when using HTTPS)
+        const payload = verifyTelegramJWT(effectiveAccessToken);
+        if (!payload) {
+          return res.status(401).json({
+            error: 'Invalid or expired Telegram token',
           });
-          preflightHeaders.Authorization = header;
-        } else {
+        }
+      } else {
+        let preflightHeaders = {
+          accept: 'application/json',
+        };
+        if (normalizedPlatform === 'twitter') {
+          if (useOAuth1) {
+            const { header } = buildOAuth1Header({
+              method: 'GET',
+              url: effectiveRequestUrl,
+              consumerKey: TWITTER_API_KEY,
+              consumerSecret: TWITTER_API_SECRET,
+              token: oauth1Token,
+              tokenSecret: oauth1TokenSecret,
+            });
+            preflightHeaders.Authorization = header;
+          } else {
+            preflightHeaders.Authorization = `Bearer ${effectiveAccessToken}`;
+          }
+        } else if (normalizedPlatform === 'twitch') {
+          preflightHeaders.Authorization = `Bearer ${effectiveAccessToken}`;
+          preflightHeaders['Client-Id'] = effectiveClientId;
+        } else if (normalizedPlatform === 'github') {
           preflightHeaders.Authorization = `Bearer ${effectiveAccessToken}`;
         }
-      } else if (normalizedPlatform === 'twitch') {
-        preflightHeaders.Authorization = `Bearer ${effectiveAccessToken}`;
-        preflightHeaders['Client-Id'] = effectiveClientId;
-      } else if (normalizedPlatform === 'github') {
-        preflightHeaders.Authorization = `Bearer ${effectiveAccessToken}`;
-      }
 
-      const preflightRes = await fetch(effectiveRequestUrl, {
-        method: 'GET',
-        headers: preflightHeaders,
-      });
-      if (!preflightRes.ok) {
-        const body = await preflightRes.text().catch(() => '');
-        const headers = {
-          accessLevel: preflightRes.headers.get('x-access-level') || null,
-          rateLimitRemaining: preflightRes.headers.get('x-rate-limit-remaining') || null,
-          rateLimitReset: preflightRes.headers.get('x-rate-limit-reset') || null,
-          requestId: preflightRes.headers.get('x-request-id') || null,
-          wwwAuthenticate: preflightRes.headers.get('www-authenticate') || null,
-        };
-        console.error(`[Reclaim] ${normalizedPlatform} preflight error:`, {
-          status: preflightRes.status,
-          headers,
-          body: body.slice(0, 1000),
+        const preflightRes = await fetch(effectiveRequestUrl, {
+          method: 'GET',
+          headers: preflightHeaders,
         });
-        return res.status(preflightRes.status).json({
-          error: `${normalizedPlatform} API returned an error for provided access token`,
-          status: preflightRes.status,
-          headers,
-          body: body.slice(0, 1000),
-        });
+        if (!preflightRes.ok) {
+          const body = await preflightRes.text().catch(() => '');
+          const headers = {
+            accessLevel: preflightRes.headers.get('x-access-level') || null,
+            rateLimitRemaining: preflightRes.headers.get('x-rate-limit-remaining') || null,
+            rateLimitReset: preflightRes.headers.get('x-rate-limit-reset') || null,
+            requestId: preflightRes.headers.get('x-request-id') || null,
+            wwwAuthenticate: preflightRes.headers.get('www-authenticate') || null,
+          };
+          console.error(`[Reclaim] ${normalizedPlatform} preflight error:`, {
+            status: preflightRes.status,
+            headers,
+            body: body.slice(0, 1000),
+          });
+          return res.status(preflightRes.status).json({
+            error: `${normalizedPlatform} API returned an error for provided access token`,
+            status: preflightRes.status,
+            headers,
+            body: body.slice(0, 1000),
+          });
+        }
       }
     } catch (preflightError) {
       console.error(`[Reclaim] ${normalizedPlatform} preflight failed:`, preflightError);
@@ -1289,6 +1463,8 @@ app.post('/api/reclaim/zkfetch/prove', noAuth, async (req, res) => {
       };
     } else if (normalizedPlatform === 'github') {
       proofHeaders = { Authorization: `Bearer ${effectiveAccessToken}` };
+    } else if (normalizedPlatform === 'telegram') {
+      proofHeaders = { Authorization: `Bearer ${effectiveAccessToken}` };
     }
 
     const proof = await client.zkFetch(
@@ -1312,6 +1488,8 @@ app.post('/api/reclaim/zkfetch/prove', noAuth, async (req, res) => {
                   ? useOAuth1
                     ? '"screen_name":"(?<username>[^"]+)"'
                     : '"username":"(?<username>[^"]+)"'
+                  : normalizedPlatform === 'telegram'
+                  ? '"login":"(?<username>[^"]+)"'
                   : '"login":"(?<username>[^"]+)"',
               },
             ],

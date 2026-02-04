@@ -30,7 +30,7 @@ export function Layout({ children }: LayoutProps) {
   const navigationItems = zk
     ? [
         { path: '/dashboard', label: 'Dashboard', icon: '🎤' },
-        { path: '/zksend', label: 'Payments', icon: '⚡' },
+        { path: '/payments', label: 'Payments', icon: '⚡' },
         { path: '/history', label: 'History', icon: '📜' },
         { path: '/leaderboard', label: 'Leaderboard', icon: '🏆' },
       ]
@@ -77,6 +77,14 @@ export function Layout({ children }: LayoutProps) {
               🔐 Social login
             </button>
           ) : null}
+          {!zk ? (
+            <a
+              href={toZkUrl(`${window.location.origin}/`)}
+              className="bg-white/90 backdrop-blur-sm border border-gray-200 text-gray-900 hover:bg-white px-4 py-2 rounded-2xl transition-all duration-200 flex items-center gap-2 shadow-circle-card font-medium"
+            >
+              zkTLS
+            </a>
+          ) : null}
           <ConnectButton />
         </div>
       </header>
@@ -104,14 +112,6 @@ export function Layout({ children }: LayoutProps) {
                   {item.label}
                 </Link>
               ))}
-              {!zk ? (
-                <a
-                  href={toZkUrl(`${window.location.origin}/`)}
-                  className="flex-1 px-3 py-2 rounded-2xl text-center text-sm font-medium transition-all duration-200 bg-white/70 text-gray-700 hover:bg-white/90 backdrop-blur-sm"
-                >
-                  zkTLS
-                </a>
-              ) : null}
             </div>
           </nav>
 
