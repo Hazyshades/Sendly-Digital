@@ -5,13 +5,30 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { fetchTwitterUserPreview, normalizeTwitterHandle, type TwitterUserPreview } from '../../utils/twitter';
+import {
+  fetchTwitchUserPreview,
+  normalizeTwitchLogin,
+  formatTwitchFollowers,
+  type TwitchUserPreview,
+} from '../../utils/twitch';
+import {
+  fetchGitHubUserPreview,
+  normalizeGitHubLogin,
+  type GitHubUserPreview,
+} from '../../utils/github';
 
 import type { ZkSendPlatform } from './ZkSendPanel';
 
-const TWITTER_PREVIEW_DEBOUNCE_MS = 500;
+const PREVIEW_DEBOUNCE_MS = 500;
 
 /** Module-level cache for successful Twitter previews (key = normalized username). Survives tab switch. */
 const twitterPreviewCache = new Map<string, TwitterUserPreview>();
+
+/** Module-level cache for successful Twitch previews (key = normalized login). Survives tab switch. */
+const twitchPreviewCache = new Map<string, TwitchUserPreview>();
+
+/** Module-level cache for successful GitHub previews (key = normalized login). Survives tab switch. */
+const githubPreviewCache = new Map<string, GitHubUserPreview>();
 
 const PLATFORM_OPTIONS: {
   value: ZkSendPlatform;
@@ -55,13 +72,29 @@ export function PlatformUsernameInput({
   const [previewStatus, setPreviewStatus] = useState<PreviewStatus>('idle');
   const [previewData, setPreviewData] = useState<TwitterUserPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [twitchPreviewStatus, setTwitchPreviewStatus] = useState<PreviewStatus>('idle');
+  const [twitchPreviewData, setTwitchPreviewData] = useState<TwitchUserPreview | null>(null);
+  const [twitchPreviewError, setTwitchPreviewError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRequestRef = useRef<string>('');
   const inFlightRequestRef = useRef<string>('');
+  const twitchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const twitchLastRequestRef = useRef<string>('');
+  const twitchInFlightRequestRef = useRef<string>('');
+  const [githubPreviewStatus, setGithubPreviewStatus] = useState<PreviewStatus>('idle');
+  const [githubPreviewData, setGithubPreviewData] = useState<GitHubUserPreview | null>(null);
+  const [githubPreviewError, setGithubPreviewError] = useState<string | null>(null);
+  const githubDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const githubLastRequestRef = useRef<string>('');
+  const githubInFlightRequestRef = useRef<string>('');
 
   const currentPlatformOpt = PLATFORM_OPTIONS.find((o) => o.value === platform) ?? PLATFORM_OPTIONS[0];
   const normalizedUsername = normalizeTwitterHandle(username);
+  const normalizedTwitchLogin = normalizeTwitchLogin(username);
+  const normalizedGitHubLogin = normalizeGitHubLogin(username);
   const showTwitterPreview = platform === 'twitter';
+  const showTwitchPreview = platform === 'twitch';
+  const showGitHubPreview = platform === 'github';
 
   useEffect(() => {
     if (!showTwitterPreview || !normalizedUsername) {
@@ -112,7 +145,7 @@ export function PlatformUsernameInput({
         .finally(() => {
           inFlightRequestRef.current = '';
         });
-    }, TWITTER_PREVIEW_DEBOUNCE_MS);
+    }, PREVIEW_DEBOUNCE_MS);
 
     return () => {
       if (debounceRef.current) {
@@ -121,6 +154,124 @@ export function PlatformUsernameInput({
       }
     };
   }, [showTwitterPreview, normalizedUsername]);
+
+  useEffect(() => {
+    if (!showTwitchPreview || !normalizedTwitchLogin) {
+      setTwitchPreviewStatus('idle');
+      setTwitchPreviewData(null);
+      setTwitchPreviewError(null);
+      twitchInFlightRequestRef.current = '';
+      if (twitchDebounceRef.current) {
+        clearTimeout(twitchDebounceRef.current);
+        twitchDebounceRef.current = null;
+      }
+      return;
+    }
+
+    const cached = twitchPreviewCache.get(normalizedTwitchLogin);
+    if (cached) {
+      setTwitchPreviewStatus('success');
+      setTwitchPreviewData(cached);
+      setTwitchPreviewError(null);
+      return;
+    }
+
+    if (twitchDebounceRef.current) clearTimeout(twitchDebounceRef.current);
+    setTwitchPreviewStatus('loading');
+    setTwitchPreviewError(null);
+
+    twitchDebounceRef.current = setTimeout(() => {
+      twitchDebounceRef.current = null;
+      const requested = normalizedTwitchLogin;
+      if (twitchInFlightRequestRef.current === requested) return;
+      twitchInFlightRequestRef.current = requested;
+      twitchLastRequestRef.current = requested;
+
+      fetchTwitchUserPreview(requested)
+        .then((result) => {
+          if (twitchLastRequestRef.current !== requested) return;
+          if (result.success) {
+            twitchPreviewCache.set(requested, result.data);
+            setTwitchPreviewStatus('success');
+            setTwitchPreviewData(result.data);
+            setTwitchPreviewError(null);
+          } else {
+            setTwitchPreviewStatus('error');
+            setTwitchPreviewData(null);
+            setTwitchPreviewError(result.error);
+          }
+        })
+        .finally(() => {
+          twitchInFlightRequestRef.current = '';
+        });
+    }, PREVIEW_DEBOUNCE_MS);
+
+    return () => {
+      if (twitchDebounceRef.current) {
+        clearTimeout(twitchDebounceRef.current);
+        twitchDebounceRef.current = null;
+      }
+    };
+  }, [showTwitchPreview, normalizedTwitchLogin]);
+
+  useEffect(() => {
+    if (!showGitHubPreview || !normalizedGitHubLogin) {
+      setGithubPreviewStatus('idle');
+      setGithubPreviewData(null);
+      setGithubPreviewError(null);
+      githubInFlightRequestRef.current = '';
+      if (githubDebounceRef.current) {
+        clearTimeout(githubDebounceRef.current);
+        githubDebounceRef.current = null;
+      }
+      return;
+    }
+
+    const cached = githubPreviewCache.get(normalizedGitHubLogin);
+    if (cached) {
+      setGithubPreviewStatus('success');
+      setGithubPreviewData(cached);
+      setGithubPreviewError(null);
+      return;
+    }
+
+    if (githubDebounceRef.current) clearTimeout(githubDebounceRef.current);
+    setGithubPreviewStatus('loading');
+    setGithubPreviewError(null);
+
+    githubDebounceRef.current = setTimeout(() => {
+      githubDebounceRef.current = null;
+      const requested = normalizedGitHubLogin;
+      if (githubInFlightRequestRef.current === requested) return;
+      githubInFlightRequestRef.current = requested;
+      githubLastRequestRef.current = requested;
+
+      fetchGitHubUserPreview(requested)
+        .then((result) => {
+          if (githubLastRequestRef.current !== requested) return;
+          if (result.success) {
+            githubPreviewCache.set(requested, result.data);
+            setGithubPreviewStatus('success');
+            setGithubPreviewData(result.data);
+            setGithubPreviewError(null);
+          } else {
+            setGithubPreviewStatus('error');
+            setGithubPreviewData(null);
+            setGithubPreviewError(result.error);
+          }
+        })
+        .finally(() => {
+          githubInFlightRequestRef.current = '';
+        });
+    }, PREVIEW_DEBOUNCE_MS);
+
+    return () => {
+      if (githubDebounceRef.current) {
+        clearTimeout(githubDebounceRef.current);
+        githubDebounceRef.current = null;
+      }
+    };
+  }, [showGitHubPreview, normalizedGitHubLogin]);
 
   const clearUsername = () => onUsernameChange('');
 
@@ -251,6 +402,118 @@ export function PlatformUsernameInput({
           {previewStatus === 'error' && previewError && (
             <p className="text-sm text-destructive" role="alert">
               {previewError}
+            </p>
+          )}
+        </>
+      )}
+
+      {showTwitchPreview && normalizedTwitchLogin && (
+        <>
+          {twitchPreviewStatus === 'loading' && (
+            <div
+              className="flex items-center gap-2 rounded-full bg-muted/60 px-3 py-2 text-sm text-muted-foreground"
+              role="status"
+              aria-live="polite"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                <Twitch className="h-4 w-4 text-muted-foreground" />
+              </span>
+              <span>{normalizedTwitchLogin}</span>
+              <span>Searching…</span>
+              <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
+            </div>
+          )}
+          {twitchPreviewStatus === 'success' && twitchPreviewData && (
+            <div
+              className="flex items-center gap-2 rounded-full bg-purple-100 dark:bg-purple-900/30 px-3 py-2 text-sm"
+              role="status"
+            >
+              {twitchPreviewData.profile_image_url ? (
+                <img
+                  src={twitchPreviewData.profile_image_url}
+                  alt=""
+                  className="h-8 w-8 shrink-0 rounded-full object-cover"
+                  width={32}
+                  height={32}
+                />
+              ) : (
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                  <Twitch className="h-4 w-4 text-muted-foreground" />
+                </span>
+              )}
+              <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                {twitchPreviewData.display_name && twitchPreviewData.display_name !== twitchPreviewData.login && (
+                  <span className="truncate text-foreground">{twitchPreviewData.display_name}</span>
+                )}
+                <span className="shrink-0 font-medium text-foreground">{twitchPreviewData.login}</span>
+                <span className="shrink-0 text-muted-foreground">
+                  {formatTwitchFollowers(twitchPreviewData.followers_total)} followers
+                </span>
+              </div>
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-purple-600 dark:text-purple-400" aria-hidden />
+            </div>
+          )}
+          {twitchPreviewStatus === 'error' && twitchPreviewError && (
+            <p className="text-sm text-destructive" role="alert">
+              {twitchPreviewError}
+            </p>
+          )}
+        </>
+      )}
+
+      {showGitHubPreview && normalizedGitHubLogin && (
+        <>
+          {githubPreviewStatus === 'loading' && (
+            <div
+              className="flex items-center gap-2 rounded-full bg-muted/60 px-3 py-2 text-sm text-muted-foreground"
+              role="status"
+              aria-live="polite"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                <Github className="h-4 w-4 text-muted-foreground" />
+              </span>
+              <span>{normalizedGitHubLogin}</span>
+              <span>Searching…</span>
+              <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
+            </div>
+          )}
+          {githubPreviewStatus === 'success' && githubPreviewData && (
+            <div
+              className="flex items-center gap-2 rounded-full bg-slate-100 dark:bg-slate-900/30 px-3 py-2 text-sm"
+              role="status"
+            >
+              {githubPreviewData.avatar_url ? (
+                <img
+                  src={githubPreviewData.avatar_url}
+                  alt=""
+                  className="h-8 w-8 shrink-0 rounded-full object-cover"
+                  width={32}
+                  height={32}
+                />
+              ) : (
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                  <Github className="h-4 w-4 text-muted-foreground" />
+                </span>
+              )}
+              <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                {githubPreviewData.name && githubPreviewData.name !== githubPreviewData.login && (
+                  <a
+                    href={`https://github.com/${githubPreviewData.login}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="truncate text-foreground underline decoration-muted-foreground/50 underline-offset-2 hover:decoration-foreground"
+                  >
+                    {githubPreviewData.name}
+                  </a>
+                )}
+                <span className="shrink-0 font-medium text-foreground">{githubPreviewData.login}</span>
+              </div>
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-slate-600 dark:text-slate-400" aria-hidden />
+            </div>
+          )}
+          {githubPreviewStatus === 'error' && githubPreviewError && (
+            <p className="text-sm text-destructive" role="alert">
+              {githubPreviewError}
             </p>
           )}
         </>
