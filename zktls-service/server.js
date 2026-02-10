@@ -16,6 +16,8 @@ const { promisify } = require('util');
 const fs = require('fs').promises;
 const os = require('os');
 const crypto = require('crypto');
+const { Api, TelegramClient } = require('telegram');
+const { StringSession } = require('telegram/sessions');
 
 const execAsync = promisify(exec);
 const app = express();
@@ -58,6 +60,9 @@ const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
 const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET;
 // Telegram Login Widget (hash verification + JWT for /api/telegram/me)
 const TELEGRAM_BOT_TOKEN = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
+// Telegram MTProto (GramJS) for resolveUsername — get user by @username
+const TELEGRAM_API_ID = parseInt(process.env.TELEGRAM_API_ID || '0', 10);
+const TELEGRAM_API_HASH = (process.env.TELEGRAM_API_HASH || '').trim();
 
 const oauth1RequestSecrets = new Map();
 
@@ -788,6 +793,87 @@ app.get('/api/telegram/bot-info', noAuth, async (req, res) => {
   } catch (error) {
     console.error('[Telegram] bot-info failed:', error);
     return res.status(500).json({ error: error.message || 'Telegram bot-info failed' });
+  }
+});
+
+/** Normalize Telegram username for lookup: trim, strip leading @, lowercase. */
+function normalizeTelegramUsername(raw) {
+  if (raw == null || typeof raw !== 'string') return '';
+  return raw.trim().replace(/^@/, '').toLowerCase();
+}
+
+/**
+ * GET /api/telegram/user?username=...
+ * Resolve Telegram @username via MTProto (GramJS) and return { username, name, profile_image_url }.
+ * Used by zk-sender for preview; requires TELEGRAM_BOT_TOKEN, TELEGRAM_API_ID, TELEGRAM_API_HASH.
+ */
+app.get('/api/telegram/user', noAuth, async (req, res) => {
+  try {
+    const usernameRaw = req.query.username;
+    const username = normalizeTelegramUsername(usernameRaw);
+    if (!username) {
+      return res.status(400).json({ error: 'Missing or invalid query.username', code: 'MISSING_USERNAME' });
+    }
+
+    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_API_ID || !TELEGRAM_API_HASH) {
+      return res.status(503).json({
+        error: 'Telegram user lookup is not configured. Set TELEGRAM_BOT_TOKEN, TELEGRAM_API_ID, TELEGRAM_API_HASH in .env',
+        code: 'TELEGRAM_NOT_CONFIGURED',
+      });
+    }
+
+    const session = new StringSession('');
+    const client = new TelegramClient(session, TELEGRAM_API_ID, TELEGRAM_API_HASH, {
+      connectionRetries: 3,
+      useWSS: false,
+    });
+
+    await client.connect();
+    try {
+      await client.invoke(
+        new Api.auth.importBotAuthorization({
+          flags: 0,
+          apiId: TELEGRAM_API_ID,
+          apiHash: TELEGRAM_API_HASH,
+          botAuthToken: TELEGRAM_BOT_TOKEN,
+        })
+      );
+
+      const result = await client.invoke(
+        new Api.contacts.resolveUsername({ username })
+      );
+
+      const users = result.users || [];
+      const user = users.find((u) => u && typeof u.username === 'string' && u.username.toLowerCase() === username) || users[0];
+      if (!user || !user.username) {
+        return res.status(404).json({ error: 'User not found', code: 'USER_NOT_FOUND' });
+      }
+
+      const firstName = (user.firstName && String(user.firstName).trim()) || '';
+      const lastName = (user.lastName && String(user.lastName).trim()) || '';
+      const name = [firstName, lastName].filter(Boolean).join(' ') || user.username;
+
+      return res.json({
+        username: user.username,
+        name,
+        profile_image_url: null,
+      });
+    } finally {
+      await client.disconnect();
+    }
+  } catch (error) {
+    const msg = error.message || '';
+    if (msg.includes('USERNAME_NOT_OCCUPIED') || msg.includes('USERNAME_INVALID')) {
+      return res.status(404).json({ error: 'User not found', code: 'USER_NOT_FOUND' });
+    }
+    if (msg.includes('FLOOD') || msg.includes('RATE')) {
+      return res.status(429).json({ error: 'Too many requests. Try again later.', code: 'RATE_LIMITED' });
+    }
+    console.error('[Telegram] user lookup failed:', error);
+    return res.status(500).json({
+      error: error.message || 'Telegram user lookup failed',
+      code: 'INTERNAL_ERROR',
+    });
   }
 });
 
