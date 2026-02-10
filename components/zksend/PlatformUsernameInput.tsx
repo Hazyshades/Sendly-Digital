@@ -16,6 +16,11 @@ import {
   normalizeGitHubLogin,
   type GitHubUserPreview,
 } from '../../utils/github';
+import {
+  fetchTelegramUserPreview,
+  normalizeTelegramUsername,
+  type TelegramUserPreview,
+} from '../../utils/telegram';
 
 import type { ZkSendPlatform } from './ZkSendPanel';
 
@@ -29,6 +34,9 @@ const twitchPreviewCache = new Map<string, TwitchUserPreview>();
 
 /** Module-level cache for successful GitHub previews (key = normalized login). Survives tab switch. */
 const githubPreviewCache = new Map<string, GitHubUserPreview>();
+
+/** Module-level cache for successful Telegram previews (key = normalized username). Survives tab switch. */
+const telegramPreviewCache = new Map<string, TelegramUserPreview>();
 
 const PLATFORM_OPTIONS: {
   value: ZkSendPlatform;
@@ -87,14 +95,22 @@ export function PlatformUsernameInput({
   const githubDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const githubLastRequestRef = useRef<string>('');
   const githubInFlightRequestRef = useRef<string>('');
+  const [telegramPreviewStatus, setTelegramPreviewStatus] = useState<PreviewStatus>('idle');
+  const [telegramPreviewData, setTelegramPreviewData] = useState<TelegramUserPreview | null>(null);
+  const [telegramPreviewError, setTelegramPreviewError] = useState<string | null>(null);
+  const telegramDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const telegramLastRequestRef = useRef<string>('');
+  const telegramInFlightRequestRef = useRef<string>('');
 
   const currentPlatformOpt = PLATFORM_OPTIONS.find((o) => o.value === platform) ?? PLATFORM_OPTIONS[0];
   const normalizedUsername = normalizeTwitterHandle(username);
   const normalizedTwitchLogin = normalizeTwitchLogin(username);
   const normalizedGitHubLogin = normalizeGitHubLogin(username);
+  const normalizedTelegramUsername = normalizeTelegramUsername(username);
   const showTwitterPreview = platform === 'twitter';
   const showTwitchPreview = platform === 'twitch';
   const showGitHubPreview = platform === 'github';
+  const showTelegramPreview = platform === 'telegram';
 
   useEffect(() => {
     if (!showTwitterPreview || !normalizedUsername) {
@@ -272,6 +288,65 @@ export function PlatformUsernameInput({
       }
     };
   }, [showGitHubPreview, normalizedGitHubLogin]);
+
+  useEffect(() => {
+    if (!showTelegramPreview || !normalizedTelegramUsername) {
+      setTelegramPreviewStatus('idle');
+      setTelegramPreviewData(null);
+      setTelegramPreviewError(null);
+      telegramInFlightRequestRef.current = '';
+      if (telegramDebounceRef.current) {
+        clearTimeout(telegramDebounceRef.current);
+        telegramDebounceRef.current = null;
+      }
+      return;
+    }
+
+    const cached = telegramPreviewCache.get(normalizedTelegramUsername);
+    if (cached) {
+      setTelegramPreviewStatus('success');
+      setTelegramPreviewData(cached);
+      setTelegramPreviewError(null);
+      return;
+    }
+
+    if (telegramDebounceRef.current) clearTimeout(telegramDebounceRef.current);
+    setTelegramPreviewStatus('loading');
+    setTelegramPreviewError(null);
+
+    telegramDebounceRef.current = setTimeout(() => {
+      telegramDebounceRef.current = null;
+      const requested = normalizedTelegramUsername;
+      if (telegramInFlightRequestRef.current === requested) return;
+      telegramInFlightRequestRef.current = requested;
+      telegramLastRequestRef.current = requested;
+
+      fetchTelegramUserPreview(requested)
+        .then((result) => {
+          if (telegramLastRequestRef.current !== requested) return;
+          if (result.success) {
+            telegramPreviewCache.set(requested, result.data);
+            setTelegramPreviewStatus('success');
+            setTelegramPreviewData(result.data);
+            setTelegramPreviewError(null);
+          } else {
+            setTelegramPreviewStatus('error');
+            setTelegramPreviewData(null);
+            setTelegramPreviewError(result.error);
+          }
+        })
+        .finally(() => {
+          telegramInFlightRequestRef.current = '';
+        });
+    }, PREVIEW_DEBOUNCE_MS);
+
+    return () => {
+      if (telegramDebounceRef.current) {
+        clearTimeout(telegramDebounceRef.current);
+        telegramDebounceRef.current = null;
+      }
+    };
+  }, [showTelegramPreview, normalizedTelegramUsername]);
 
   const clearUsername = () => onUsernameChange('');
 
@@ -514,6 +589,57 @@ export function PlatformUsernameInput({
           {githubPreviewStatus === 'error' && githubPreviewError && (
             <p className="text-sm text-destructive" role="alert">
               {githubPreviewError}
+            </p>
+          )}
+        </>
+      )}
+
+      {showTelegramPreview && normalizedTelegramUsername && (
+        <>
+          {telegramPreviewStatus === 'loading' && (
+            <div
+              className="flex items-center gap-2 rounded-full bg-muted/60 px-3 py-2 text-sm text-muted-foreground"
+              role="status"
+              aria-live="polite"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                <MessageCircle className="h-4 w-4 text-muted-foreground" />
+              </span>
+              <span>@{normalizedTelegramUsername}</span>
+              <span>Searching…</span>
+              <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
+            </div>
+          )}
+          {telegramPreviewStatus === 'success' && telegramPreviewData && (
+            <div
+              className="flex items-center gap-2 rounded-full bg-sky-100 dark:bg-sky-900/30 px-3 py-2 text-sm"
+              role="status"
+            >
+              {telegramPreviewData.profile_image_url ? (
+                <img
+                  src={telegramPreviewData.profile_image_url}
+                  alt=""
+                  className="h-8 w-8 shrink-0 rounded-full object-cover"
+                  width={32}
+                  height={32}
+                />
+              ) : (
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                  <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                </span>
+              )}
+              <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                {telegramPreviewData.name && telegramPreviewData.name !== telegramPreviewData.username && (
+                  <span className="truncate text-foreground">{telegramPreviewData.name}</span>
+                )}
+                <span className="shrink-0 font-medium text-foreground">@{telegramPreviewData.username}</span>
+              </div>
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400" aria-hidden />
+            </div>
+          )}
+          {telegramPreviewStatus === 'error' && telegramPreviewError && (
+            <p className="text-sm text-destructive" role="alert">
+              {telegramPreviewError}
             </p>
           )}
         </>
