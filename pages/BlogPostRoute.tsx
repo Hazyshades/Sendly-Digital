@@ -2,7 +2,9 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, ArrowLeft, Tag, Clock } from 'lucide-react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
-import { VerificationInfographic } from '../components/VerificationInfographic';
+import { VerificationInfographic } from '../components/figma/VerificationInfographic';
+import { ZkTLSInfographic } from '../components/figma/ZkTLSInfographic';
+import { ZkTLSArchitectureInfographic } from '../components/figma/ZkTLSArchitectureInfographic';
 import { BlogLayout } from '../components/BlogLayout';
 
 interface BlogPost {
@@ -29,7 +31,7 @@ interface BlogSection {
 interface BlogImage {
   id: string;
   src?: string;
-  componentId?: 'verification-infographic';
+  componentId?: 'verification-infographic' | 'zktls-infographic' | 'zktls-architecture-infographic';
   alt: string;
   caption: string;
 }
@@ -121,7 +123,7 @@ const blogPosts: Record<string, BlogPost> = {
   },
   zktls_payments_guide: {
     slug: 'zktls_payments_guide',
-    title: 'User Guide: Payments (via zkTLS and zkSend)',
+    title: 'User Guide: Payments (zkTLS and zkSend)',
     description:
       'How to send and receive payments by social identity in Sendly using zkTLS (proof of account ownership) and the ZkSend contract.',
     date: '2026-02-11',
@@ -129,6 +131,18 @@ const blogPosts: Record<string, BlogPost> = {
     tags: ['zkTLS', 'zkSend', 'Payments'],
     readTime: '10 min',
     images: [
+      {
+        id: 'zktls-flow',
+        componentId: 'zktls-infographic',
+        alt: 'zkTLS Protocol Flow: Connect account, TLS encryption, Create claim, Cryptographic proof',
+        caption: ''
+      },
+      {
+        id: 'zktls-architecture',
+        componentId: 'zktls-architecture-infographic',
+        alt: 'zkTLS Architecture Overview: User Device, Attestor, Social Platform, Smart Contract, Blockchain',
+        caption: ''
+      },
       {
         id: 'payments-fees',
         src: '/images/blog/testnet-fees.svg',
@@ -138,11 +152,38 @@ const blogPosts: Record<string, BlogPost> = {
     ],
     sections: [
       {
+        id: 'what-is-zktls',
+        title: 'What is zkTLS',
+        paragraphs: [
+          'zkTLS (zero-knowledge Transport Layer Security) is a cryptographic protocol that allows you to prove ownership of data from online services without revealing sensitive information like passwords, tokens, or personal details.',
+          'Built on the Reclaim Protocol, zkTLS enables you to demonstrate that you control a social media account (like Twitter, Twitch, or GitHub) without exposing your login credentials or access tokens. This is achieved through cryptographic proofs that verify data authenticity while maintaining privacy.',
+          'The protocol uses an attestor—a trusted intermediary that acts as an opaque proxy. When you connect your social account, the attestor facilitates encrypted communication between your device and the social platform\'s servers using TLS (Transport Layer Security). The attestor validates that you successfully accessed the resource but cannot see your actual data due to end-to-end encryption.',
+          'Here\'s how it works: You create a claim—a structured record of your interaction with the social platform. The attestor validates this claim by verifying the encrypted data exchange occurred, then signs it cryptographically. This signed claim proves you own the account without revealing sensitive details.',
+          'In Sendly Payments, zkTLS proofs are used to verify that you control a specific platform:username combination (e.g., twitter:alice). When claiming a payment, you generate a zkTLS proof that demonstrates account ownership, which the smart contract verifies before releasing funds to your wallet.'
+        ],
+        bullets: [
+          'End-to-end encryption: Your data is protected using TLS, ensuring only you and the target server can decrypt it.',
+          'Zero-knowledge proofs: You prove ownership without revealing passwords, tokens, or other sensitive information.',
+          'Privacy-first: The attestor operates as an opaque proxy—it validates interactions but cannot access your actual data.',
+          'Cryptographic integrity: Signed claims provide cryptographic proof that data came directly from the intended source and remains unaltered.',
+          'No credential sharing: Unlike web scraping tools, zkTLS never requires you to share login credentials or session cookies.'
+        ],
+        imageId: 'zktls-flow'
+      },
+      {
+        id: 'architecture',
+        title: 'Architecture',
+        paragraphs: [
+          'The protocol uses an attestor—a trusted intermediary that acts as an opaque proxy. When you connect your social account, the attestor facilitates encrypted communication between your device and the social platform\'s servers using TLS (Transport Layer Security). The attestor validates that you successfully accessed the resource but cannot see your actual data due to end-to-end encryption.'
+        ],
+        imageId: 'zktls-architecture'
+      },
+      {
         id: 'how-it-works',
         title: 'How it works (TL;DR)',
         paragraphs: [
           'Sender creates a payment on the smart contract, specifying the recipient as platform:username (e.g., twitter:alice), not a wallet address. Funds are locked in the contract and wait for the recipient.',
-          'Recipient opens the Payments section, proves ownership of the social account (via zkTLS-proof), and clicks Claim. The contract verifies the proof and sends the funds to the recipient\'s wallet.',
+          'Recipient opens the Payments section, proves ownership of the social account (zkTLS-proof), and clicks Claim. The contract verifies the proof and sends the funds to the recipient\'s wallet.',
           'Important: the recipient receives money to their own wallet, but the sender doesn\'t need to know their address — just the username.'
         ],
         imageId: 'payments-fees'
@@ -219,14 +260,8 @@ const blogPosts: Record<string, BlogPost> = {
         paragraphs: [
           'Never share access to your wallet and don\'t confirm unclear transactions. Connecting social accounts may store tokens in your browser for convenience — don\'t do this on public/shared computers. If you need to reset connections — use Disconnect (if available) or clear site data in your browser. Proof is used to confirm ownership of platform:username, but the goal is to not reveal unnecessary data.'
         ]
-      },
-      {
-        id: 'transparency',
-        title: 'Transparency: how to verify the ZkSend contract (optional)',
-        paragraphs: [
-          'If you want to make sure the contract is truly verified and matches the source code: After a successful Send or Claim, open the transaction via the link in the UI. Go to the contract page from the transaction and verify that the contract is marked as Verified.'
-        ]
       }
+      
     ],
     content: ''
   }
@@ -420,6 +455,30 @@ export function BlogPostRoute() {
                         aria-label={`Open: ${sectionImage.caption}`}
                       >
                         <VerificationInfographic compact />
+                        <div className="mt-3 text-sm text-gray-600">{sectionImage.caption}</div>
+                      </button>
+                    </div>
+                  ) : sectionImage.componentId === 'zktls-infographic' ? (
+                    <div className="w-full">
+                      <button
+                        type="button"
+                        onClick={() => setActiveImage(sectionImage)}
+                        className="w-full text-left rounded-xl overflow-hidden bg-[#FAFAFA]"
+                        aria-label={`Open: ${sectionImage.caption}`}
+                      >
+                        <ZkTLSInfographic compact />
+                        <div className="mt-3 text-sm text-gray-600">{sectionImage.caption}</div>
+                      </button>
+                    </div>
+                  ) : sectionImage.componentId === 'zktls-architecture-infographic' ? (
+                    <div className="w-full">
+                      <button
+                        type="button"
+                        onClick={() => setActiveImage(sectionImage)}
+                        className="w-full text-left rounded-xl overflow-hidden bg-[#FAFAFA]"
+                        aria-label={`Open: ${sectionImage.caption}`}
+                      >
+                        <ZkTLSArchitectureInfographic compact />
                         <div className="mt-3 text-sm text-gray-600">{sectionImage.caption}</div>
                       </button>
                     </div>
@@ -673,6 +732,46 @@ export function BlogPostRoute() {
                     contentStyle={{ minHeight: '400px' }}
                   >
                     <VerificationInfographic embedded />
+                  </TransformComponent>
+                </TransformWrapper>
+                <p className="px-4 py-2 text-xs text-gray-500 text-center border-t border-gray-100">
+                  Scroll or pinch to zoom · Double-tap to zoom in
+                </p>
+              </div>
+            ) : activeImage.componentId === 'zktls-infographic' ? (
+              <div className="bg-[#FAFAFA] overflow-hidden">
+                <TransformWrapper
+                  initialScale={1}
+                  minScale={0.5}
+                  maxScale={3}
+                  centerOnInit
+                  doubleClick={{ mode: 'zoomIn' }}
+                >
+                  <TransformComponent
+                    wrapperStyle={{ width: '100%', maxHeight: '70vh' }}
+                    contentStyle={{ minHeight: '400px' }}
+                  >
+                    <ZkTLSInfographic embedded />
+                  </TransformComponent>
+                </TransformWrapper>
+                <p className="px-4 py-2 text-xs text-gray-500 text-center border-t border-gray-100">
+                  Scroll or pinch to zoom · Double-tap to zoom in
+                </p>
+              </div>
+            ) : activeImage.componentId === 'zktls-architecture-infographic' ? (
+              <div className="bg-[#FAFAFA] overflow-hidden">
+                <TransformWrapper
+                  initialScale={1}
+                  minScale={0.5}
+                  maxScale={3}
+                  centerOnInit
+                  doubleClick={{ mode: 'zoomIn' }}
+                >
+                  <TransformComponent
+                    wrapperStyle={{ width: '100%', maxHeight: '70vh' }}
+                    contentStyle={{ minHeight: '400px' }}
+                  >
+                    <ZkTLSArchitectureInfographic embedded />
                   </TransformComponent>
                 </TransformWrapper>
                 <p className="px-4 py-2 text-xs text-gray-500 text-center border-t border-gray-100">

@@ -27,7 +27,7 @@ const blogPosts: BlogPost[] = [
   },
   {
     slug: 'zktls_payments_guide',
-    title: 'User Guide: Payments (via zkTLS and zkSend)',
+    title: 'User Guide: Payments (zkTLS and zkSend)',
     description:
       'How to send and receive payments by social identity in Sendly using zkTLS and the ZkSend contract.',
     date: '2026-02-11',
