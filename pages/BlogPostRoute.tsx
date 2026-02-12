@@ -180,7 +180,7 @@ const blogPosts: Record<string, BlogPost> = {
       },
       {
         id: 'how-it-works',
-        title: 'How it works (TL;DR)',
+        title: 'How it works',
         paragraphs: [
           'Sender creates a payment on the smart contract, specifying the recipient as platform:username (e.g., twitter:alice), not a wallet address. Funds are locked in the contract and wait for the recipient.',
           'Recipient opens the Payments section, proves ownership of the social account (zkTLS-proof), and clicks Claim. The contract verifies the proof and sends the funds to the recipient\'s wallet.',

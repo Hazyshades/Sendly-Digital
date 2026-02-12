@@ -239,7 +239,7 @@ export function ZkTLSArchitectureInfographic({
                 </svg>
                 <span
                   className="text-xs font-mono uppercase tracking-wider absolute z-10 bg-[#FAFAFA] px-2"
-                  style={{ color: '#14b8a6', top: '45px', left: '50%', transform: 'translateX(-50%)', whiteSpace: 'nowrap' }}
+                  style={{ color: '#14b8a6', top: '25px', left: '45%', transform: 'translateX(-50%)', whiteSpace: 'nowrap' }}
                 >
                   Signed Claim
                 </span>
