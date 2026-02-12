@@ -1,8 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
-import { Gift, BookOpen, Calendar, ArrowLeft, Tag, Clock } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Calendar, ArrowLeft, Tag, Clock } from 'lucide-react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { VerificationInfographic } from '../components/VerificationInfographic';
+import { BlogLayout } from '../components/BlogLayout';
 
 interface BlogPost {
   slug: string;
@@ -34,112 +35,6 @@ interface BlogImage {
 }
 
 const blogPosts: Record<string, BlogPost> = {
-  testnet: {
-    slug: 'testnet',
-    title: 'Testnet Tutorial: How to work with Sendly',
-    description:
-      'A quick overview of what is live on the Sendly testnet and how payments stay fast, predictable, and cheap.',
-    date: '2026-01-07',
-    category: 'Tutorial',
-    tags: ['Testnet', 'Tutorial', 'ARC'],
-    readTime: '5 min',
-    images: [
-      {
-        id: 'lanes',
-        src: '/images/blog/testnet-lanes.svg',
-        alt: 'Dedicated payment lanes diagram',
-        caption: 'Dedicated lanes keep payment traffic isolated.'
-      },
-      {
-        id: 'fees',
-        src: '/images/blog/testnet-fees.svg',
-        alt: 'Stablecoin gas fee flow',
-        caption: 'Fees paid directly in USD stablecoins.'
-      },
-      {
-        id: 'dex',
-        src: '/images/blog/testnet-dex.svg',
-        alt: 'Built-in stable asset DEX',
-        caption: 'Native DEX routes stable asset swaps.'
-      }
-    ],
-    sections: [
-      {
-        id: 'whats-live',
-        title: "What's live on the testnet",
-        paragraphs: [
-          'Sendly testnet focuses on reliable, high-throughput payments with predictable fees.',
-          'Below is a quick overview of the core capabilities that are already live.'
-        ]
-      },
-      {
-        id: 'dedicated-payment-lanes',
-        title: 'Dedicated payment lanes',
-        paragraphs: [
-          'Payments have guaranteed blockspace reserved at the protocol level.',
-          'They do not compete with NFT mints, liquidations, or high-frequency contract calls.',
-          'Fees stay low and stable even when other network activity spikes.'
-        ],
-        bullets: [
-          'Target fee: one‑tenth of a cent per payment.',
-          'Predictable economics for high-volume flows.',
-          'No congestion-driven downtime for processors.'
-        ],
-        imageId: 'lanes'
-      },
-      {
-        id: 'stablecoin-native-gas',
-        title: 'Stablecoin-native gas',
-        paragraphs: [
-          'Transaction fees can be paid directly in USD‑denominated stablecoins.',
-          'This removes the need for volatile gas tokens and keeps costs predictable.',
-          'Wallets and custodians no longer need to hold extra assets just for gas.'
-        ],
-        imageId: 'fees'
-      },
-      {
-        id: 'built-in-stable-asset-dex',
-        title: 'Built‑in stable asset DEX',
-        paragraphs: [
-          'Sendly includes a native DEX optimized for stablecoins and tokenized deposits.',
-          'Users can pay fees in any USD stablecoin, and validators can receive fees in any USD stablecoin.',
-          'The protocol automatically routes to the best stable asset pool.'
-        ],
-        imageId: 'dex'
-      },
-      {
-        id: 'payments-metadata',
-        title: 'Payments and transfers metadata',
-        paragraphs: [
-          'Attach metadata to payments and transfers for richer reconciliation.',
-          'Use structured references to power dashboards, invoices, or dispute flows.'
-        ]
-      },
-      {
-        id: 'fast-finality',
-        title: 'Fast, deterministic finality',
-        paragraphs: [
-          'Finality is quick and deterministic, so payment status updates are immediate.',
-          'This makes it safer to build real‑time payout and merchant experiences.'
-        ]
-      },
-      {
-        id: 'wallet-signing',
-        title: 'Modern wallet signing methods',
-        paragraphs: [
-          'Support for modern signing schemes improves UX across desktop and mobile.',
-          'Built‑in account abstraction workflows reduce friction for first‑time users.'
-        ]
-      }
-    ],
-    content: `
-# Testnet Tutorial: How to work with Sendly
-
-We are happy to announce the launch of Sendly on ARC Testnet!
-
-## How it works?
-   `
-  },
   privy_results: {
     slug: 'privy_results',
     title: 'Privy testnet results: metrics, methodology, and takeaways',
@@ -223,6 +118,117 @@ We are happy to announce the launch of Sendly on ARC Testnet!
       }
     ],
     content: ''
+  },
+  zktls_payments_guide: {
+    slug: 'zktls_payments_guide',
+    title: 'User Guide: Payments (via zkTLS and zkSend)',
+    description:
+      'How to send and receive payments by social identity in Sendly using zkTLS (proof of account ownership) and the ZkSend contract.',
+    date: '2026-02-11',
+    category: 'Tutorial',
+    tags: ['zkTLS', 'zkSend', 'Payments'],
+    readTime: '10 min',
+    images: [
+      {
+        id: 'payments-fees',
+        src: '/images/blog/testnet-fees.svg',
+        alt: 'Payments and fees on zkSync',
+        caption: 'On-chain fees and payments on zkSync'
+      }
+    ],
+    sections: [
+      {
+        id: 'how-it-works',
+        title: 'How it works (TL;DR)',
+        paragraphs: [
+          'Sender creates a payment on the smart contract, specifying the recipient as platform:username (e.g., twitter:alice), not a wallet address. Funds are locked in the contract and wait for the recipient.',
+          'Recipient opens the Payments section, proves ownership of the social account (via zkTLS-proof), and clicks Claim. The contract verifies the proof and sends the funds to the recipient\'s wallet.',
+          'Important: the recipient receives money to their own wallet, but the sender doesn\'t need to know their address — just the username.'
+        ],
+        imageId: 'payments-fees'
+      },
+      {
+        id: 'prerequisites',
+        title: 'Prerequisites',
+        paragraphs: [
+          'Wallet: MetaMask / Rabby / Circle Wallet (Sendly Internal Wallet).',
+          'Tokens to send: USDC or EURC.',
+          'Social account on a supported platform (Twitter/X, Twitch, GitHub, Telegram, LinkedIn, etc.).'
+        ]
+      },
+      {
+        id: 'platform-username',
+        title: 'Important rules for platform:username',
+        paragraphs: [
+          'Identity is normalized before sending/searching: Platform is converted to lowercase, trimmed; alias x → twitter. Username is trimmed and lowercased. If you enter @username, the @ symbol is ignored.',
+          'Examples: Twitter + @Alice → twitter:alice, x + Bob → twitter:bob. Tip: enter the username exactly as it appears in the profile (without extra spaces).'
+        ]
+      },
+      {
+        id: 'sending',
+        title: 'Sending a payment (Send tab)',
+        paragraphs: [
+          'Open zk.sendly.digital and go to the payments section. Connect your wallet using the Connect wallet button. Open the Send tab.',
+          'In the Amount field, enter the amount (e.g., 10). Select the token (USDC or EURC). In the To block: select the platform (icon on the right), enter the recipient\'s username (or email for Gmail, if enabled). Click Send and confirm the transaction in your wallet.',
+          'The contract creates a payment and assigns it a paymentId. The payment becomes visible to the recipient in the Receive tab (if they enter the same platform:username).',
+          'Tips: If the Send button is inactive — check that a wallet is connected, amount is > 0, and username is valid. For some platforms, selection may be unavailable in the UI (e.g., if the platform is temporarily disabled).'
+        ]
+      },
+      {
+        id: 'receiving',
+        title: 'Receiving a payment (Receive tab)',
+        paragraphs: [
+          'Open .../payments and connect your wallet. Go to the Receive tab. Enter your username and select the platform (this should be the account the payment was sent to). Wait for the pending payments list to auto-load (or click Refresh).',
+          'To prove ownership: for various platforms, you\'ll be offered a button like Connect Twitter / X, Connect Twitch, Connect GitHub, Connect Telegram, Connect LinkedIn, etc. Click Connect ... and complete the authorization (usually opens a popup/redirect). After connecting, return to Payments and click Refresh if needed.'
+        ],
+        bullets: [
+          'Connection tokens are used to obtain zkTLS-proof and are stored only in your browser (localStorage).',
+          'We do not store these tokens on our servers — they are used only locally for proof generation.',
+          'Only use this connection on your own device.'
+        ]
+      },
+      {
+        id: 'claim',
+        title: 'Claim: how to collect your funds',
+        paragraphs: [
+          'When pending payments are loaded, you\'ll see cards with paymentId, from (sender\'s address), amount and token.'
+        ],
+        bullets: [
+          'Claim a single payment: Click Claim next to the desired paymentId. Confirm the transaction in your wallet. On success, the interface will show a link to the transaction in the block explorer.',
+          'Claim multiple payments (Claim all): If you have multiple payments, click Claim all and confirm a single transaction. Note: claim uses the currently connected wallet — funds will be sent there.'
+        ]
+      },
+      {
+        id: 'troubleshooting',
+        title: 'Troubleshooting (FAQ)',
+        paragraphs: [
+          'Below are common errors encountered in Payments and what usually helps.'
+        ],
+        bullets: [
+          '"Unsupported platform" — Select a different platform in the selector.',
+          '"Connect Twitter/Twitch/GitHub/Telegram/LinkedIn … to generate proof" — Go to Receive tab, select platform, enter username, click Connect ... and complete connection, then Refresh.',
+          '"Proof username mismatch" — Check that you selected the correct platform and entered the correct username. If you connected the wrong account — reconnect the social account (Reconnect).',
+          '"Reclaim proof signatures are incomplete … Regenerate proof" — Click Regenerate proof and try again. If it repeats — wait 1–5 minutes and retry.',
+          '"Reclaim proof verification failed (backend)" / "zkFetch proof failed …" — Click Refresh, reconnect the social account, regenerate the proof if using Reclaim proof mode.',
+          '"No pending payments." — Check that you selected the same platform and username, click Refresh, ensure you\'re in .../payments on the zk domain.'
+        ]
+      },
+      {
+        id: 'security',
+        title: 'Security and Privacy',
+        paragraphs: [
+          'Never share access to your wallet and don\'t confirm unclear transactions. Connecting social accounts may store tokens in your browser for convenience — don\'t do this on public/shared computers. If you need to reset connections — use Disconnect (if available) or clear site data in your browser. Proof is used to confirm ownership of platform:username, but the goal is to not reveal unnecessary data.'
+        ]
+      },
+      {
+        id: 'transparency',
+        title: 'Transparency: how to verify the ZkSend contract (optional)',
+        paragraphs: [
+          'If you want to make sure the contract is truly verified and matches the source code: After a successful Send or Claim, open the transaction via the link in the UI. Go to the contract page from the transaction and verify that the contract is marked as Verified.'
+        ]
+      }
+    ],
+    content: ''
   }
 };
 
@@ -235,41 +241,19 @@ export function BlogPostRoute() {
 
   if (!post) {
     return (
-      <div className="min-h-screen" style={{ 
-        background: 'linear-gradient(135deg, #fef2f2 0%, #e0e7ff 100%)'
-      }}>
-        <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200">
-          <div className="container mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              <Link to="/" className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-400 rounded-xl flex items-center justify-center">
-                  <Gift className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-gray-900 text-xl font-semibold">Sendly</span>
-              </Link>
-              <Link 
-                to="/blog" 
-                className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium"
-              >
-                ← Back to blog
-              </Link>
-            </div>
-          </div>
-        </header>
-        <main className="container mx-auto px-6 py-12 max-w-4xl">
-          <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Post Not Found</h1>
-            <p className="text-gray-600 mb-6">The requested post does not exist.</p>
-            <button
-              onClick={() => navigate('/blog')}
-              className="px-6 py-3 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 transition-colors flex items-center gap-2 mx-auto"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to blog
-            </button>
-          </div>
-        </main>
-      </div>
+      <BlogLayout backLink={{ to: '/blog', label: <><ArrowLeft className="w-4 h-4" /> Back to blog</> }}>
+        <div className="bg-white rounded-2xl shadow-lg p-12 text-center border border-gray-100">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">Post Not Found</h1>
+          <p className="text-gray-600 mb-6">The requested post does not exist.</p>
+          <button
+            onClick={() => navigate('/blog')}
+            className="px-6 py-3 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 transition-colors flex items-center gap-2 mx-auto"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to blog
+          </button>
+        </div>
+      </BlogLayout>
     );
   }
 
@@ -506,219 +490,74 @@ export function BlogPostRoute() {
   };
 
   const hasEnhancedLayout = Boolean(post.sections?.length && post.images?.length);
-  const isPrivyResults = post.slug === 'privy_results';
+
+  const backLink = { to: '/blog' as const, label: <><ArrowLeft className="w-4 h-4" /> Back to blog</> };
 
   return (
-    <div
-      className={`min-h-screen ${isPrivyResults ? 'blog-post-cohere' : ''}`}
-      style={{
-        background: isPrivyResults ? '#fafafa' : 'linear-gradient(135deg, #fef2f2 0%, #e0e7ff 100%)',
-      }}
-    >
-      {/* Header */}
-      <header
-        className="sticky top-0 z-50 backdrop-blur-md border-b border-gray-200"
-        style={{
-          backgroundColor: isPrivyResults ? 'rgba(250, 250, 250, 0.9)' : 'rgba(255, 255, 255, 0.8)',
-        }}
-      >
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-400 rounded-xl flex items-center justify-center">
-                <Gift className="w-6 h-6 text-white" />
+    <BlogLayout backLink={backLink} cohereTypography={hasEnhancedLayout}>
+      {hasEnhancedLayout ? (
+        <>
+          {/* Hero - full width, centered (no TOC beside it) */}
+          <div
+            className="flex flex-col items-center text-center max-w-3xl mx-auto w-full"
+            style={{ paddingTop: 6, paddingBottom: 6 }}
+          >
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <span className="px-4 py-1.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-full">
+                {post.category}
+              </span>
+              {post.readTime && (
+                <span className="text-sm text-gray-500 flex items-center gap-1">
+                  <Clock className="w-4 h-4" />
+                  {post.readTime}
+                </span>
+              )}
+            </div>
+            <h1 className="hero-title text-gray-900">{post.title}</h1>
+            <p className="hero-subtitle max-w-2xl mx-auto mb-12">
+              {post.description}
+            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-center gap-4 pb-6 border-b border-gray-200 flex-wrap">
+              <span className="text-sm text-gray-500 flex items-center gap-1">
+                <Calendar className="w-4 h-4" />
+                {formatDate(post.date)}
+              </span>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {post.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-3 py-1 bg-gray-50 text-gray-600 text-sm rounded-md flex items-center gap-1"
+                  >
+                    <Tag className="w-3 h-3" />
+                    {tag}
+                  </span>
+                ))}
               </div>
-              <span className="text-gray-900 text-xl font-semibold">Sendly</span>
-            </Link>
-            <Link 
-              to="/blog" 
-              className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium flex items-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to blog
-            </Link>
+            </div>
           </div>
-        </div>
-      </header>
 
-      {/* Main Content */}
-      <main
-        className={
-          isPrivyResults ? 'blog-section' : 'container mx-auto px-6 py-12 max-w-[1450px]'
-        }
-        style={isPrivyResults ? { paddingTop: 6, paddingBottom: 6 } : undefined}
-      >
-        {hasEnhancedLayout ? (
-          isPrivyResults ? (
-            <>
-              {/* Hero - full width, centered (no TOC beside it) */}
-              <div
-                className="flex flex-col items-center text-center max-w-3xl mx-auto w-full"
-                style={{ paddingTop: 6, paddingBottom: 6 }}
-              >
-                <div className="flex items-center justify-center gap-3 mb-6">
-                  <span className="px-4 py-1.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-full">
-                    {post.category}
-                  </span>
-                  {post.readTime && (
-                    <span className="text-sm text-gray-500 flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      {post.readTime}
-                    </span>
-                  )}
-                </div>
-                <h1 className="hero-title text-gray-900">{post.title}</h1>
-                <p className="hero-subtitle max-w-2xl mx-auto mb-12">
-                  {post.description}
-                </p>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-center gap-4 pb-6 border-b border-gray-200 flex-wrap">
-                  <span className="text-sm text-gray-500 flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    {formatDate(post.date)}
-                  </span>
-                  <div className="flex flex-wrap gap-2 justify-center">
-                    {post.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-3 py-1 bg-gray-50 text-gray-600 text-sm rounded-md flex items-center gap-1"
-                      >
-                        <Tag className="w-3 h-3" />
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Grid: sections + footer | TOC (TOC aligns with first section) */}
-              <div className="grid grid-cols-1 lg:grid-cols-[1fr,240px] gap-8 items-start">
-                <article className="relative">
-                  {post.sections && post.images &&
-                    renderSections(post.sections, post.images, true)}
-                  <div className="pt-12 border-t border-gray-200 mt-12">
-                    <div className="flex items-center justify-between">
-                      <button
-                        onClick={() => navigate('/blog')}
-                        className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"
-                      >
-                        <ArrowLeft className="w-4 h-4" />
-                        Back to blog
-                      </button>
-                      <div className="text-sm text-gray-500">
-                        Published {formatDate(post.date)}
-                      </div>
-                    </div>
-                  </div>
-                </article>
-
-                {/* TOC - aligns with first section */}
-                <aside className="lg:sticky lg:top-24 h-fit">
-                  <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-4">
-                      Contents
-                    </p>
-                    <nav className="space-y-2 text-sm">
-                      {post.sections?.map((section) => (
-                        <a
-                          key={section.id}
-                          href={`#${section.id}`}
-                          className="block px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
-                        >
-                          {section.title}
-                        </a>
-                      ))}
-                    </nav>
-                  </div>
-                </aside>
-              </div>
-            </>
-          ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr,280px] gap-10">
-            {/* Center Content */}
-            <article
-              className="relative"
-              style={{ ['--content-gap' as string]: '2.5rem' }}
-            >
-              <div
-                className="absolute inset-y-0 right-0 rounded-2xl bg-white shadow-lg border border-gray-100"
-                style={{ left: 'calc(280px + var(--content-gap))' }}
-              />
-              <div className="relative space-y-12">
-                <div className="grid grid-cols-1 lg:grid-cols-[280px,minmax(0,1fr)] gap-10">
-                  <div />
-                  <div className="px-12 md:px-22 pt-12 md:pt-22">
-                    {/* Meta info */}
-                    <div className="flex items-center gap-3 mb-6">
-                      <span className="px-4 py-1.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-full">
-                        {post.category}
-                      </span>
-                      {post.readTime && (
-                        <span className="text-sm text-gray-500 flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          {post.readTime}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Title */}
-                    <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-                      {post.title}
-                    </h1>
-
-                    {/* Description */}
-                    <p className="text-xl text-gray-600 mb-8">
-                      {post.description}
-                    </p>
-
-                    {/* Date and Tags */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-gray-200 mb-10">
-                      <span className="text-sm text-gray-500 flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        {formatDate(post.date)}
-                      </span>
-                      <div className="flex flex-wrap gap-2">
-                        {post.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="px-3 py-1 bg-gray-50 text-gray-600 text-sm rounded-md flex items-center gap-1"
-                          >
-                            <Tag className="w-3 h-3" />
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Article Content */}
-                {post.sections && post.images &&
-                  renderSections(post.sections, post.images, false)}
-
-                {/* Footer */}
-                <div className="grid grid-cols-1 lg:grid-cols-[280px,minmax(0,1fr)] gap-10">
-                  <div />
-                  <div className="px-12 md:px-22 pb-12 md:pb-22">
-                    <div className="mt-12 pt-8 border-t border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <button
-                          onClick={() => navigate('/blog')}
-                          className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"
-                        >
-                          <ArrowLeft className="w-4 h-4" />
-                          Back to blog
-                        </button>
-                        <div className="text-sm text-gray-500">
-                          Published {formatDate(post.date)}
-                        </div>
-                      </div>
-                    </div>
+          {/* Grid: sections + footer | TOC (TOC aligns with first section) */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr,240px] gap-8 items-start">
+            <article className="relative">
+              {post.sections && post.images &&
+                renderSections(post.sections, post.images, true)}
+              <div className="pt-12 border-t border-gray-200 mt-12">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => navigate('/blog')}
+                    className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Back to blog
+                  </button>
+                  <div className="text-sm text-gray-500">
+                    Published {formatDate(post.date)}
                   </div>
                 </div>
               </div>
             </article>
 
-            {/* Right Table of Contents */}
+            {/* TOC - aligns with first section */}
             <aside className="lg:sticky lg:top-24 h-fit">
               <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-4">
@@ -738,102 +577,68 @@ export function BlogPostRoute() {
               </div>
             </aside>
           </div>
-          )
-        ) : (
-          <article className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
-            {/* Header Image */}
-            <div className="w-full h-64 bg-gradient-to-br from-purple-100 via-blue-100 to-pink-100 flex items-center justify-center">
-              <BookOpen className="w-24 h-24 text-purple-400 opacity-50" />
-            </div>
+        </>
+      ) : (
+        <article className="max-w-3xl mx-auto">
+          {/* Meta info */}
+          <div className="flex items-center gap-3 mb-6">
+            <span className="px-4 py-1.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-full">
+              {post.category}
+            </span>
+            {post.readTime && (
+              <span className="text-sm text-gray-500 flex items-center gap-1">
+                <Clock className="w-4 h-4" />
+                {post.readTime}
+              </span>
+            )}
+          </div>
 
-            {/* Content */}
-            <div className="p-12 md:p-22">
-              {/* Meta info */}
-              <div className="flex items-center gap-3 mb-6">
-                <span className="px-4 py-1.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-full">
-                  {post.category}
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+            {post.title}
+          </h1>
+
+          <p className="text-xl text-gray-600 mb-6">
+            {post.description}
+          </p>
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-gray-200 mb-8">
+            <span className="text-sm text-gray-500 flex items-center gap-1">
+              <Calendar className="w-4 h-4" />
+              {formatDate(post.date)}
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {post.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="px-3 py-1 bg-gray-50 text-gray-600 text-sm rounded-md flex items-center gap-1"
+                >
+                  <Tag className="w-3 h-3" />
+                  {tag}
                 </span>
-                {post.readTime && (
-                  <span className="text-sm text-gray-500 flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    {post.readTime}
-                  </span>
-                )}
-              </div>
-
-              {/* Title */}
-              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-                {post.title}
-              </h1>
-
-              {/* Description */}
-              <p className="text-xl text-gray-600 mb-6">
-                {post.description}
-              </p>
-
-              {/* Date and Tags */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-gray-200 mb-8">
-                <span className="text-sm text-gray-500 flex items-center gap-1">
-                  <Calendar className="w-4 h-4" />
-                  {formatDate(post.date)}
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {post.tags.map((tag) => (
-                    <span 
-                      key={tag}
-                      className="px-3 py-1 bg-gray-50 text-gray-600 text-sm rounded-md flex items-center gap-1"
-                    >
-                      <Tag className="w-3 h-3" />
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Article Content */}
-              <div className="article-content">
-                {renderContent(post.content)}
-              </div>
-
-              {/* Footer */}
-              <div className="mt-12 pt-8 border-t border-gray-200">
-                <div className="flex items-center justify-between">
-                  <button
-                    onClick={() => navigate('/blog')}
-                    className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    All posts
-                  </button>
-                  <div className="text-sm text-gray-500">
-                    Published {formatDate(post.date)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </article>
-        )}
-      </main>
-
-      {/* Footer */}
-      <footer
-        className={`border-t border-gray-200 mt-16 ${!isPrivyResults ? 'bg-white' : ''}`}
-        style={isPrivyResults ? { backgroundColor: '#fafafa' } : undefined}
-      >
-        <div className="container mx-auto px-6 py-8">
-          <div className="flex flex-col md:flex-row items-center justify-between">
-            <div className="flex items-center gap-3 mb-4 md:mb-0">
-              <div className="w-8 h-8 bg-blue-400 rounded-lg flex items-center justify-center">
-                <Gift className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-gray-900 font-semibold">Sendly</span>
-            </div>
-            <div className="text-sm text-gray-500">
-              © 2025 Sendly. All rights reserved.
+              ))}
             </div>
           </div>
-        </div>
-      </footer>
+
+          <div className="article-content">
+            {renderContent(post.content)}
+          </div>
+
+          <div className="mt-12 pt-8 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => navigate('/blog')}
+                className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to blog
+              </button>
+              <div className="text-sm text-gray-500">
+                Published {formatDate(post.date)}
+              </div>
+            </div>
+          </div>
+        </article>
+      )}
 
       {activeImage && (
         <div
@@ -885,6 +690,6 @@ export function BlogPostRoute() {
           </div>
         </div>
       )}
-    </div>
+    </BlogLayout>
   );
 }

@@ -147,6 +147,27 @@
   }
 }
 
+/* Blog shell: shared layout for /blog and /blog/:slug */
+.blog-shell {
+  --blog-bg: #fafafa;
+}
+
+.blog-shell .blog-section {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 768px) {
+  .blog-shell .blog-section {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
 /* Cohere-inspired blog post (privy_results) */
 .blog-post-cohere {
   --blog-bg: #fafafa;
@@ -174,12 +195,16 @@
 .blog-post-cohere .blog-section {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 5rem 1rem 6rem;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  padding-left: 1rem;
+  padding-right: 1rem;
 }
 
 @media (min-width: 768px) {
   .blog-post-cohere .blog-section {
-    padding: 7.5rem 2rem 8rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
   }
 }
 
