@@ -74,18 +74,12 @@ export function Layout({ children }: LayoutProps) {
             </button>
           ) : null}
           {!zk ? (
-            <a
-              href={(() => {
-                const hostname = window.location.hostname.toLowerCase();
-                if (hostname === 'localhost' || hostname === '127.0.0.1') {
-                  return 'https://zk.localhost:3000/payments';
-                }
-                return toZkUrl(`${window.location.origin}/payments`);
-              })()}
-              className="bg-white/90 backdrop-blur-sm border border-gray-200 text-gray-900 hover:bg-white px-4 py-2 rounded-2xl transition-all duration-200 flex items-center gap-2 shadow-circle-card font-medium"
+            <button
+              disabled
+              className="bg-white/50 backdrop-blur-sm border border-gray-200 text-gray-500 cursor-not-allowed px-4 py-2 rounded-2xl transition-all duration-200 flex items-center gap-2 shadow-circle-card font-medium opacity-60"
             >
               Payments
-            </a>
+            </button>
           ) : null}
           <ConnectButton />
         </div>
