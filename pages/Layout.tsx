@@ -6,7 +6,7 @@ import { Toaster } from '../components/ui/sonner';
 import { NewsPanel } from '../components/NewsPanel';
 import { FeedbackPanel } from '../components/FeedbackPanel';
 import { useState, lazy, Suspense } from 'react';
-import { isZkHost, isZkLocalhost, toZkUrl } from '../utils/runtime/zkHost';
+import { isZkHost, isZkLocalhost } from '../utils/runtime/zkHost';
 
 // Lazy load Privy components only when not on zk.localhost to prevent SDK loading
 const PrivyAuthModal = isZkLocalhost() 
