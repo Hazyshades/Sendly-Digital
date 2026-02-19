@@ -287,7 +287,7 @@ const blogPosts: Record<string, BlogPost> = {
     images: [
       {
         id: 'nft-flow',
-        src: '/images/blog/testnet-dex.svg',
+        src: '/nft_create.png',
         alt: 'NFT gift cards on-chain',
         caption: 'On-chain NFT gift cards'
       }
@@ -820,16 +820,20 @@ export function BlogPostRoute() {
           onClick={() => setActiveImage(null)}
         >
           {(() => {
-            const isSendReceivePreview = activeImage.id === 'send-tab' || activeImage.id === 'receive-tab';
+            // Side images (by src) and send/receive: open as-is, no frame. Infographics keep frame.
+            const isFramelessPreview =
+              activeImage.id === 'send-tab' ||
+              activeImage.id === 'receive-tab' ||
+              (activeImage.src != null && activeImage.componentId == null);
             return (
           <div
-            className={`relative max-w-5xl w-full ${isSendReceivePreview ? 'bg-transparent shadow-none overflow-hidden' : 'bg-white rounded-2xl overflow-hidden'}`}
+            className={`relative max-w-5xl w-full ${isFramelessPreview ? 'bg-transparent shadow-none overflow-hidden' : 'bg-white rounded-2xl overflow-hidden'}`}
             onClick={(event) => event.stopPropagation()}
           >
             <button
               type="button"
               onClick={() => setActiveImage(null)}
-              className={`absolute right-4 top-4 z-10 text-sm ${isSendReceivePreview ? 'bg-black/50 text-white rounded-full px-3 py-1 hover:bg-black/70' : 'bg-white/90 text-gray-700 rounded-full px-3 py-1 hover:bg-white'}`}
+              className={`absolute right-4 top-4 z-10 text-sm ${isFramelessPreview ? 'bg-black/50 text-white rounded-full px-3 py-1 hover:bg-black/70' : 'bg-white/90 text-gray-700 rounded-full px-3 py-1 hover:bg-white'}`}
             >
               Close
             </button>
@@ -914,15 +918,15 @@ export function BlogPostRoute() {
                 </p>
               </div>
             ) : (
-              <div className={isSendReceivePreview ? 'rounded-2xl overflow-hidden' : 'rounded-xl overflow-hidden bg-gray-900'}>
+              <div className={isFramelessPreview ? 'overflow-hidden' : 'rounded-xl overflow-hidden bg-gray-900'}>
                 <img
                   src={activeImage.src}
                   alt={activeImage.alt}
-                  className={`w-full max-h-[75vh] object-contain ${isSendReceivePreview ? '' : ''}`}
+                  className="w-full max-h-[75vh] object-contain"
                 />
               </div>
             )}
-            {!isSendReceivePreview && activeImage.caption && (
+            {!isFramelessPreview && activeImage.caption && (
               <div className="p-4 text-sm text-gray-600">{activeImage.caption}</div>
             )}
           </div>

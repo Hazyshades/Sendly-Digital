@@ -90,7 +90,7 @@ export function LandingRoute() {
       </header>
 
       {/* Hero Section */}
-      <section className="min-h-screen flex items-center justify-center pt-24 pb-12 px-6 relative z-10">
+      <section className="min-h-screen flex items-center justify-center pt-6 pb-12 px-6 relative z-10">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center space-y-8">
             <div className="space-y-4">
