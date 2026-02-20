@@ -14,7 +14,7 @@ export function LandingRoute() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
   const [showSplash, setShowSplash] = useState(true);
-  const paymentsCtaDisabled = true;
+  const paymentsCtaDisabled = false;
 
   useEffect(() => {
     const handleScroll = () => {
