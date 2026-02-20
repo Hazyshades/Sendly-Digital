@@ -945,12 +945,12 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
                     </div>
 
                     {/* Info Alert */}
-                    <div className="flex gap-3 p-3 rounded-lg bg-blue-50/50 border border-blue-100">
+                 {/*    <div className="flex gap-3 p-3 rounded-lg bg-blue-50/50 border border-blue-100">
                       <Info className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
-                      {/* <p className="text-xs text-blue-900 leading-relaxed">
+                      <p className="text-xs text-blue-900 leading-relaxed">
                         This wallet is developer-controlled. You can fund it from your EVM wallet and use it for transactions through the Telegram bot without MetaMask signing.
-                      </p> */}
-                    </div>
+                      </p> 
+                    </div>*/}
                   </div>
                   <Separator />
                 </>

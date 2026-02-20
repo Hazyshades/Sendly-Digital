@@ -713,7 +713,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
                 <Label htmlFor="cardId">Gift card token ID</Label>
                 <Input
                   id="cardId"
-                  placeholder="Enter gift card token ID (e.g., 1, 2, 3...)"
+                  placeholder="Enter gift card token ID"
                   value={cardInput}
                   onChange={(e) => setCardInput(e.target.value)}
                 />
