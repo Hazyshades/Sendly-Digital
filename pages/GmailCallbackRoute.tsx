@@ -6,7 +6,7 @@ const getZkTlsApiUrl = (): string => {
   // Avoids mixed content (HTTPS page → HTTP API) and 404 when env points to localhost:3001.
   if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
   const envUrl =
-    (import.meta.env.VITE_RECLAIM_API_URL as string | undefined) ||
+    (import.meta.env.VITE_ZKTLS_SERVICE_URL as string | undefined) ||
     (import.meta.env.VITE_ZKTLS_API_URL as string | undefined);
   if (envUrl) return envUrl;
   return 'http://localhost:3001';

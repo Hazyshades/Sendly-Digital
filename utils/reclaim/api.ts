@@ -3,7 +3,7 @@ import type { ReclaimProof } from './types';
 function getReclaimApiBaseUrl(): string {
   if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
   const envUrl =
-    (import.meta.env.VITE_RECLAIM_API_URL as string | undefined) ||
+    (import.meta.env.VITE_ZKTLS_SERVICE_URL as string | undefined) ||
     (import.meta.env.VITE_ZKTLS_API_URL as string | undefined);
   if (envUrl) return envUrl;
   return 'http://localhost:3001';

@@ -64,7 +64,7 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
   const { authenticated, getAccessToken } = usePrivySafe();
   const reclaimApiBaseUrl = (() => {
     const envUrl =
-      (import.meta.env.VITE_RECLAIM_API_URL as string | undefined) ||
+      (import.meta.env.VITE_ZKTLS_SERVICE_URL as string | undefined) ||
       (import.meta.env.VITE_ZKTLS_API_URL as string | undefined);
     if (envUrl) return envUrl.replace(/\/$/, '');
     if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
