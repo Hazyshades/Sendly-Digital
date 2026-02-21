@@ -1,0 +1,27 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "SemaphoreVerifierKeyPts",
+  "sourceName": "contracts/base/SemaphoreVerifierKeyPts.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "actual",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "expected",
+          "type": "uint256"
+        }
+      ],
+      "name": "Semaphore__VKPtBytesMaxDepthInvariantViolated",
+      "type": "error"
+    }
+  ],
+  "bytecode": "0x60566037600b82828239805160001a607314602a57634e487b7160e01b600052600060045260246000fd5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea26469706673582212200d54f0ff367d461c122bed139b682e966975d6eaf97aab16d67c15a0cf1af74e64736f6c63430008170033",
+  "deployedBytecode": "0x73000000000000000000000000000000000000000030146080604052600080fdfea26469706673582212200d54f0ff367d461c122bed139b682e966975d6eaf97aab16d67c15a0cf1af74e64736f6c63430008170033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

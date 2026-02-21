@@ -18,7 +18,7 @@ import imageGenerator from '../utils/imageGenerator';
 import elevenLabsService from '../utils/elevenlabs';
 import aimlapiService, { ParsedPaymentCommand } from '../utils/aimlapiService';
 import type { Contact } from './ContactsManager';
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivySafe } from '../utils/privy/usePrivySafe';
 import { DeveloperWalletService } from '../utils/circle/developerWalletService';
 
 type RecordingState = 'idle' | 'recording' | 'processing' | 'confirming' | 'creating';
@@ -28,7 +28,7 @@ const VOICE_AGENT_ENABLED = false;
 export function VoicePaymentAgent() {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
-  const { authenticated, user: privyUser } = usePrivy();
+  const { authenticated, user: privyUser } = usePrivySafe();
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const [contacts] = useState<Contact[]>([]);
   const [transcribedText, setTranscribedText] = useState('');

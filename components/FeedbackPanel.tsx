@@ -9,7 +9,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { cn } from './ui/utils';
 import { submitFeedback, type FeedbackInsert } from '../utils/supabase/feedback';
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivySafe } from '../utils/privy/usePrivySafe';
 import { useAccount } from 'wagmi';
 import { toast } from 'sonner';
 
@@ -28,7 +28,7 @@ export function FeedbackPanel() {
   const [selectedType, setSelectedType] = useState<string>('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user } = usePrivy();
+  const { user } = usePrivySafe();
   const { address } = useAccount();
 
   const toggleExpand = () => {

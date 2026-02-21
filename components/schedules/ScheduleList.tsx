@@ -43,7 +43,7 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 function formatDateTime(value?: string | null) {
-  if (!value) return '—';
+  if (!value) return '-';
   try {
     const formatter = new Intl.DateTimeFormat('ru-RU', {
       day: 'numeric',
@@ -167,7 +167,7 @@ export function ScheduleList({
                         </Badge>
                       </div>
                     ) : (
-                      <span className="text-sm text-gray-400">—</span>
+                      <span className="text-sm text-gray-400">-</span>
                     )}
                   </TableCell>
                   <TableCell>

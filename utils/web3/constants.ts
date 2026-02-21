@@ -50,6 +50,15 @@ export const INSTAGRAM_VAULT_CONTRACT_ADDRESS =
   import.meta.env.VITE_ARC_INSTAGRAM_VAULT_ADDRESS ||
   "0x3332dEf130Ea17C69B9dFe8F06be1162526873df";
 
+export const ZKSEND_CONTRACT_ADDRESS =
+  import.meta.env.VITE_ARC_ZKSEND_CONTRACT_ADDRESS ||
+  "0x30bbcCBB38B8C99A36c93BC36dcE2F9831FEFa4D";
+
+export const RECLAIM_VERIFIER_CONTRACT_ADDRESS =
+  import.meta.env.VITE_RECLAIM_VERIFIER_CONTRACT_ADDRESS ||
+  import.meta.env.VITE_ARC_ZKTLS_VERIFIER_ADDRESS ||
+  "0xfDd1D064529aA8c8058CDD574452c3FF9d6256a7";
+
 console.log('=== Resolved Addresses ===');
 console.log('CONTRACT_ADDRESS:', CONTRACT_ADDRESS);
 console.log('USDC_ADDRESS:', USDC_ADDRESS);
@@ -2143,6 +2152,176 @@ export const TelegramCardVaultABI = [
 
 export const TikTokCardVaultABI = TwitchCardVaultABI;
 export const InstagramCardVaultABI = TwitchCardVaultABI;
+
+// ZkSend ABI (synced with `contracts/ZkSend.sol` in this repo)
+export const ZkSendABI = [
+  {
+    type: 'event',
+    name: 'PaymentCreated',
+    inputs: [
+      { name: 'paymentId', type: 'uint256', indexed: true },
+      { name: 'sender', type: 'address', indexed: true },
+      { name: 'socialIdentityHash', type: 'bytes32', indexed: true },
+      { name: 'platform', type: 'string', indexed: false },
+      { name: 'amount', type: 'uint256', indexed: false },
+      { name: 'token', type: 'address', indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'PaymentClaimed',
+    inputs: [
+      { name: 'paymentId', type: 'uint256', indexed: true },
+      { name: 'recipient', type: 'address', indexed: true },
+      { name: 'socialIdentityHash', type: 'bytes32', indexed: true },
+      { name: 'amount', type: 'uint256', indexed: false },
+      { name: 'token', type: 'address', indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'function',
+    name: 'createPayment',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: '_socialIdentityHash', type: 'bytes32' },
+      { name: '_platform', type: 'string' },
+      { name: '_amount', type: 'uint256' },
+      { name: '_token', type: 'address' },
+    ],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'claimPayment',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: '_paymentId', type: 'uint256' },
+      {
+        name: '_proof',
+        type: 'tuple',
+        components: [
+          {
+            name: 'claimInfo',
+            type: 'tuple',
+            components: [
+              { name: 'provider', type: 'string' },
+              { name: 'parameters', type: 'string' },
+              { name: 'context', type: 'string' },
+            ],
+          },
+          {
+            name: 'signedClaim',
+            type: 'tuple',
+            components: [
+              {
+                name: 'claim',
+                type: 'tuple',
+                components: [
+                  { name: 'identifier', type: 'bytes32' },
+                  { name: 'owner', type: 'address' },
+                  { name: 'timestampS', type: 'uint32' },
+                  { name: 'epoch', type: 'uint32' },
+                ],
+              },
+              { name: 'signatures', type: 'bytes[]' },
+            ],
+          },
+        ],
+      },
+      { name: '_recipient', type: 'address' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'claimPayments',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: '_paymentIds', type: 'uint256[]' },
+      {
+        name: '_proof',
+        type: 'tuple',
+        components: [
+          {
+            name: 'claimInfo',
+            type: 'tuple',
+            components: [
+              { name: 'provider', type: 'string' },
+              { name: 'parameters', type: 'string' },
+              { name: 'context', type: 'string' },
+            ],
+          },
+          {
+            name: 'signedClaim',
+            type: 'tuple',
+            components: [
+              {
+                name: 'claim',
+                type: 'tuple',
+                components: [
+                  { name: 'identifier', type: 'bytes32' },
+                  { name: 'owner', type: 'address' },
+                  { name: 'timestampS', type: 'uint32' },
+                  { name: 'epoch', type: 'uint32' },
+                ],
+              },
+              { name: 'signatures', type: 'bytes[]' },
+            ],
+          },
+        ],
+      },
+      { name: '_recipient', type: 'address' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'getPendingPayments',
+    stateMutability: 'view',
+    inputs: [{ name: '_socialIdentityHash', type: 'bytes32' }],
+    outputs: [{ name: '', type: 'uint256[]' }],
+  },
+  {
+    type: 'function',
+    name: 'getPayment',
+    stateMutability: 'view',
+    inputs: [{ name: '_paymentId', type: 'uint256' }],
+    outputs: [
+      {
+        name: '',
+        type: 'tuple',
+        components: [
+          { name: 'paymentId', type: 'uint256' },
+          { name: 'sender', type: 'address' },
+          { name: 'socialIdentityHash', type: 'bytes32' },
+          { name: 'platform', type: 'string' },
+          { name: 'amount', type: 'uint256' },
+          { name: 'token', type: 'address' },
+          { name: 'recipient', type: 'address' },
+          { name: 'claimed', type: 'bool' },
+          { name: 'createdAt', type: 'uint256' },
+          { name: 'claimedAt', type: 'uint256' },
+        ],
+      },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'verifierContract',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }],
+  },
+  {
+    type: 'function',
+    name: 'setVerifierContract',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: '_newVerifier', type: 'address' }],
+    outputs: [],
+  },
+] as const;
 
 // ERC20 ABI for USDC/USDT
 export const ERC20ABI = [

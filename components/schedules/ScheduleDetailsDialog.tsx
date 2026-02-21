@@ -30,7 +30,7 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 function formatDateTime(value?: string | null) {
-  if (!value) return '—';
+  if (!value) return '-';
   try {
     return new Intl.DateTimeFormat('ru-RU', {
       day: 'numeric',
@@ -150,7 +150,7 @@ export function ScheduleDetailsDialog({
                           </TableCell>
                           <TableCell>{formatCurrency(execution.total_amount, execution.amount_currency)}</TableCell>
                           <TableCell className="text-xs text-gray-500">
-                            {execution.error_message || '—'}
+                            {execution.error_message || '-'}
                           </TableCell>
                         </TableRow>
                       );

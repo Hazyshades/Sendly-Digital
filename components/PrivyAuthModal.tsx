@@ -489,8 +489,6 @@ export function PrivyAuthModal({ isOpen, onClose }: PrivyAuthModalProps) {
         <DialogHeader>
           <DialogTitle className="text-center">Social Accounts</DialogTitle>
           <DialogDescription className="text-center">
-          If recepints or you privious log in with Privy, you still can sending and reciving funds.
-      <span className="font-semibold text-black"> Don't send to usernames that have never logged in to Sendly.</span>
               </DialogDescription>
         </DialogHeader>
 

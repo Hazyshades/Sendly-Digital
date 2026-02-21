@@ -54,6 +54,7 @@ tmp/
 /artifacts/
 /cache/
 /contracts/
+/contracts_tempo
 .cursorignore
 /.git backup/
 /supabase/
@@ -66,4 +67,6 @@ tmp/
 .cursorignore
 
 .cursor/
-/contracts_tempo/
+/contracts_reclaim_protocol/
+
+/zktls-service/supabase

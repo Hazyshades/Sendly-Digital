@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from './ui/alert';
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from './ui/empty';
 import { Spinner } from './ui/spinner';
 import { toast } from 'sonner';
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivySafe } from '../utils/privy/usePrivySafe';
 import { useAccount } from 'wagmi';
 import { createWalletClient, custom, createPublicClient, http } from 'viem';
 import { arcTestnet } from '../utils/web3/wagmiConfig';
@@ -33,7 +33,7 @@ interface ClaimCardsProps {
 }
 
 export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = false }: ClaimCardsProps) {
-  const { authenticated, user } = usePrivy();
+  const { authenticated, user } = usePrivySafe();
   const { address, isConnected } = useAccount();
   const [pendingCards, setPendingCards] = useState<PendingCard[]>([]);
   const [loading, setLoading] = useState(true);

@@ -14,7 +14,7 @@ import { Badge } from './ui/badge';
 import { Spinner } from './ui/spinner';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import { toast } from 'sonner';
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivySafe } from '../utils/privy/usePrivySafe';
 import { useAccount } from 'wagmi';
 import { useNavigate } from 'react-router-dom';
 import { apiCall } from '../utils/supabase/client';
@@ -94,7 +94,7 @@ const getUserId = (address: string | undefined): string | null => {
 export function ContactsManager({ contacts, onContactsChange }: ContactsManagerProps) {
   // Privy is optional - only used for social media contacts (Twitch/Twitter)
   // For personal contacts and favorites, we only need wallet address from wagmi
-  const { authenticated, user } = usePrivy();
+  const { authenticated, user } = usePrivySafe();
   const { address, isConnected } = useAccount();
   const navigate = useNavigate();
   const [isDialogOpen, setIsDialogOpen] = useState(false);

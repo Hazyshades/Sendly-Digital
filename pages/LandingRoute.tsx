@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Gift, Send, Download, ArrowRight, Zap, ArrowRightIcon } from 'lucide-react';
+import { Gift, ArrowRight, CreditCard, Image } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { BlurText } from '../components/BlurText';
 import { StarBorder } from '../components/ui/star-border';
 import { SocialLogos } from '../components/SocialLogos';
+import { toZkUrl, isZkHost } from '../utils/runtime/zkHost';
+import { SplashScreen } from '../components/SplashScreen';
 
 export function LandingRoute() {
   const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
+  const [showSplash, setShowSplash] = useState(true);
+  const paymentsCtaDisabled = true;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -28,9 +32,27 @@ export function LandingRoute() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (isZkHost()) {
+      navigate('/payments', { replace: true });
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleAction = (path: string) => {
     navigate(path);
   };
+
+  if (showSplash) {
+    return <SplashScreen />;
+  }
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#DADEFF' }}>
@@ -38,9 +60,9 @@ export function LandingRoute() {
       
       {/* Header */}
       <header
-        className={`fixed top-10 left-0 right-0 z-50 transition-all duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isScrolled
-            ? 'bg-white/90 backdrop-blur-md shadow-lg'
+            ? 'bg-white/70 backdrop-blur-md shadow-lg'
             : 'bg-transparent'
         }`}
       >
@@ -53,7 +75,7 @@ export function LandingRoute() {
               <span className="text-gray-900 text-2xl font-semibold">Sendly</span>
             </div>
 
-            <div className="flex items-center gap-4 md:gap-6">
+            {/* <div className="flex items-center gap-4 md:gap-6">
               <nav className="hidden md:flex items-center gap-6">
                 <a href="#features" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
                   Features
@@ -62,13 +84,13 @@ export function LandingRoute() {
                   About
                 </a>
               </nav>
-            </div>
+            </div> */}
           </div>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="min-h-screen flex items-center justify-center pt-8 pb-12 px-6 relative z-10">
+      <section className="min-h-screen flex items-center justify-center pt-6 pb-12 px-6 relative z-10">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center space-y-8">
             <div className="space-y-4">
@@ -138,12 +160,6 @@ export function LandingRoute() {
                   </BlurText>
                 </div>
               </h1>
-              <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-                <BlurText delay={400} duration={1200}>
-                Dispatch funds by nickname on any social network
-
-</BlurText>
-              </p>
             </div>
 
             {/* Social Logos */}
@@ -154,12 +170,23 @@ export function LandingRoute() {
               <BlurText delay={1100} duration={1200}>
                 <StarBorder color="#fbbf24" speed="5s" className="w-full sm:w-auto">
                   <Button
-                    onClick={() => handleAction('/create')}
+                    type="button"
+                    disabled={paymentsCtaDisabled}
+                    aria-disabled={paymentsCtaDisabled}
+                    title={paymentsCtaDisabled ? 'Temporarily unavailable' : 'Open Payments'}
+                    onClick={() => {
+                      if (paymentsCtaDisabled) return;
+                      window.location.href = toZkUrl(window.location.origin + '/payments');
+                    }}
                     size="lg"
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-6 text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 w-full sm:w-auto"
+                    className={`bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-6 text-lg font-semibold rounded-2xl shadow-lg transition-all duration-200 w-full sm:w-auto ${
+                      paymentsCtaDisabled
+                        ? 'opacity-50 cursor-not-allowed'
+                        : 'hover:from-blue-700 hover:to-purple-700 hover:shadow-xl transform hover:scale-105'
+                    }`}
                   >
-                    <Send className="w-5 h-5 mr-2" />
-                    Send
+                    <CreditCard className="w-5 h-5 mr-2" />
+                    Payments
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </Button>
                 </StarBorder>
@@ -168,64 +195,62 @@ export function LandingRoute() {
               <BlurText delay={1200} duration={1200}>
                 <StarBorder color="#fbbf24" speed="5s" className="w-full sm:w-auto">
                   <Button
-                    onClick={() => handleAction('/my')}
+                    onClick={() => handleAction('/create')}
                     size="lg"
                     variant="outline"
                     className="bg-white/90 backdrop-blur-sm border-2 border-gray-200 hover:bg-white text-gray-900 px-8 py-6 text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 w-full sm:w-auto"
                   >
-                    <Download className="w-5 h-5 mr-2" />
-                    Receive
+                    <Image className="w-5 h-5 mr-2" />
+                    NFT Card
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </Button>
                 </StarBorder>
               </BlurText>
-
-              <BlurText delay={1300} duration={1200}>
-                <StarBorder color="#fbbf24" speed="5s" className="w-full sm:w-auto">
-                  <Button
-                    onClick={() => handleAction('/bridge')}
-                    size="lg"
-                    variant="outline"
-                    className="bg-white/90 backdrop-blur-sm border-2 border-blue-200 hover:bg-blue-50 text-blue-600 px-8 py-6 text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 w-full sm:w-auto"
-                  >
-                    <Zap className="w-5 h-5 mr-2" />
-                    Bridge
-                    <ArrowRight className="w-5 h-5 ml-2" />
-                  </Button>
-                </StarBorder>
-              </BlurText>
-
-              {/* Gateway button removed */}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features section removed */}
+      {/* How it work Section */}
+      <section id="how-it-works" className="py-5 px-6 relative z-10">
+        <div className="container mx-auto max-w-6xl">
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 text-center mb-12">
+            How it work
+          </h2>
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Payments subsection - clickable link to guide */}
+            <Link to="/blog/zktls_payments_guide" className="block group">
+              <Card className="bg-white shadow-lg rounded-2xl border-0 overflow-hidden transition-shadow hover:shadow-xl cursor-pointer h-full">
+                <CardContent className="p-8">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+                      <CreditCard className="w-6 h-6 text-white" />
+                    </div>
+                    <h3 className="text-2xl font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">Payments</h3>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">
+                  Payments via social identity. Send and receive funds using a social handle instead of wallet addresses. Access is proven with a zkTLS proof, and the payout is executed and verified on-chain - private and secure.
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
 
-      {/* CTA Section */}
-      <section className="py-20 px-6 relative z-10">
-        <div className="container mx-auto max-w-4xl">
-          <Card className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-xl rounded-2xl border-0 overflow-hidden">
-            <CardContent className="p-12 text-center">
-              <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                Ready to Start?
-              </h2>
-              <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-              Dispatch funds by nickname on any social network.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Button
-                  onClick={() => handleAction('/create')}
-                  size="lg"
-                  className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-6 text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-                >
-                  It's Free
-                  <ArrowRightIcon className="w-5 h-5 ml-2" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            {/* NFT subsection - clickable link to guide */}
+            <Link to="/blog/nft_gift_cards_guide" className="block group">
+              <Card className="bg-white shadow-lg rounded-2xl border-0 overflow-hidden transition-shadow hover:shadow-xl cursor-pointer h-full">
+                <CardContent className="p-8">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+                      <Image className="w-6 h-6 text-white" />
+                    </div>
+                    <h3 className="text-2xl font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">NFT</h3>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">
+                  Each card is an on-chain digital asset you can personalize with a message and amount. Recipients can claim it instantly - then spend or redeem the NFT card across compatible apps and services, wherever NFT gift cards are accepted.</p>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -260,16 +285,7 @@ export function LandingRoute() {
             <div>
               <h4 className="text-white font-semibold mb-4">Resources</h4>
               <ul className="space-y-2">
-                <li>
-                  <Link to="/faq" className="text-sm hover:text-white transition-colors">
-                    FAQ
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/litepaper" className="text-sm hover:text-white transition-colors">
-                    Litepaper
-                  </Link>
-                </li>
+               
                 <li>
                   <Link to="/blog" className="text-sm hover:text-white transition-colors">
                     Blog
@@ -278,31 +294,19 @@ export function LandingRoute() {
               </ul>
             </div>
 
-            <div>
-              <h4 className="text-white font-semibold mb-4">Navigation</h4>
-              <ul className="space-y-2">
-                <li>
-                  <a href="#features" className="text-sm hover:text-white transition-colors">
-                    Features
-                  </a>
-                </li>
-                <li>
-                  <a href="#about" className="text-sm hover:text-white transition-colors">
-                    About
-                  </a>
-                </li>
-              </ul>
-            </div>
 
             <div>
               <h4 className="text-white font-semibold mb-4">Contact</h4>
               <p className="text-sm text-gray-400">
-X: Leonissx              </p>
+                <a href="https://x.com/Leonissx" target="_blank" rel="noopener noreferrer">
+                  X: Leonissx
+                </a>
+              </p>
             </div>
           </div>
 
           <div className="border-t border-gray-800 pt-8 text-center text-sm text-gray-400">
-            © 2025 Sendly. All rights reserved.
+            © 2026 Sendly. All rights reserved.
           </div>
         </div>
       </footer>

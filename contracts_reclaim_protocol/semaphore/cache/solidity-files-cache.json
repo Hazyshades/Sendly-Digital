@@ -1,0 +1,411 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "D:\\GitHub\\1. ARC\\Sendly-App — копия\\contracts_zktls\\semaphore\\contracts\\base\\Constants.sol": {
+      "lastModificationDate": 1768996317443,
+      "contentHash": "80fef4285fcbea82d8c46aa079d427f3",
+      "sourceName": "contracts/base/Constants.sol",
+      "solcConfig": {
+        "version": "0.8.23",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.23 <0.9.0"
+      ],
+      "artifacts": []
+    },
+    "D:\\GitHub\\1. ARC\\Sendly-App — копия\\contracts_zktls\\semaphore\\contracts\\Semaphore.sol": {
+      "lastModificationDate": 1768996317443,
+      "contentHash": "eb1f26ee9a01d2287a294963efbf6fa9",
+      "sourceName": "contracts/Semaphore.sol",
+      "solcConfig": {
+        "version": "0.8.23",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./interfaces/ISemaphore.sol",
+        "./interfaces/ISemaphoreVerifier.sol",
+        "./base/SemaphoreGroups.sol",
+        "./base/Constants.sol"
+      ],
+      "versionPragmas": [
+        ">=0.8.23 <0.9.0"
+      ],
+      "artifacts": [
+        "Semaphore"
+      ]
+    },
+    "D:\\GitHub\\1. ARC\\Sendly-App — копия\\contracts_zktls\\semaphore\\contracts\\interfaces\\ISemaphore.sol": {
+      "lastModificationDate": 1768996317449,
+      "contentHash": "3019fe54f1f4b73a67589acf3e407940",
+      "sourceName": "contracts/interfaces/ISemaphore.sol",
+      "solcConfig": {
+        "version": "0.8.23",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.23 <0.9.0"
+      ],
+      "artifacts": [
+        "ISemaphore"
+      ]
+    },
+    "D:\\GitHub\\1. ARC\\Sendly-App — копия\\contracts_zktls\\semaphore\\contracts\\interfaces\\ISemaphoreVerifier.sol": {
+      "lastModificationDate": 1768996317449,
+      "contentHash": "fb8bc408ef809658198600ddba361d3a",
+      "sourceName": "contracts/interfaces/ISemaphoreVerifier.sol",
+      "solcConfig": {
+        "version": "0.8.23",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.23 <0.9.0"
+      ],
+      "artifacts": [
+        "ISemaphoreVerifier"
+      ]
+    },
+    "D:\\GitHub\\1. ARC\\Sendly-App — копия\\contracts_zktls\\semaphore\\contracts\\base\\SemaphoreGroups.sol": {
+      "lastModificationDate": 1768996317444,
+      "contentHash": "90d516736fd60c4bb73826b9bb826403",
+      "sourceName": "contracts/base/SemaphoreGroups.sol",
+      "solcConfig": {
+        "version": "0.8.23",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../interfaces/ISemaphoreGroups.sol",
+        "@zk-kit/lean-imt.sol/InternalLeanIMT.sol"
+      ],
+      "versionPragmas": [
+        ">=0.8.23 <0.9.0"
+      ],
+      "artifacts": [
+        "SemaphoreGroups"
+      ]
+    },
+    "D:\\GitHub\\1. ARC\\Sendly-App — копия\\contracts_zktls\\semaphore\\contracts\\interfaces\\ISemaphoreGroups.sol": {
+      "lastModificationDate": 1768996317449,
+      "contentHash": "77b16a3617c2d5bc16f942cc77215b0c",
+      "sourceName": "contracts/interfaces/ISemaphoreGroups.sol",
+      "solcConfig": {
+        "version": "0.8.23",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.23 <0.9.0"
+      ],
+      "artifacts": [
+        "ISemaphoreGroups"
+      ]
+    },
+    "D:\\GitHub\\1. ARC\\Sendly-App — копия\\node_modules\\@zk-kit\\lean-imt.sol\\InternalLeanIMT.sol": {
+      "lastModificationDate": 1768995777052,
+      "contentHash": "d2559532b41cd344b6f5fc28720d194d",
+      "sourceName": "@zk-kit/lean-imt.sol/InternalLeanIMT.sol",
+      "solcConfig": {
+        "version": "0.8.23",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "poseidon-solidity/PoseidonT3.sol",
+        "./Constants.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.4"
+      ],
+      "artifacts": [
+        "InternalLeanIMT"
+      ]
+    },
+    "D:\\GitHub\\1. ARC\\Sendly-App — копия\\node_modules\\poseidon-solidity\\PoseidonT3.sol": {
+      "lastModificationDate": 1768995779030,
+      "contentHash": "88a3db6023abdf06f44823c05f81f69e",
+      "sourceName": "poseidon-solidity/PoseidonT3.sol",
+      "solcConfig": {
+        "version": "0.8.23",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.7.0"
+      ],
+      "artifacts": [
+        "PoseidonT3"
+      ]
+    },
+    "D:\\GitHub\\1. ARC\\Sendly-App — копия\\node_modules\\@zk-kit\\lean-imt.sol\\Constants.sol": {
+      "lastModificationDate": 1768995776931,
+      "contentHash": "f8b2aa1a7d19380722cb6045ffc42c0f",
+      "sourceName": "@zk-kit/lean-imt.sol/Constants.sol",
+      "solcConfig": {
+        "version": "0.8.23",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.4"
+      ],
+      "artifacts": []
+    },
+    "D:\\GitHub\\1. ARC\\Sendly-App — копия\\contracts_zktls\\semaphore\\contracts\\base\\SemaphoreVerifier.sol": {
+      "lastModificationDate": 1768996317444,
+      "contentHash": "1355761c115b8f7eca978541e59a7760",
+      "sourceName": "contracts/base/SemaphoreVerifier.sol",
+      "solcConfig": {
+        "version": "0.8.23",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./Constants.sol",
+        "./SemaphoreVerifierKeyPts.sol"
+      ],
+      "versionPragmas": [
+        ">=0.8.23 <0.9.0"
+      ],
+      "artifacts": [
+        "SemaphoreVerifier"
+      ]
+    },
+    "D:\\GitHub\\1. ARC\\Sendly-App — копия\\contracts_zktls\\semaphore\\contracts\\base\\SemaphoreVerifierKeyPts.sol": {
+      "lastModificationDate": 1768996317448,
+      "contentHash": "6dd6baaf79df79dc196aac9673438373",
+      "sourceName": "contracts/base/SemaphoreVerifierKeyPts.sol",
+      "solcConfig": {
+        "version": "0.8.23",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.23 <0.9.0"
+      ],
+      "artifacts": [
+        "SemaphoreVerifierKeyPts"
+      ]
+    }
+  }
+}

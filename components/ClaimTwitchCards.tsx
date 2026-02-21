@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from './ui/alert';
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from './ui/empty';
 import { Spinner } from './ui/spinner';
 import { toast } from 'sonner';
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivySafe } from '../utils/privy/usePrivySafe';
 import { useAccount } from 'wagmi';
 import { createWalletClient, custom } from 'viem';
 import { arcTestnet } from '../utils/web3/wagmiConfig';
@@ -19,7 +19,7 @@ import { TWITCH_VAULT_CONTRACT_ADDRESS } from '../utils/web3/constants';
 import { WalletChoiceModal } from './WalletChoiceModal';
 
 export function ClaimTwitchCards() {
-  const { authenticated, user } = usePrivy();
+  const { authenticated, user } = usePrivySafe();
   const { address, isConnected } = useAccount();
   const [pendingCards, setPendingCards] = useState<TwitchCardMapping[]>([]);
   const [loading, setLoading] = useState(true);

@@ -14,6 +14,13 @@ import { createWalletClient, custom } from 'viem';
 import { arcTestnet } from '../utils/web3/wagmiConfig';
 import web3Service from '../utils/web3/web3Service';
 import { GiftCardsService } from '../utils/supabase/giftCards';
+import { isZkHost } from '../utils/runtime/zkHost';
+import {
+  getZkSendPaymentsBySender,
+  getZkSendPaymentsByRecipientWallet,
+  type ZkSendPaymentRow,
+} from '../utils/supabase/zksendPayments';
+import { ZKSEND_CONTRACT_ADDRESS } from '../utils/web3/constants';
 
 interface Transaction {
   id: string;
@@ -36,6 +43,49 @@ interface Analytics {
   cardsReceived: number;
   averageAmount: string;
   topCurrency: 'USDC' | 'EURC' | 'USYC';
+}
+
+function normalizeTxHash(h: string | null | undefined): string {
+  if (!h || typeof h !== 'string') return '0x';
+  const s = h.trim();
+  return s.length === 66 && s.startsWith('0x') ? s : '0x';
+}
+
+function toTransactionFromSent(row: ZkSendPaymentRow): Transaction {
+  const counterpart =
+    row.recipient_username ?? row.recipient_username_raw ?? row.recipient_identity_hash ?? '-';
+  const currency = (row.currency === 'EURC' ? 'EURC' : row.currency === 'USYC' ? 'USYC' : 'USDC') as 'USDC' | 'EURC' | 'USYC';
+  return {
+    id: `zksend_sent_${row.chain_id}_${row.contract_address}_${row.payment_id}`,
+    type: 'sent',
+    amount: row.amount ?? '0',
+    currency,
+    counterpart,
+    message: '',
+    status: 'completed',
+    timestamp: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
+    txHash: normalizeTxHash(row.tx_hash),
+    gasUsed: '0.002',
+  };
+}
+
+function toTransactionFromReceived(row: ZkSendPaymentRow): Transaction {
+  const counterpart = row.sender_address ?? '-';
+  const currency = (row.currency === 'EURC' ? 'EURC' : row.currency === 'USYC' ? 'USYC' : 'USDC') as 'USDC' | 'EURC' | 'USYC';
+  const timestamp = row.claimed_at ?? row.created_at ?? new Date().toISOString();
+  const txHash = normalizeTxHash(row.claim_tx_hash ?? row.tx_hash);
+  return {
+    id: `zksend_recv_${row.chain_id}_${row.contract_address}_${row.payment_id}`,
+    type: row.claimed ? 'redeemed' : 'received',
+    amount: row.amount ?? '0',
+    currency,
+    counterpart,
+    message: '',
+    status: 'completed',
+    timestamp: typeof timestamp === 'string' ? new Date(timestamp).toISOString() : timestamp,
+    txHash,
+    gasUsed: '0.002',
+  };
 }
 
 export function TransactionHistory() {
@@ -111,17 +161,131 @@ export function TransactionHistory() {
     }
   }, [isConnected, address]);
 
+  const zkSendFilter = {
+    chainId: String(import.meta.env.VITE_ARC_CHAIN_ID ?? 5042002),
+    contractAddress: ZKSEND_CONTRACT_ADDRESS?.toLowerCase() ?? '',
+  };
+
+  const fetchZkSendData = async () => {
+    if (!address || isFetchingRef.current) return;
+    try {
+      isFetchingRef.current = true;
+      setLoading(true);
+      const [sentRows, receivedRows] = await Promise.all([
+        getZkSendPaymentsBySender(address, zkSendFilter),
+        getZkSendPaymentsByRecipientWallet(address, zkSendFilter),
+      ]);
+
+      const sentTxs: Transaction[] = sentRows.map((row) => toTransactionFromSent(row));
+      const receivedTxs: Transaction[] = receivedRows.map((row) =>
+        toTransactionFromReceived(row)
+      );
+      const allTxs = [...sentTxs, ...receivedTxs].sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+
+      let totalSent = 0;
+      let totalReceived = 0;
+      let totalRedeemed = 0;
+      let cardsSent = 0;
+      let cardsReceived = 0;
+      const currencyCounts: Record<'USDC' | 'EURC' | 'USYC', number> = {
+        USDC: 0,
+        EURC: 0,
+        USYC: 0,
+      };
+      allTxs.forEach((tx) => {
+        const amount = parseFloat(tx.amount);
+        const sym = tx.currency;
+        if (sym === 'USDC' || sym === 'EURC' || sym === 'USYC') currencyCounts[sym]++;
+        if (tx.type === 'sent') {
+          totalSent += amount;
+          cardsSent++;
+        } else {
+          totalReceived += amount;
+          cardsReceived++;
+          if (tx.type === 'redeemed') totalRedeemed += amount;
+        }
+      });
+      const averageAmount =
+        cardsSent + cardsReceived > 0
+          ? ((totalSent + totalReceived) / (cardsSent + cardsReceived)).toFixed(2)
+          : '0';
+      const currencyOrder: Array<keyof typeof currencyCounts> = ['USDC', 'EURC', 'USYC'];
+      const topCurrency = currencyOrder.reduce(
+        (prev, curr) => (currencyCounts[curr] > currencyCounts[prev] ? curr : prev),
+        currencyOrder[0]
+      );
+      const newAnalytics: Analytics = {
+        totalSent: totalSent.toFixed(2),
+        totalReceived: totalReceived.toFixed(2),
+        totalRedeemed: totalRedeemed.toFixed(2),
+        cardsSent,
+        cardsReceived,
+        averageAmount,
+        topCurrency,
+      };
+      setAnalytics(newAnalytics);
+      setTransactions(allTxs);
+      dataCacheRef.current = {
+        address: address ?? null,
+        analytics: newAnalytics,
+        transactions: allTxs,
+        timestamp: Date.now(),
+      };
+    } catch (error) {
+      console.error('[TransactionHistory] fetchZkSendData:', error);
+      toast.error('Error loading zkSEND history.');
+      if (transactions.length === 0) {
+        setAnalytics({
+          totalSent: '0',
+          totalReceived: '0',
+          totalRedeemed: '0',
+          cardsSent: 0,
+          cardsReceived: 0,
+          averageAmount: '0',
+          topCurrency: 'USDC',
+        });
+        setTransactions([]);
+      }
+    } finally {
+      setLoading(false);
+      isFetchingRef.current = false;
+    }
+  };
+
   const fetchData = async () => {
     if (!isConnected || !address || isFetchingRef.current) return;
+
+    if (isZkHost()) {
+      const cacheAge = Date.now() - dataCacheRef.current.timestamp;
+      const cachedAnalytics = dataCacheRef.current.analytics;
+      const cachedTransactions = dataCacheRef.current.transactions;
+      const cacheValid =
+        cacheAge < 300000 &&
+        dataCacheRef.current.address === address &&
+        cachedAnalytics != null &&
+        cachedTransactions != null;
+      if (cacheValid) {
+        setAnalytics(cachedAnalytics);
+        setTransactions(cachedTransactions);
+        setLoading(false);
+        return;
+      }
+      await fetchZkSendData();
+      return;
+    }
 
     // Check cache (increased cache time to 5 minutes)
     const cacheAge = Date.now() - dataCacheRef.current.timestamp;
     const cacheValid = cacheAge < 300000 && dataCacheRef.current.address === address; // 5 minutes
     
-    if (cacheValid && dataCacheRef.current.analytics && dataCacheRef.current.transactions) {
+    const cachedAnalytics = dataCacheRef.current.analytics;
+    const cachedTransactions = dataCacheRef.current.transactions;
+    if (cacheValid && cachedAnalytics != null && cachedTransactions != null) {
       console.log('Using cached data');
-      setAnalytics(dataCacheRef.current.analytics);
-      setTransactions(dataCacheRef.current.transactions);
+      setAnalytics(cachedAnalytics);
+      setTransactions(cachedTransactions);
       setLoading(false);
       return;
     }
@@ -349,10 +513,6 @@ export function TransactionHistory() {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  const handleAddressClick = (address: string) => {
-    window.open(`https://debank.com/profile/${address}`, '_blank');
-  };
-
   const handleTxHashClick = (txHash: string) => {
     const explorer = (import.meta as any).env?.VITE_ARC_BLOCK_EXPLORER_URL || 'https://testnet.arcscan.app';
     window.open(`${explorer}/tx/${txHash}`, '_blank');
@@ -464,8 +624,7 @@ export function TransactionHistory() {
                 transactions: null,
                 timestamp: 0
               };
-              // Clear web3 service cache too
-              web3Service.clearCache();
+              if (!isZkHost()) web3Service.clearCache();
               fetchData();
             }} 
             variant="outline"
@@ -491,7 +650,7 @@ export function TransactionHistory() {
           <CardContent>
             <div className="text-2xl font-bold text-red-600">${analytics.totalSent}</div>
             <p className="text-xs text-muted-foreground">
-              {analytics.cardsSent} cards sent
+              {analytics.cardsSent} payments sent
             </p>
           </CardContent>
         </Card>
@@ -504,7 +663,7 @@ export function TransactionHistory() {
           <CardContent>
             <div className="text-2xl font-bold text-green-600">${analytics.totalReceived}</div>
             <p className="text-xs text-muted-foreground">
-              {analytics.cardsReceived} cards received
+              {analytics.cardsReceived} payments received
             </p>
           </CardContent>
         </Card>
@@ -517,7 +676,7 @@ export function TransactionHistory() {
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">${analytics.totalRedeemed}</div>
             <p className="text-xs text-muted-foreground">
-              {analytics.cardsReceived} cards received
+              {analytics.cardsReceived} payments received
             </p>
           </CardContent>
         </Card>
@@ -530,7 +689,7 @@ export function TransactionHistory() {
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">${analytics.averageAmount}</div>
             <p className="text-xs text-muted-foreground">
-              Per card
+              Per payment
             </p>
           </CardContent>
         </Card>
@@ -601,14 +760,10 @@ export function TransactionHistory() {
                         <div className={`font-medium ${getTypeColor(tx.type)}`}>
                           {tx.type.charAt(0).toUpperCase() + tx.type.slice(1)} ${tx.amount} {tx.currency}
                         </div>
-                        <div className="text-sm">
-                          <button
-                            onClick={() => handleAddressClick(tx.counterpart)}
-                            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
-                            title={`View on Debank: ${tx.counterpart}`}
-                          >
+                        <div className="text-sm text-gray-600">
+                          <span title={tx.counterpart}>
                             {shortenAddress(tx.counterpart)}
-                          </button>
+                          </span>
                         </div>
                       </div>
                     </div>

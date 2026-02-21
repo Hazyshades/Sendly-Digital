@@ -1,0 +1,41 @@
+services:
+  zktls-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Optional: uncomment to disable zktls build in container
+      # args:
+      #   BUILD_ZKTLS: "false"
+    container_name: zktls-service
+    # Default host port is 3002 to avoid conflict with local service on 3001
+    ports:
+      - "${DOCKER_HOST_PORT:-3002}:3001"
+    env_file:
+      - .env
+    environment:
+      # Override port inside container
+      - PORT=3001
+      # Path to zktls binary inside container
+      - ZKTLS_BINARY=/usr/local/bin/zktls
+      # Default backend (r0 or sp1)
+      - ZKTLS_BACKEND=${ZKTLS_BACKEND:-r0}
+    volumes:
+      # Volume for temporary files (optional, for debugging)
+      - zktls-tmp:/tmp/zktls-inputs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - zktls-network
+
+volumes:
+  zktls-tmp:
+    driver: local
+
+networks:
+  zktls-network:
+    driver: bridge

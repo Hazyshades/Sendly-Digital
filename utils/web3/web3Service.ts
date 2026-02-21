@@ -1,4 +1,4 @@
-import { createPublicClient, http } from 'viem';
+import { createPublicClient, http, parseEventLogs } from 'viem';
 import { arcTestnet } from './wagmiConfig';
 import {
   CONTRACT_ADDRESS,
@@ -10,12 +10,14 @@ import {
   USDC_ADDRESS,
   EURC_ADDRESS,
   USYC_ADDRESS,
+  ZKSEND_CONTRACT_ADDRESS,
   GiftCardABI,
   TwitterCardVaultABI,
   TwitchCardVaultABI,
   TelegramCardVaultABI,
   TikTokCardVaultABI,
   InstagramCardVaultABI,
+  ZkSendABI,
   ERC20ABI,
   ARC_RPC_URLS
 } from './constants';
@@ -1274,6 +1276,52 @@ export class Web3Service {
     }
   }
 
+  private async approveTokenForSpender(tokenAddress: string, spender: string, amount: string): Promise<boolean> {
+    if (!this.walletClient || !this.account) {
+      throw new Error('Wallet not connected');
+    }
+
+    await this.ensureCorrectChain();
+
+    const walletChainId = await this.walletClient.getChainId();
+    const targetChainId = arcTestnet.id;
+    if (walletChainId !== targetChainId) {
+      throw new Error(
+        `Please switch to Arc Testnet (Chain ID: ${targetChainId}) in your wallet. Current: ${walletChainId}`
+      );
+    }
+
+    const amountWei = this.parseAmount(amount);
+
+    const allowance = await this.safeRequest(async () => {
+      return await this.publicClient.readContract({
+        address: tokenAddress as `0x${string}`,
+        abi: ERC20ABI,
+        functionName: 'allowance',
+        args: [this.account as `0x${string}`, spender as `0x${string}`],
+      });
+    });
+
+    if (BigInt(allowance) >= BigInt(amountWei)) {
+      return true;
+    }
+
+    const approveHash = await this.walletClient.writeContract({
+      chain: arcTestnet,
+      address: tokenAddress as `0x${string}`,
+      abi: ERC20ABI,
+      functionName: 'approve',
+      args: [spender as `0x${string}`, BigInt(amountWei)],
+      account: this.account as `0x${string}`,
+    });
+
+    await this.safeRequest(async () => {
+      return await this.publicClient.waitForTransactionReceipt({ hash: approveHash });
+    });
+
+    return true;
+  }
+
   async createGiftCard(
     recipient: string,
     amount: string,
@@ -1601,6 +1649,219 @@ export class Web3Service {
   // Method to clear cache
   clearCache(): void {
     this.cache.clear();
+  }
+
+  // -----------------------------
+  // zkSEND (Reclaim-based)
+  // -----------------------------
+
+  async createZkSendPayment(input: {
+    socialIdentityHash: `0x${string}`;
+    platform: string;
+    amount: string; // human units, 6 decimals assumed (stablecoins)
+    tokenType: 'USDC' | 'EURC';
+  }): Promise<{ paymentId: string | null; txHash: string }> {
+    if (!this.walletClient || !this.account) {
+      throw new Error('Wallet not connected');
+    }
+
+    await this.ensureCorrectChain();
+
+    const tokenAddress = this.getTokenAddressFromSymbol(input.tokenType);
+    if (!tokenAddress || tokenAddress === '0x0000000000000000000000000000000000000000') {
+      throw new Error(`${input.tokenType} address is not configured`);
+    }
+    if (!ZKSEND_CONTRACT_ADDRESS || ZKSEND_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      throw new Error('ZKSEND_CONTRACT_ADDRESS is not configured');
+    }
+
+    // Calculate fee (0.1% = 10 / 10000) and total amount needed
+    const amountWei = BigInt(this.parseAmount(input.amount));
+    const FEE_BPS = 10n;
+    const BPS_DENOMINATOR = 10000n;
+    const feeWei = (amountWei * FEE_BPS) / BPS_DENOMINATOR;
+    const totalFromSenderWei = amountWei + feeWei;
+
+    // Balance check - need amount + fee
+    const balance = await this.safeRequest(async () => {
+      return await this.publicClient.readContract({
+        address: tokenAddress as `0x${string}`,
+        abi: ERC20ABI,
+        functionName: 'balanceOf',
+        args: [this.account as `0x${string}`],
+      });
+    });
+    if (BigInt(balance) < totalFromSenderWei) {
+      const totalRequired = this.formatAmount(totalFromSenderWei);
+      throw new Error(`Insufficient ${input.tokenType} balance. Required: ${totalRequired} (${input.amount} + ${this.formatAmount(feeWei)} fee), Available: ${this.formatAmount(BigInt(balance))}`);
+    }
+
+    // Approve zkSEND contract as spender - need to approve amount + fee
+    const totalFromSenderStr = this.formatAmount(totalFromSenderWei);
+    await this.approveTokenForSpender(tokenAddress, ZKSEND_CONTRACT_ADDRESS, totalFromSenderStr);
+
+    const hash = await this.walletClient.writeContract({
+      chain: arcTestnet,
+      address: ZKSEND_CONTRACT_ADDRESS as `0x${string}`,
+      abi: ZkSendABI,
+      functionName: 'createPayment',
+      args: [
+        input.socialIdentityHash,
+        input.platform,
+        BigInt(amountWei),
+        tokenAddress as `0x${string}`,
+      ],
+      account: this.account as `0x${string}`,
+    });
+
+    const receipt = await this.safeRequest(async () => {
+      return await this.publicClient.waitForTransactionReceipt({ hash });
+    });
+
+    if (receipt.status === 'reverted' || (typeof receipt.status === 'number' && receipt.status === 0)) {
+      throw new Error(`Transaction failed. Tx hash: ${hash}`);
+    }
+
+    let paymentId: string | null = null;
+    try {
+      const parsed = parseEventLogs({
+        abi: ZkSendABI,
+        logs: receipt.logs,
+        eventName: 'PaymentCreated',
+      });
+      const ev = parsed?.[0];
+      if (ev && (ev as any).args?.paymentId != null) {
+        paymentId = BigInt((ev as any).args.paymentId).toString();
+      }
+    } catch (_) {
+      // ignore parse errors; paymentId can be recovered via getPendingPayments later
+    }
+
+    return { paymentId, txHash: hash };
+  }
+
+  async getZkSendPendingPayments(socialIdentityHash: `0x${string}`): Promise<string[]> {
+    if (!ZKSEND_CONTRACT_ADDRESS || ZKSEND_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      throw new Error('ZKSEND_CONTRACT_ADDRESS is not configured');
+    }
+
+    const ids = await this.safeRequest(async () => {
+      return await this.publicClient.readContract({
+        address: ZKSEND_CONTRACT_ADDRESS as `0x${string}`,
+        abi: ZkSendABI,
+        functionName: 'getPendingPayments',
+        args: [socialIdentityHash],
+      });
+    });
+
+    return (Array.isArray(ids) ? ids : []).map((x: any) => BigInt(x).toString());
+  }
+
+  async getZkSendPayment(paymentId: string | number): Promise<{
+    paymentId: string;
+    sender: string;
+    socialIdentityHash: string;
+    platform: string;
+    amountWei: string;
+    amount: string;
+    token: string;
+    recipient: string;
+    claimed: boolean;
+    createdAt: number;
+    claimedAt: number;
+  }> {
+    if (!ZKSEND_CONTRACT_ADDRESS || ZKSEND_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      throw new Error('ZKSEND_CONTRACT_ADDRESS is not configured');
+    }
+
+    const p = await this.safeRequest(async () => {
+      return await this.publicClient.readContract({
+        address: ZKSEND_CONTRACT_ADDRESS as `0x${string}`,
+        abi: ZkSendABI,
+        functionName: 'getPayment',
+        args: [BigInt(paymentId)],
+      });
+    });
+
+    const amountWei = BigInt((p as any).amount ?? 0n);
+
+    return {
+      paymentId: BigInt((p as any).paymentId ?? BigInt(paymentId)).toString(),
+      sender: String((p as any).sender),
+      socialIdentityHash: String((p as any).socialIdentityHash),
+      platform: String((p as any).platform),
+      amountWei: amountWei.toString(),
+      amount: this.formatAmount(amountWei),
+      token: String((p as any).token),
+      recipient: String((p as any).recipient),
+      claimed: Boolean((p as any).claimed),
+      createdAt: Number((p as any).createdAt ?? 0),
+      claimedAt: Number((p as any).claimedAt ?? 0),
+    };
+  }
+
+  async claimZkSendPayment(input: {
+    paymentId: string | number;
+    proof: any; // Reclaim.Proof struct shape (see utils/reclaim/onchain.ts)
+    recipient: `0x${string}`;
+  }): Promise<string> {
+    if (!this.walletClient || !this.account) {
+      throw new Error('Wallet not connected');
+    }
+    await this.ensureCorrectChain();
+
+    if (!ZKSEND_CONTRACT_ADDRESS || ZKSEND_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      throw new Error('ZKSEND_CONTRACT_ADDRESS is not configured');
+    }
+
+    const hash = await this.walletClient.writeContract({
+      chain: arcTestnet,
+      address: ZKSEND_CONTRACT_ADDRESS as `0x${string}`,
+      abi: ZkSendABI,
+      functionName: 'claimPayment',
+      args: [BigInt(input.paymentId), input.proof, input.recipient],
+      account: this.account as `0x${string}`,
+    });
+
+    await this.safeRequest(async () => {
+      return await this.publicClient.waitForTransactionReceipt({ hash });
+    });
+
+    return hash;
+  }
+
+  async claimZkSendPayments(input: {
+    paymentIds: (string | number)[];
+    proof: any;
+    recipient: `0x${string}`;
+  }): Promise<string> {
+    if (!this.walletClient || !this.account) {
+      throw new Error('Wallet not connected');
+    }
+    await this.ensureCorrectChain();
+
+    if (!ZKSEND_CONTRACT_ADDRESS || ZKSEND_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      throw new Error('ZKSEND_CONTRACT_ADDRESS is not configured');
+    }
+
+    const hash = await this.walletClient.writeContract({
+      chain: arcTestnet,
+      address: ZKSEND_CONTRACT_ADDRESS as `0x${string}`,
+      abi: ZkSendABI,
+      functionName: 'claimPayments',
+      args: [
+        input.paymentIds.map((id) => BigInt(id)),
+        input.proof,
+        input.recipient,
+      ],
+      account: this.account as `0x${string}`,
+    });
+
+    await this.safeRequest(async () => {
+      return await this.publicClient.waitForTransactionReceipt({ hash });
+    });
+
+    return hash;
   }
 
   // Twitter Vault functions

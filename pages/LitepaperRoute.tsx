@@ -60,7 +60,7 @@ export function LitepaperRoute() {
           <CardContent className="space-y-4 text-lg text-gray-700 leading-relaxed">
             <p>
               <strong>Sendly</strong> is a decentralized platform for sending cryptocurrency gift cards 
-              by usernames on social networks. The platform eliminates the main barrier to Web3 entry — 
+              by usernames on social networks. The platform eliminates the main barrier to Web3 entry - 
               the need to know the recipient's wallet address.
             </p>
             <p>
@@ -69,7 +69,7 @@ export function LitepaperRoute() {
               to any user on Twitter, Twitch, Telegram, TikTok, or Instagram by simply entering their username.
             </p>
             <p>
-              Recipients don't need a wallet — the platform automatically creates one when they first claim a card, 
+              Recipients don't need a wallet - the platform automatically creates one when they first claim a card, 
               making cryptocurrency payments accessible to everyone.
             </p>
           </CardContent>
@@ -88,9 +88,9 @@ export function LitepaperRoute() {
                 which creates significant barriers to mass adoption:
               </p>
               <ul className="list-disc list-inside space-y-2 ml-4">
-                <li>Complexity for beginners — need to understand wallet addresses</li>
-                <li>Error risk — wrong address means irreversible loss of funds</li>
-                <li>No connection to social networks — no way to send cryptocurrency by familiar username</li>
+                <li>Complexity for beginners - need to understand wallet addresses</li>
+                <li>Error risk - wrong address means irreversible loss of funds</li>
+                <li>No connection to social networks - no way to send cryptocurrency by familiar username</li>
                 <li>Requirement for recipient to set up a wallet beforehand</li>
               </ul>
             </CardContent>
@@ -256,9 +256,9 @@ export function LitepaperRoute() {
                 <CardTitle>Blockchain</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-gray-700">
-                <p><strong>ARC Testnet</strong> — test network for development and testing</p>
-                <p><strong>Ethereum-compatible</strong> — support for standard protocols (ERC-20, ERC-721)</p>
-                <p><strong>Low fees</strong> — optimized network for micropayments</p>
+                <p><strong>ARC Testnet</strong> - test network for development and testing</p>
+                <p><strong>Ethereum-compatible</strong> - support for standard protocols (ERC-20, ERC-721)</p>
+                <p><strong>Low fees</strong> - optimized network for micropayments</p>
               </CardContent>
             </Card>
 
@@ -267,9 +267,9 @@ export function LitepaperRoute() {
                 <CardTitle>Wallets</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-gray-700">
-                <p><strong>Circle Internal wallets</strong> — automatic wallet creation</p>
-                <p><strong>MetaMask</strong> — support for traditional wallets</p>
-                <p><strong>Privy</strong> — social authentication</p>
+                <p><strong>Circle Internal wallets</strong> - automatic wallet creation</p>
+                <p><strong>MetaMask</strong> - support for traditional wallets</p>
+                <p><strong>Privy</strong> - social authentication</p>
               </CardContent>
             </Card>
 
@@ -278,9 +278,9 @@ export function LitepaperRoute() {
                 <CardTitle>Smart Contracts</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-gray-700">
-                <p><strong>GiftCard.sol</strong> — main contract for creating cards (ERC-721)</p>
-                <p><strong>Vault contracts</strong> — storing cards by social networks</p>
-                <p><strong>OpenZeppelin</strong> — audited security libraries</p>
+                <p><strong>GiftCard.sol</strong> - main contract for creating cards (ERC-721)</p>
+                <p><strong>Vault contracts</strong> - storing cards by social networks</p>
+                <p><strong>OpenZeppelin</strong> - audited security libraries</p>
               </CardContent>
             </Card>
 
@@ -289,10 +289,10 @@ export function LitepaperRoute() {
                 <CardTitle>Integrations</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-gray-700">
-                <p><strong>OAuth 2.0</strong> — authentication through social networks</p>
-                <p><strong>Circle API</strong> — wallet and transaction management</p>
-                <p><strong>Supabase</strong> — database and edge functions</p>
-                <p><strong>Pinata</strong> — decentralized metadata storage</p>
+                <p><strong>OAuth 2.0</strong> - authentication through social networks</p>
+                <p><strong>Circle API</strong> - wallet and transaction management</p>
+                <p><strong>Supabase</strong> - database and edge functions</p>
+                <p><strong>Pinata</strong> - decentralized metadata storage</p>
               </CardContent>
             </Card>
           </div>
@@ -390,11 +390,11 @@ export function LitepaperRoute() {
               <div className="grid md:grid-cols-3 gap-6">
                 <div className="text-center p-6 bg-blue-50 rounded-xl">
                   <h3 className="text-2xl font-bold text-blue-600 mb-2">USDC</h3>
-                  <p className="text-gray-700">USD Coin — stablecoin pegged to the US dollar</p>
+                  <p className="text-gray-700">USD Coin - stablecoin pegged to the US dollar</p>
                 </div>
                 <div className="text-center p-6 bg-purple-50 rounded-xl">
                   <h3 className="text-2xl font-bold text-purple-600 mb-2">EURC</h3>
-                  <p className="text-gray-700">Euro Coin — stablecoin pegged to the euro</p>
+                  <p className="text-gray-700">Euro Coin - stablecoin pegged to the euro</p>
                 </div>
                 <div className="text-center p-6 bg-green-50 rounded-xl">
                   <h3 className="text-2xl font-bold text-green-600 mb-2">USYC</h3>

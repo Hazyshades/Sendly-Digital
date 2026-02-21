@@ -1,7 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getApiUrl } from '../utils/supabase/client';
-import { publicAnonKey } from '../utils/supabase/info';
+const getZkTlsApiUrl = (): string => {
+  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
+  const envUrl =
+    (import.meta.env.VITE_ZKTLS_SERVICE_URL as string | undefined) ||
+    (import.meta.env.VITE_ZKTLS_API_URL as string | undefined);
+  if (envUrl) return envUrl;
+  return 'http://localhost:3001';
+};
 
 export function TwitterCallbackRoute() {
   const navigate = useNavigate();
@@ -77,8 +83,8 @@ export function TwitterCallbackRoute() {
       try {
         const redirectUri = `${window.location.origin}/auth/twitter/callback`;
         
-        const apiUrl = getApiUrl();
-        const fullUrl = `${apiUrl}/smart-action/contacts/twitter-exchange-code`;
+        const apiUrl = getZkTlsApiUrl().replace(/\/$/, '');
+        const fullUrl = `${apiUrl}/api/twitter/oauth/exchange`;
         
         console.log('[POPUP] Exchange code for token:');
         console.log('[POPUP] API URL:', apiUrl);
@@ -99,7 +105,6 @@ export function TwitterCallbackRoute() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${publicAnonKey}`,
           },
           body: JSON.stringify(requestBody),
         }).catch(async (err) => {
@@ -133,8 +138,20 @@ export function TwitterCallbackRoute() {
         const accessToken = tokenData.accessToken;
         console.log('[POPUP] ✅ Code exchange successful! Token received.');
         console.log('[POPUP] Saving Twitter token to popup localStorage:', accessToken.substring(0, 20) + '...');
+        if (tokenData.tokenType) {
+          console.log('[POPUP] Twitter token type:', tokenData.tokenType);
+        }
+        if (tokenData.scope) {
+          console.log('[POPUP] Twitter token scopes:', tokenData.scope);
+        }
         localStorage.setItem('twitter_oauth', accessToken);
         localStorage.setItem('twitter_oauth_token', accessToken);
+        if (tokenData.tokenType) {
+          localStorage.setItem('twitter_oauth_token_type', tokenData.tokenType);
+        }
+        if (tokenData.scope) {
+          localStorage.setItem('twitter_oauth_scope', tokenData.scope);
+        }
         
         if (tokenData.refreshToken) {
           localStorage.setItem('twitter_refresh_token', tokenData.refreshToken);

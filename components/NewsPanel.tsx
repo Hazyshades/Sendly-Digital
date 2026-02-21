@@ -17,25 +17,13 @@ interface NewsItem {
 
 // Example news data - can be replaced with real data from API
 const newsItems: NewsItem[] = [
-
   {
-    id: '1',
-    title: 'Privy social connect shutdown',
-    description: 'Privy social test is over. Thanks for your help. If recepints or you privious log in with Privy, you still can sending and reciving funds.',
-    date: '1/3/2026',
+    id: '2',
+    title: 'Synchronization completed',
+    description: 'All data in the leaderboard has been synchronized on block 20804073. Next synchronization will be done each 1000 blocks.',
+    date: '1/9/2026',
     type: 'update',
-  },
-  {
-      id: '2',
-      title: 'Synchronization completed',
-      description: 'All data in the leaderboard has been synchronized on block 20804073. Next synchronization will be done each 1000 blocks.',
-      date: '1/9/2026',
-      type: 'update',
-    }
-  
-    
-
-  
+  }
 ];
 
 export function NewsPanel() {

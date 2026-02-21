@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { usePrivy } from '@privy-io/react-auth';
 import { useAccount, useWalletClient } from 'wagmi';
 import { toast } from 'sonner';
 import { createWalletClient, custom, createPublicClient, http } from 'viem';
@@ -14,8 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
-import { Loader2, Wallet, Copy, Check, ExternalLink, ArrowUpCircle, ChevronUp, ChevronDown, Info, Coins, Send } from 'lucide-react';
+import { Loader2, Wallet, Copy, Check, ExternalLink, ArrowUpCircle, ChevronUp, ChevronDown, Coins, Send } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { usePrivySafe } from '../utils/privy/usePrivySafe';
 
 interface DeveloperWalletProps {
   blockchain?: string;
@@ -25,7 +25,7 @@ interface DeveloperWalletProps {
 export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletCreated }: DeveloperWalletProps) {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
-  const { user: privyUser, authenticated } = usePrivy();
+  const { user: privyUser, authenticated } = usePrivySafe();
   const [wallet, setWallet] = useState<DeveloperWallet | null>(null);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -945,12 +945,12 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
                     </div>
 
                     {/* Info Alert */}
-                    <div className="flex gap-3 p-3 rounded-lg bg-blue-50/50 border border-blue-100">
+                 {/*    <div className="flex gap-3 p-3 rounded-lg bg-blue-50/50 border border-blue-100">
                       <Info className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
                       <p className="text-xs text-blue-900 leading-relaxed">
                         This wallet is developer-controlled. You can fund it from your EVM wallet and use it for transactions through the Telegram bot without MetaMask signing.
-                      </p>
-                    </div>
+                      </p> 
+                    </div>*/}
                   </div>
                   <Separator />
                 </>
@@ -991,17 +991,17 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
     <Card className="bg-white/90 backdrop-blur-sm border border-gray-200 shadow-circle-card">
   <CardHeader className="pb-6"> {/* add bottom margin, so the description does not stick to the content below */}
     <div className="grid grid-rows-2 items-start gap-3">
-      {/* Title with icon — left */}
+      {/* Title with icon - left */}
       <CardTitle className="flex items-center gap-2">
         <Wallet className="w-5 h-5 text-gray-700" />
         Internal Wallet
       </CardTitle>
 
-      {/* Description — center of the card */}
-      <CardDescription className="text-center text-sm text-gray-600 -mt-1">
+      {/* Description - center of the card */}
+      <CardDescription className="text-left text-sm text-gray-600 -mt-1">
         {shouldShowConnectMessage
           ? 'Please connect your wallet or social account to use platform functionality.'
-          : 'To use platform functionality via Telegram, please create an internal wallet.'}
+          : 'To use Circle functionality, please create an internal wallet.'}
       </CardDescription>
     </div>
   </CardHeader>
@@ -1010,14 +1010,13 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h4 className="font-medium text-blue-900 mb-2">Why is this needed?</h4>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Send transactions through the Telegram bot</li>
+              <li>• Send transactions through Circle Wallet</li>
               <li>• No need to sign each transaction</li>
               <li>• Design a flexible flow for your funds</li>
-              <li>• Assign tasks to the agent with</li>
             </ul>
           </div>
 
-          <div className="space-y-2">
+         {/* <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600">Blockchain:</span>
               <span className="font-medium">{getBlockchainName(blockchain)}</span>
@@ -1026,8 +1025,8 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
               <span className="text-gray-600">Account type:</span>
               <span className="font-medium">EOA (Externally Owned Account)</span>
             </div>
-          </div>
-
+          </div> 
+*/}
           <Button
             onClick={createWallet}
             disabled={loading}
@@ -1048,8 +1047,8 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
 
           <p className="text-xs text-gray-500 text-center">
             {isConnected 
-              ? `The wallet will be created on ${getBlockchainName(blockchain)} blockchain and linked to your EVM address and Telegram`
-              : `The wallet will be created on ${getBlockchainName(blockchain)} blockchain and linked to your social account`}
+              ? `The wallet will be created on Arc Testnet blockchain and linked to your EVM address`
+              : `The wallet will be created on Arc Testnet blockchain and linked to your social account`}
           </p>
         </CardContent>
       )}

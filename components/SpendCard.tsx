@@ -19,7 +19,7 @@ import web3Service from '../utils/web3/web3Service';
 import { GiftCardsService } from '../utils/supabase/giftCards';
 import { USDC_ADDRESS, EURC_ADDRESS, USYC_ADDRESS, CONTRACT_ADDRESS, GiftCardABI } from '../utils/web3/constants';
 import BridgeDialog from './BridgeDialog';
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivySafe } from '../utils/privy/usePrivySafe';
 import { DeveloperWalletService } from '../utils/circle/developerWalletService';
 
 interface RedeemableCard {
@@ -59,7 +59,7 @@ const SERVICE_DISPLAY_NAMES: Record<string, string> = {
 
 export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
   const { address, isConnected } = useAccount();
-  const { authenticated, user: privyUser } = usePrivy();
+  const { authenticated, user: privyUser } = usePrivySafe();
   const navigate = useNavigate();
   const [hasDeveloperWallet, setHasDeveloperWallet] = useState(false);
   const [developerWallet, setDeveloperWallet] = useState<any>(null);
@@ -713,7 +713,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
                 <Label htmlFor="cardId">Gift card token ID</Label>
                 <Input
                   id="cardId"
-                  placeholder="Enter gift card token ID (e.g., 1, 2, 3...)"
+                  placeholder="Enter gift card token ID"
                   value={cardInput}
                   onChange={(e) => setCardInput(e.target.value)}
                 />

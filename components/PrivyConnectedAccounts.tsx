@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivySafe } from '../utils/privy/usePrivySafe';
 import { Avatar, AvatarFallback } from './ui/avatar';
 
 interface ConnectedAccount {
@@ -11,7 +11,7 @@ interface ConnectedAccount {
 }
 
 export function PrivyConnectedAccounts() {
-  const { authenticated, user } = usePrivy();
+  const { authenticated, user } = usePrivySafe();
 
   const connectedAccounts = useMemo<ConnectedAccount[]>(() => {
     if (!user || !authenticated) return [];

@@ -1,0 +1,63 @@
+# Reclaim Contracts
+
+Short description: the documents below record what was added to work with the Reclaim Protocol in Arc Testnet and why it is needed. The files in this folder are the minimal on-chain set for verifying zkTLS proofs without QR/mobile apps/browser extensions at the contract layer. The source of the contracts is the official Reclaim SDK (`reclaimprotocol/reclaim-solidity-sdk`).
+
+## What was created and why
+
+### `Reclaim.sol`
+The Reclaim Protocol verifier contract for on-chain proof verification. This is the official SDK contract with no custom logic.
+
+Why it is needed:
+- Confirms that the proof is signed by Reclaim witnesses and matches the active epoch.
+- Validates the proof structure at the `ClaimInfo` → `identifier` level.
+- Used by `ZkSend.sol` as an external verifier contract.
+
+Key parts:
+- **Epoch**: a set of witnesses and a minimum signature threshold.
+- **addNewEpoch**: adds a new epoch (performed by the owner).
+- **verifyProof**: verifies the proof and reverts on error.
+- **epochDurationS**: epoch duration (used to select witnesses).
+- **semaphoreAddress**: address of the Semaphore contract, required to verify Merkle identity.
+
+Deployment notes:
+- The contract is upgradeable (UUPS) and uses `initialize(...)` instead of a constructor.
+- A valid `semaphoreAddress` is required, otherwise some proof/identity functions will not work.
+
+### `lib/*`
+Official SDK libraries referenced by `Reclaim.sol`:
+- `Claims.sol`, `StringUtils.sol`, `BytesUtils.sol`, `Random.sol`
+- `SemaphoreInterface.sol` (interface for the Semaphore contract)
+
+Minimum requirements:
+- At least one epoch must be configured via `addNewEpoch`.
+- Witnesses must be real Reclaim addresses (otherwise valid proofs will fail).
+
+### `ZkSend.sol`
+Direct payments contract to a social identity (no NFT), using Reclaim proofs.
+
+Why it is needed:
+- Allows sending tokens to `socialIdentityHash` and letting only the account owner confirmed by a proof claim them.
+- Avoids NFT minting and vault contracts (simplifies the logic).
+
+What was updated:
+- Added `nonReentrant` protection on `claimPayment`.
+- Validates that `recipient` matches `proof.signedClaim.claim.owner`.
+- Compares `context` from `claimInfo` with `socialIdentityHash`:
+  - extracts `contextMessage` from `context` (if present),
+  - then computes `keccak256("platform:username")` and compares it to `socialIdentityHash`.
+
+## Why this satisfies the “no QR/mobile/extensions” requirement
+Contracts accept proofs as normal data and do not depend on how they are obtained.  
+That means QR/mobile app/extension restrictions apply only to the **proof generation process**, not to on-chain verification.
+
+## How it is used (flow logic)
+1. The user obtains a proof (any acceptable off-chain method).
+2. `ZkSend.createPayment(...)` creates a payment to `socialIdentityHash`.
+3. `ZkSend.claimPayment(...)` accepts the proof and recipient address.
+4. `ZkSend` calls `Reclaim.verifyProof(...)` and checks the identity hash.
+
+## Important notes
+- Without configured epochs and witnesses in `Reclaim.sol`, verification will fail.
+- `socialIdentityHash` is `keccak256("platform:username")` in lowercase, otherwise mismatches are possible.
+- Real Reclaim witness addresses are required for production use.
+

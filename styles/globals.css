@@ -143,8 +143,80 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
+}
+
+/* Blog shell: shared layout for /blog and /blog/:slug */
+.blog-shell {
+  --blog-bg: #fafafa;
+}
+
+.blog-shell .blog-section {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 768px) {
+  .blog-shell .blog-section {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+/* Cohere-inspired blog post (privy_results) */
+.blog-post-cohere {
+  --blog-bg: #fafafa;
+  --blog-text-primary: #1a1a1a;
+  --blog-text-secondary: #6b7280;
+}
+
+.blog-post-cohere .hero-title {
+  font-size: clamp(2.5rem, 5vw, 4.5rem);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.blog-post-cohere .hero-subtitle {
+  font-size: 1.25rem;
+  color: var(--blog-text-secondary);
+  margin-top: 1.5rem;
+  text-align: center;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.blog-post-cohere .blog-section {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 768px) {
+  .blog-post-cohere .blog-section {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+.blog-post-cohere .blog-content {
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.7;
+}
+
+.blog-post-cohere .blog-content-section {
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
 
 @layer utilities {
