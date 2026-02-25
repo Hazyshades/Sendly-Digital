@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Twitter, Twitch, Github, MessageCircle, Instagram, Linkedin, Mail, ChevronDown, Loader2, CheckCircle2 } from 'lucide-react';
+import { X, Twitter, Twitch, Github, MessageCircle, Instagram, Linkedin, Mail, Wallet, ChevronDown, Loader2, CheckCircle2 } from 'lucide-react';
 
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -22,7 +22,7 @@ import {
   type TelegramUserPreview,
 } from '../../utils/telegram';
 
-import type { ZkSendPlatform } from './ZkSendPanel';
+import type { ZkSendPlatform, SendRecipientType } from './ZkSendPanel';
 
 const PREVIEW_DEBOUNCE_MS = 500;
 /** Twitter preview: 3s debounce to reduce Twitter API (twitterapi.io) usage when typing. */
@@ -41,7 +41,7 @@ const githubPreviewCache = new Map<string, GitHubUserPreview>();
 const telegramPreviewCache = new Map<string, TelegramUserPreview>();
 
 const PLATFORM_OPTIONS: {
-  value: ZkSendPlatform;
+  value: SendRecipientType;
   label: string;
   hint: string;
   icon: typeof Twitter;
@@ -52,14 +52,14 @@ const PLATFORM_OPTIONS: {
   { value: 'github', label: 'GitHub', hint: 'Send to username', icon: Github },
   { value: 'telegram', label: 'Telegram', hint: 'Send to username', icon: MessageCircle },
   { value: 'instagram', label: 'Instagram', hint: 'Send to username', icon: Instagram, disabled: true },
-  // { value: 'tiktok', label: 'TikTok', hint: 'Send to username', icon: Music2 },
   { value: 'gmail', label: 'Gmail', hint: 'Send to email', icon: Mail },
   { value: 'linkedin', label: 'LinkedIn', hint: 'Send to username', icon: Linkedin },
+  { value: 'address', label: 'Address', hint: 'Send to wallet', icon: Wallet },
 ];
 
 type Props = {
-  platform: ZkSendPlatform;
-  onPlatformChange: (platform: ZkSendPlatform) => void;
+  platform: SendRecipientType;
+  onPlatformChange: (platform: SendRecipientType) => void;
   username: string;
   onUsernameChange: (username: string) => void;
   label?: string;
@@ -361,9 +361,9 @@ export function PlatformUsernameInput({
             id={inputId}
             value={username}
             onChange={(e) => onUsernameChange(e.target.value)}
-            placeholder="@username"
-            aria-label={ariaLabel}
-            className="border-0 rounded-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 pr-10"
+            placeholder={platform === 'address' ? '0x...' : '@username'}
+            aria-label={platform === 'address' ? 'Recipient wallet address' : ariaLabel}
+            className="border-0 rounded-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 pr-10 font-mono"
           />
           {username.length > 0 && (
             <button
@@ -408,7 +408,7 @@ export function PlatformUsernameInput({
                     title={isDisabled ? 'Temporarily unavailable' : undefined}
                     onClick={() => {
                       if (isDisabled) return;
-                      onPlatformChange(opt.value as ZkSendPlatform);
+                      onPlatformChange(opt.value);
                       setPlatformPopoverOpen(false);
                     }}
                     className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${platform === opt.value ? 'bg-muted/40' : ''} ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted/60'}`}

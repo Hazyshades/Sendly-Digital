@@ -27,11 +27,11 @@ import {
 } from '../ui/select';
 import { PlatformUsernameInput } from './PlatformUsernameInput';
 
-import type { ZkSendPlatform } from './ZkSendPanel';
+import type { ZkSendPlatform, SendRecipientType } from './ZkSendPanel';
 
 type Props = {
-  platform: ZkSendPlatform;
-  onPlatformChange: (platform: ZkSendPlatform) => void;
+  platform: SendRecipientType;
+  onPlatformChange: (platform: SendRecipientType) => void;
   username: string;
   onUsernameChange: (username: string) => void;
   isIdentityValid: boolean;
@@ -65,7 +65,7 @@ export function SendPaymentForm({
   });
 
   const normalizedUsername = useMemo(() => normalizeSocialUsername(username.replace(/^@/, '')), [username]);
-  const normalizedPlatform = useMemo(() => normalizeSocialPlatform(platform), [platform]);
+  const normalizedPlatform = useMemo(() => (platform === 'address' ? null : normalizeSocialPlatform(platform)), [platform]);
 
   const balanceFormatted = balance?.formatted ?? '0.00';
 
@@ -74,12 +74,40 @@ export function SendPaymentForm({
       if (!isConnected || !address || !walletClient) {
         throw new Error('Connect wallet to send');
       }
-      if (!normalizedUsername) throw new Error('Enter recipient');
       if (!amount || Number(amount) <= 0) throw new Error('Enter amount > 0');
 
       setLoading(true);
       await web3Service.initialize(walletClient, address);
 
+      if (platform === 'address') {
+        const recipientTrimmed = username.trim();
+        if (!/^0x[a-fA-F0-9]{40}$/.test(recipientTrimmed)) throw new Error('Enter a valid recipient address (0x...)');
+        const { txHash } = await web3Service.sendDirectToAddress({
+          recipient: recipientTrimmed as `0x${string}`,
+          amount,
+          tokenType,
+        });
+        if (txHash) {
+          toast.success(
+            <span>
+              Sent successfully.{' '}
+              <a
+                href={`${ARC_EXPLORER_URL}/tx/${txHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline font-medium"
+              >
+                TX: {txHash.slice(0, 10)}...
+              </a>
+            </span>
+          );
+        } else {
+          toast.success('Sent successfully.');
+        }
+        return;
+      }
+
+      if (!normalizedUsername) throw new Error('Enter recipient');
       if (!normalizedPlatform) throw new Error('Unsupported platform');
       const socialIdentityHash = generateSocialIdentityHash(normalizedPlatform, normalizedUsername);
       if (!socialIdentityHash) throw new Error('Invalid social identity');
@@ -232,7 +260,9 @@ export function SendPaymentForm({
 
         {!isIdentityValid && username.length > 0 && (
           <p className="text-sm text-amber-600 dark:text-amber-500">
-            Select a platform above and enter a valid username to send.
+            {platform === 'address'
+              ? 'Enter a valid wallet address (0x followed by 40 hex characters).'
+              : 'Select a platform above and enter a valid username to send.'}
           </p>
         )}
 

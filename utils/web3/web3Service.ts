@@ -11,6 +11,7 @@ import {
   EURC_ADDRESS,
   USYC_ADDRESS,
   ZKSEND_CONTRACT_ADDRESS,
+  DIRECT_SEND_CONTRACT_ADDRESS,
   GiftCardABI,
   TwitterCardVaultABI,
   TwitchCardVaultABI,
@@ -18,6 +19,7 @@ import {
   TikTokCardVaultABI,
   InstagramCardVaultABI,
   ZkSendABI,
+  DirectSendABI,
   ERC20ABI,
   ARC_RPC_URLS
 } from './constants';
@@ -1276,7 +1278,12 @@ export class Web3Service {
     }
   }
 
-  private async approveTokenForSpender(tokenAddress: string, spender: string, amount: string): Promise<boolean> {
+  private async approveTokenForSpender(
+    tokenAddress: string,
+    spender: string,
+    amount: string,
+    amountIsWei?: boolean
+  ): Promise<boolean> {
     if (!this.walletClient || !this.account) {
       throw new Error('Wallet not connected');
     }
@@ -1291,7 +1298,8 @@ export class Web3Service {
       );
     }
 
-    const amountWei = this.parseAmount(amount);
+    const amountWei = amountIsWei ? amount : this.parseAmount(amount);
+    const amountWeiStr = amountWei.includes('.') ? amountWei.split('.')[0] : amountWei;
 
     const allowance = await this.safeRequest(async () => {
       return await this.publicClient.readContract({
@@ -1302,7 +1310,7 @@ export class Web3Service {
       });
     });
 
-    if (BigInt(allowance) >= BigInt(amountWei)) {
+    if (BigInt(allowance) >= BigInt(amountWeiStr)) {
       return true;
     }
 
@@ -1311,7 +1319,7 @@ export class Web3Service {
       address: tokenAddress as `0x${string}`,
       abi: ERC20ABI,
       functionName: 'approve',
-      args: [spender as `0x${string}`, BigInt(amountWei)],
+      args: [spender as `0x${string}`, BigInt(amountWeiStr)],
       account: this.account as `0x${string}`,
     });
 
@@ -1696,9 +1704,8 @@ export class Web3Service {
       throw new Error(`Insufficient ${input.tokenType} balance. Required: ${totalRequired} (${input.amount} + ${this.formatAmount(feeWei)} fee), Available: ${this.formatAmount(BigInt(balance))}`);
     }
 
-    // Approve zkSEND contract as spender - need to approve amount + fee
-    const totalFromSenderStr = this.formatAmount(totalFromSenderWei);
-    await this.approveTokenForSpender(tokenAddress, ZKSEND_CONTRACT_ADDRESS, totalFromSenderStr);
+    // Approve zkSEND contract as spender - need to approve amount + fee (pass wei to avoid float precision loss)
+    await this.approveTokenForSpender(tokenAddress, ZKSEND_CONTRACT_ADDRESS, totalFromSenderWei.toString(), true);
 
     const hash = await this.walletClient.writeContract({
       chain: arcTestnet,
@@ -1738,6 +1745,69 @@ export class Web3Service {
     }
 
     return { paymentId, txHash: hash };
+  }
+
+  /**
+   * Send tokens directly to a wallet address via DirectSend contract (no social identity / Reclaim).
+   */
+  async sendDirectToAddress(input: {
+    recipient: `0x${string}`;
+    amount: string;
+    tokenType: 'USDC' | 'EURC';
+  }): Promise<{ txHash: string }> {
+    if (!this.walletClient || !this.account) {
+      throw new Error('Wallet not connected');
+    }
+
+    await this.ensureCorrectChain();
+
+    const tokenAddress = this.getTokenAddressFromSymbol(input.tokenType);
+    if (!tokenAddress || tokenAddress === '0x0000000000000000000000000000000000000000') {
+      throw new Error(`${input.tokenType} address is not configured`);
+    }
+    if (!DIRECT_SEND_CONTRACT_ADDRESS || DIRECT_SEND_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      throw new Error('DIRECT_SEND_CONTRACT_ADDRESS is not configured. Deploy DirectSend and set VITE_ARC_DIRECT_SEND_CONTRACT_ADDRESS.');
+    }
+
+    const amountWei = BigInt(this.parseAmount(input.amount));
+    const FEE_BPS = 10n;
+    const BPS_DENOMINATOR = 10000n;
+    const feeWei = (amountWei * FEE_BPS) / BPS_DENOMINATOR;
+    const totalFromSenderWei = amountWei + feeWei;
+
+    const balance = await this.safeRequest(async () => {
+      return await this.publicClient.readContract({
+        address: tokenAddress as `0x${string}`,
+        abi: ERC20ABI,
+        functionName: 'balanceOf',
+        args: [this.account as `0x${string}`],
+      });
+    });
+    if (BigInt(balance) < totalFromSenderWei) {
+      const totalRequired = this.formatAmount(totalFromSenderWei);
+      throw new Error(`Insufficient ${input.tokenType} balance. Required: ${totalRequired} (${input.amount} + ${this.formatAmount(feeWei)} fee), Available: ${this.formatAmount(BigInt(balance))}`);
+    }
+
+    await this.approveTokenForSpender(tokenAddress, DIRECT_SEND_CONTRACT_ADDRESS, totalFromSenderWei.toString(), true);
+
+    const hash = await this.walletClient.writeContract({
+      chain: arcTestnet,
+      address: DIRECT_SEND_CONTRACT_ADDRESS as `0x${string}`,
+      abi: DirectSendABI,
+      functionName: 'sendToAddress',
+      args: [input.recipient, BigInt(amountWei), tokenAddress as `0x${string}`],
+      account: this.account as `0x${string}`,
+    });
+
+    const receipt = await this.safeRequest(async () => {
+      return await this.publicClient.waitForTransactionReceipt({ hash });
+    });
+
+    if (receipt.status === 'reverted' || (typeof receipt.status === 'number' && receipt.status === 0)) {
+      throw new Error(`Transaction failed. Tx hash: ${hash}`);
+    }
+
+    return { txHash: hash };
   }
 
   async getZkSendPendingPayments(socialIdentityHash: `0x${string}`): Promise<string[]> {

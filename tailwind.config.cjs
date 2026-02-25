@@ -83,12 +83,22 @@ module.exports = {
           "0%": { transform: "translate(0%, 0%)", opacity: "1" },
           "100%": { transform: "translate(100%, 0%)", opacity: "0" },
         },
+        "badge-sent-pulse": {
+          "0%, 100%": { transform: "scale(1)", opacity: "1" },
+          "50%": { transform: "scale(1.06)", opacity: "0.92" },
+        },
+        "badge-redeemed-glow": {
+          "0%, 100%": { boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.25)" },
+          "50%": { boxShadow: "0 0 0 6px rgba(59, 130, 246, 0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "star-movement-bottom": "star-movement-bottom linear infinite alternate",
         "star-movement-top": "star-movement-top linear infinite alternate",
+        "badge-sent-pulse": "badge-sent-pulse 2s ease-in-out infinite",
+        "badge-redeemed-glow": "badge-redeemed-glow 2s ease-in-out infinite",
       },
     },
   },

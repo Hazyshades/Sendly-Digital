@@ -8,13 +8,15 @@ import { normalizeSocialUsername } from '../../utils/reclaim/identity';
 
 export type ZkSendPlatform = 'twitter' | 'twitch' | 'github' | 'telegram' | 'instagram' /* | 'tiktok' */ | 'gmail' | 'linkedin';
 
+export type SendRecipientType = ZkSendPlatform | 'address';
+
 export function ZkSendPanel() {
   const [activeTab, setActiveTab] = useState<'send' | 'receive'>('send');
-  const [platform, setPlatform] = useState<ZkSendPlatform>('twitter');
+  const [platform, setPlatform] = useState<SendRecipientType>('twitter');
   const [username, setUsername] = useState('');
 
   const normalizedUsername = useMemo(() => normalizeSocialUsername(username.replace(/^@/, '')), [username]);
-  const isIdentityValid = !!normalizedUsername;
+  const isIdentityValid = platform === 'address' ? /^0x[a-fA-F0-9]{40}$/.test(username.trim()) : !!normalizedUsername;
 
   return (
     <div className="space-y-6">
@@ -37,17 +39,17 @@ export function ZkSendPanel() {
 
         <TabsContent value="receive" className="mt-4 space-y-6">
           <IdentitySelector
-            platform={platform}
-            onPlatformChange={setPlatform}
+            platform={platform === 'address' ? 'twitter' : platform}
+            onPlatformChange={(p) => setPlatform(p)}
             username={username}
             onUsernameChange={setUsername}
             isConnected={false}
           />
           <PendingPayments
-            platform={platform}
+            platform={platform === 'address' ? 'twitter' : platform}
             username={username}
             isActive={activeTab === 'receive'}
-            isIdentityValid={isIdentityValid}
+            isIdentityValid={platform === 'address' ? false : isIdentityValid}
           />
         </TabsContent>
       </Tabs>

@@ -54,6 +54,10 @@ export const ZKSEND_CONTRACT_ADDRESS =
   import.meta.env.VITE_ARC_ZKSEND_CONTRACT_ADDRESS ||
   "0x30bbcCBB38B8C99A36c93BC36dcE2F9831FEFa4D";
 
+export const DIRECT_SEND_CONTRACT_ADDRESS =
+  import.meta.env.VITE_ARC_DIRECT_SEND_CONTRACT_ADDRESS ||
+  "0x0000000000000000000000000000000000000000";
+
 export const RECLAIM_VERIFIER_CONTRACT_ADDRESS =
   import.meta.env.VITE_RECLAIM_VERIFIER_CONTRACT_ADDRESS ||
   import.meta.env.VITE_ARC_ZKTLS_VERIFIER_ADDRESS ||
@@ -2319,6 +2323,69 @@ export const ZkSendABI = [
     name: 'setVerifierContract',
     stateMutability: 'nonpayable',
     inputs: [{ name: '_newVerifier', type: 'address' }],
+    outputs: [],
+  },
+] as const;
+
+// DirectSend ABI (contracts_reclaim_protocol/DirectSend.sol, contracts/DirectSend.sol)
+export const DirectSendABI = [
+  {
+    type: 'event',
+    name: 'DirectTransfer',
+    inputs: [
+      { name: 'sender', type: 'address', indexed: true },
+      { name: 'recipient', type: 'address', indexed: true },
+      { name: 'amount', type: 'uint256', indexed: false },
+      { name: 'token', type: 'address', indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'FeePaid',
+    inputs: [
+      { name: 'sender', type: 'address', indexed: true },
+      { name: 'feeRecipient', type: 'address', indexed: true },
+      { name: 'feeAmount', type: 'uint256', indexed: false },
+      { name: 'token', type: 'address', indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'FeeRecipientUpdated',
+    inputs: [
+      { name: 'oldRecipient', type: 'address', indexed: true },
+      { name: 'newRecipient', type: 'address', indexed: true },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'function',
+    name: 'sendToAddress',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: '_recipient', type: 'address' },
+      { name: '_amount', type: 'uint256' },
+      { name: '_token', type: 'address' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'setFeeRecipient',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: '_feeRecipient', type: 'address' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'emergencyWithdraw',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: '_token', type: 'address' },
+      { name: '_amount', type: 'uint256' },
+    ],
     outputs: [],
   },
 ] as const;
