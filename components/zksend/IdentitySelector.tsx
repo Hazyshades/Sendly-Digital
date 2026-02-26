@@ -5,11 +5,11 @@ import { Card, CardContent } from '../ui/card';
 import { PlatformUsernameInput } from './PlatformUsernameInput';
 import { normalizeSocialUsername } from '../../utils/reclaim/identity';
 
-import type { ZkSendPlatform } from './ZkSendPanel';
+import type { SendRecipientType } from './ZkSendPanel';
 
 type Props = {
-  platform: ZkSendPlatform;
-  onPlatformChange: (platform: ZkSendPlatform) => void;
+  platform: SendRecipientType;
+  onPlatformChange: (platform: SendRecipientType) => void;
   username: string;
   onUsernameChange: (username: string) => void;
   isConnected?: boolean;

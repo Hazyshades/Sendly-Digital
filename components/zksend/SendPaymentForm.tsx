@@ -27,7 +27,7 @@ import {
 } from '../ui/select';
 import { PlatformUsernameInput } from './PlatformUsernameInput';
 
-import type { ZkSendPlatform, SendRecipientType } from './ZkSendPanel';
+import type { SendRecipientType } from './ZkSendPanel';
 
 type Props = {
   platform: SendRecipientType;

@@ -22,7 +22,7 @@ import {
   type TelegramUserPreview,
 } from '../../utils/telegram';
 
-import type { ZkSendPlatform, SendRecipientType } from './ZkSendPanel';
+import type { SendRecipientType } from './ZkSendPanel';
 
 const PREVIEW_DEBOUNCE_MS = 500;
 /** Twitter preview: 3s debounce to reduce Twitter API (twitterapi.io) usage when typing. */
