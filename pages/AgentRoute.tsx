@@ -6,7 +6,7 @@ import { Layout } from './Layout';
 export function AgentRoute() {
   return (
     <Layout>
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-0">
         <DeveloperWalletComponent blockchain="ARC-TESTNET" />
         <AgentSchedulesPanel />
         <VoicePaymentAgent />

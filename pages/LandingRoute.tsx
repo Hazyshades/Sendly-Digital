@@ -206,7 +206,11 @@ export function LandingRoute() {
       </section>
 
       {/* How it work Section */}
-      <section id="how-it-works" className="py-5 px-6 relative z-10">
+      <section
+        id="how-it-works"
+        className="py-5 px-6 z-10"
+        style={{ position: 'relative', left: 0, top: -20, transition: 'none', cursor: 'move' }}
+      >
         <div className="container mx-auto max-w-6xl">
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 text-center mb-12">
             How it work

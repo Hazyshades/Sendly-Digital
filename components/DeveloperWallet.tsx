@@ -687,7 +687,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
       <Card className="bg-white/90 backdrop-blur-sm border border-gray-200 shadow-circle-card">
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between relative" style={{ top: -5 }}>
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-green-50 border border-green-100">
                   <Wallet className="w-5 h-5 text-green-600" />
