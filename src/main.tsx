@@ -6,10 +6,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import { Analytics } from '@vercel/analytics/react'
 import App from './App.tsx'
-import '../styles/globals.css'
+import '@/styles/globals.css'
 import '@rainbow-me/rainbowkit/styles.css'
-import { config } from '../utils/web3/wagmiConfig'
-import { isZkLocalhost } from '../utils/runtime/zkHost'
+import { config } from '@/lib/web3/wagmiConfig'
+import { isZkLocalhost } from '@/lib/runtime/zkHost'
 
 const queryClient = new QueryClient()
 

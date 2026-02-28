@@ -10,7 +10,6 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "circle:create-wallet": "node scripts/circleCreateWallet.mjs",
     "backfill:zksend": "node scripts/backfill-zksend-from-subgraph.mjs"
   },
   "dependencies": {

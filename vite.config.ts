@@ -77,6 +77,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+      },
+    },
     server,
     envDir: '.',
     envPrefix: 'VITE_',

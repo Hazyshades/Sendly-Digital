@@ -17,6 +17,6 @@ export type {
   ScheduleSkipStrategy,
 } from './agentSchedules';
 
-export type { ChainConfig } from '../../utils/bridge/chainRegistry';
-export type { TokenConfig } from '../../utils/bridge/tokenRegistry';
+export type { ChainConfig } from '@/lib/bridge/chainRegistry';
+export type { TokenConfig } from '@/lib/bridge/tokenRegistry';
 
