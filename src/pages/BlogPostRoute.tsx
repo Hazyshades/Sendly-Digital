@@ -641,48 +641,48 @@ export function BlogPostRoute() {
     <BlogLayout backLink={backLink} cohereTypography={hasEnhancedLayout}>
       {hasEnhancedLayout ? (
         <>
-          {/* Hero - full width, centered (no TOC beside it) */}
-          <div
-            className="flex flex-col items-center text-center max-w-3xl mx-auto w-full"
-            style={{ paddingTop: 6, paddingBottom: 6 }}
-          >
-            <div className="flex items-center justify-center gap-3 mb-6">
-              <span className="px-4 py-1.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-full">
-                {post.category}
-              </span>
-              {post.readTime && (
-                <span className="text-sm text-gray-500 flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  {post.readTime}
-                </span>
-              )}
-            </div>
-            <h1 className="hero-title text-gray-900">{post.title}</h1>
-            <p className="hero-subtitle max-w-2xl mx-auto mb-12">
-              {post.description}
-            </p>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-center gap-4 pb-6 border-b border-gray-200 flex-wrap">
-              <span className="text-sm text-gray-500 flex items-center gap-1">
-                <Calendar className="w-4 h-4" />
-                {formatDate(post.date)}
-              </span>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {post.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-3 py-1 bg-gray-50 text-gray-600 text-sm rounded-md flex items-center gap-1"
-                  >
-                    <Tag className="w-3 h-3" />
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Grid: sections + footer | TOC (TOC aligns with first section) */}
+          {/* Grid: article (hero + sections + footer) | TOC — hero and sections share same column width */}
           <div className="grid grid-cols-1 lg:grid-cols-[1fr,240px] gap-8 items-start">
             <article className="relative">
+              {/* Hero — same column as sections, so same width */}
+              <div
+                className="flex flex-col items-center text-center w-full px-4 md:px-6"
+                style={{ paddingTop: 6, paddingBottom: 6 }}
+              >
+                <div className="flex items-center justify-center gap-3 mb-6">
+                  <span className="px-4 py-1.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-full">
+                    {post.category}
+                  </span>
+                  {post.readTime && (
+                    <span className="text-sm text-gray-500 flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      {post.readTime}
+                    </span>
+                  )}
+                </div>
+                <h1 className="hero-title text-gray-900">{post.title}</h1>
+                <p className="hero-subtitle w-full max-w-2xl mx-auto mb-12">
+                  {post.description}
+                </p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-center gap-4 pb-6 border-b border-gray-200 flex-wrap">
+                  <span className="text-sm text-gray-500 flex items-center gap-1">
+                    <Calendar className="w-4 h-4" />
+                    {formatDate(post.date)}
+                  </span>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {post.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-3 py-1 bg-gray-50 text-gray-600 text-sm rounded-md flex items-center gap-1"
+                      >
+                        <Tag className="w-3 h-3" />
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               {post.sections && post.images &&
                 renderSections(post.sections, post.images, true)}
               <div className="pt-12 border-t border-gray-200 mt-12">

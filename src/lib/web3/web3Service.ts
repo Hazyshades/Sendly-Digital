@@ -1,17 +1,7 @@
 import { createPublicClient, http, parseEventLogs } from 'viem';
-import { arcTestnet } from './wagmiConfig';
+import { chains } from './wagmiConfig';
 import {
-  CONTRACT_ADDRESS,
-  VAULT_CONTRACT_ADDRESS,
-  TWITCH_VAULT_CONTRACT_ADDRESS,
-  TELEGRAM_VAULT_CONTRACT_ADDRESS,
-  TIKTOK_VAULT_CONTRACT_ADDRESS,
-  INSTAGRAM_VAULT_CONTRACT_ADDRESS,
-  USDC_ADDRESS,
-  EURC_ADDRESS,
-  USYC_ADDRESS,
-  ZKSEND_CONTRACT_ADDRESS,
-  DIRECT_SEND_CONTRACT_ADDRESS,
+  getContractsForChain,
   GiftCardABI,
   TwitterCardVaultABI,
   TwitchCardVaultABI,
@@ -21,11 +11,9 @@ import {
   ZkSendABI,
   DirectSendABI,
   ERC20ABI,
-  ARC_RPC_URLS
 } from './constants';
 
-// ArcScan API base URL (Blockscout-based)
-const ARCSCAN_API_URL = 'https://testnet.arcscan.app/api/v2';
+const ARC_CHAIN_ID = Number(import.meta.env.VITE_ARC_CHAIN_ID || 5042002);
 
 import type { GiftCardInfo, BlockchainGiftCardInfo } from '@/types/web3';
 
@@ -38,57 +26,79 @@ export class Web3Service {
   private account: string | null = null;
   private publicClient: any = null;
   private currentRpcIndex = 0;
+  private chainId = ARC_CHAIN_ID;
   // private _retryCount = 0; // Will be used in future retry logic
   private maxRetries = 1; // Reduced retries for faster failure
   private cache = new Map<string, { data: any; timestamp: number }>();
   private cacheExpiry = 300000; // 5 minutes cache
 
+  private get contracts() {
+    return getContractsForChain(this.chainId);
+  }
+
+  private get chain() {
+    return chains.find((c) => c.id === this.chainId) ?? chains[0];
+  }
+
   constructor() {
     this.createPublicClient();
   }
 
+  setChainId(chainId: number) {
+    if (this.chainId !== chainId) {
+      this.chainId = chainId;
+      this.currentRpcIndex = 0;
+      this.createPublicClient();
+      this.cache.clear();
+    }
+  }
+
+  getChainId(): number {
+    return this.chainId;
+  }
+
   private getTokenSymbolFromAddress(tokenAddress: string): SupportedTokenSymbol {
     const normalizedAddress = tokenAddress.toLowerCase();
-    if (normalizedAddress === USDC_ADDRESS.toLowerCase()) {
-      return 'USDC';
-    } else if (normalizedAddress === EURC_ADDRESS.toLowerCase()) {
-      return 'EURC';
-    } else if (normalizedAddress === USYC_ADDRESS.toLowerCase()) {
-      return 'USYC';
-    }
-    return 'USDC'; // Default fallback
+    const c = this.contracts;
+    if (normalizedAddress === c.usdc.toLowerCase()) return 'USDC';
+    if (c.eurc && normalizedAddress === c.eurc.toLowerCase()) return 'EURC';
+    if (c.usyc && normalizedAddress === c.usyc.toLowerCase()) return 'USYC';
+    if (c.usdt && normalizedAddress === c.usdt.toLowerCase()) return 'USDC'; // treat USDT as USDC for display
+    return 'USDC';
   }
 
   private getTokenAddressFromSymbol(tokenType: SupportedTokenSymbol): string {
+    const c = this.contracts;
     switch (tokenType) {
       case 'USDC':
-        return USDC_ADDRESS;
+        return c.usdc;
       case 'EURC':
-        return EURC_ADDRESS;
+        return c.eurc ?? c.usdc;
       case 'USYC':
-        return USYC_ADDRESS;
+        return c.usyc ?? c.usdc;
       default:
-        return USDC_ADDRESS;
+        return c.usdc;
     }
   }
 
   private createPublicClient() {
-    const rpcUrl = ARC_RPC_URLS[this.currentRpcIndex];
-    console.log(`Creating public client with RPC: ${rpcUrl}`);
-    
+    const rpcUrls = this.contracts.rpcUrls;
+    const rpcUrl = rpcUrls[this.currentRpcIndex] ?? rpcUrls[0];
+    console.log(`Creating public client for chain ${this.chainId} with RPC: ${rpcUrl}`);
     this.publicClient = createPublicClient({
-      chain: arcTestnet,
+      chain: this.chain,
       transport: http(rpcUrl, {
         retryCount: 1,
         retryDelay: 1000,
-        timeout: 8000, // Reduced timeout
+        timeout: 8000,
       }),
     });
   }
 
   private async switchToNextRpc() {
-    this.currentRpcIndex = (this.currentRpcIndex + 1) % ARC_RPC_URLS.length;
-    console.log(`Switching to RPC ${this.currentRpcIndex + 1}/${ARC_RPC_URLS.length}: ${ARC_RPC_URLS[this.currentRpcIndex]}`);
+    const rpcUrls = this.contracts.rpcUrls;
+    this.currentRpcIndex = (this.currentRpcIndex + 1) % rpcUrls.length;
+    console.log(`Switching to RPC ${this.currentRpcIndex + 1}/${rpcUrls.length}: ${rpcUrls[this.currentRpcIndex]}`);
     this.createPublicClient();
   }
 
@@ -106,52 +116,44 @@ export class Web3Service {
     this.cache.set(key, { data, timestamp: Date.now() });
   }
 
-  async initialize(walletClient: any, account: string) {
+  async initialize(walletClient: any, account: string, chainId?: number) {
     this.walletClient = walletClient;
     this.account = account;
-    
-    // Ensure we're on the correct chain
+    if (chainId !== undefined && chains.some((c) => c.id === chainId)) {
+      this.setChainId(chainId);
+    }
     await this.ensureCorrectChain();
   }
 
   private async ensureCorrectChain(): Promise<void> {
     if (!this.walletClient) return;
 
+    const targetChainId = this.chainId;
+    const chainToAdd = this.chain;
+
     try {
       const currentChain = await this.walletClient.getChainId();
-      const targetChainId = arcTestnet.id;
 
       if (currentChain !== targetChainId) {
-        console.log(`Current chain ID: ${currentChain}, switching to Arc Testnet (${targetChainId})...`);
+        console.log(`Current chain ID: ${currentChain}, switching to ${chainToAdd.name} (${targetChainId})...`);
         try {
           await this.walletClient.switchChain({ id: targetChainId });
-          console.log('Successfully switched to Arc Testnet');
-          
-          // Wait for chain switch to be fully processed
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Verify chain switch was successful
+          console.log(`Successfully switched to ${chainToAdd.name}`);
+          await new Promise((resolve) => setTimeout(resolve, 1000));
           const verifiedChain = await this.walletClient.getChainId();
           if (verifiedChain !== targetChainId) {
-            throw new Error(`Failed to switch to Arc Testnet. Current chain: ${verifiedChain}`);
+            throw new Error(`Failed to switch to ${chainToAdd.name}. Current chain: ${verifiedChain}`);
           }
         } catch (error: any) {
-          // If switchChain fails, it might be because the chain is not added
-          // In that case, add the chain first
           if (error.code === 4902 || error.message?.includes('Unrecognized chain') || error.code === -32603) {
-            console.log('Chain not added, adding Arc Testnet...');
-            await this.walletClient.addChain({ chain: arcTestnet });
-            
-            // Wait a bit before switching
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
+            console.log(`Chain not added, adding ${chainToAdd.name}...`);
+            await this.walletClient.addChain({ chain: chainToAdd });
+            await new Promise((resolve) => setTimeout(resolve, 500));
             await this.walletClient.switchChain({ id: targetChainId });
-            
-            // Verify chain switch was successful
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise((resolve) => setTimeout(resolve, 1000));
             const verifiedChain = await this.walletClient.getChainId();
             if (verifiedChain !== targetChainId) {
-              throw new Error(`Failed to switch to Arc Testnet after adding. Current chain: ${verifiedChain}`);
+              throw new Error(`Failed to switch to ${chainToAdd.name} after adding. Current chain: ${verifiedChain}`);
             }
           } else {
             throw error;
@@ -160,7 +162,7 @@ export class Web3Service {
       }
     } catch (error) {
       console.error('Error ensuring correct chain:', error);
-      throw error; // Throw error to be caught by caller
+      throw error;
     }
   }
 
@@ -175,7 +177,7 @@ export class Web3Service {
         return await requestFn();
       } catch (error: any) {
         lastError = error;
-        console.log(`Attempt ${attempt + 1}/${this.maxRetries + 1} failed with RPC ${ARC_RPC_URLS[this.currentRpcIndex]}:`, error.message);
+        console.log(`Attempt ${attempt + 1}/${this.maxRetries + 1} failed with RPC ${this.contracts.rpcUrls[this.currentRpcIndex]}:`, error.message);
         
         // if this is critical error or requires authentication, switch to another RPC immediately
         if (error.message?.includes('503') || error.message?.includes('502') || error.message?.includes('500') || 
@@ -207,7 +209,8 @@ export class Web3Service {
     
     // if all attempts with current RPC failed, try other RPCs
     console.log(`All attempts failed with current RPC, trying other RPCs...`);
-    for (let rpcAttempt = 0; rpcAttempt < Math.min(ARC_RPC_URLS.length - 1, 2); rpcAttempt++) {
+    const rpcUrls = this.contracts.rpcUrls;
+    for (let rpcAttempt = 0; rpcAttempt < Math.min(rpcUrls.length - 1, 2); rpcAttempt++) {
       await this.switchToNextRpc();
       
       for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
@@ -215,7 +218,7 @@ export class Web3Service {
           return await requestFn();
         } catch (error: any) {
           lastError = error;
-          console.log(`Attempt ${attempt + 1}/${this.maxRetries + 1} failed with RPC ${ARC_RPC_URLS[this.currentRpcIndex]}:`, error.message);
+          console.log(`Attempt ${attempt + 1}/${this.maxRetries + 1} failed with RPC ${this.contracts.rpcUrls[this.currentRpcIndex]}:`, error.message);
           
           if (attempt < this.maxRetries) {
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -237,12 +240,13 @@ export class Web3Service {
     throw lastError;
   }
 
-  // Method to get NFTs via ArcScan API
+  // Method to get NFTs via block explorer API (ArcScan / SnowTrace)
   private async loadGiftCardsViaAPI(): Promise<GiftCardInfo[]> {
     if (!this.account) return [];
+    if (!this.contracts.contractAddress) return []; // No GiftCard contract on this chain (e.g. Avalanche Fuji)
 
     try {
-      const balancesUrl = `${ARCSCAN_API_URL}/addresses/${this.account}/token-balances`;
+      const balancesUrl = `${this.contracts.explorerApiUrl}/addresses/${this.account}/token-balances`;
       
       console.log(`Fetching NFT tokens from ArcScan API for ${this.account}...`);
       
@@ -270,11 +274,11 @@ export class Web3Service {
         const tokenType = item.token?.type || item.type || item.token?.token_type;
         
         return (tokenType === 'ERC-721' || tokenType === 'ERC721' || tokenType === 'nft') &&
-               contractAddr?.toLowerCase() === CONTRACT_ADDRESS.toLowerCase();
+               contractAddr?.toLowerCase() === this.contracts.contractAddress?.toLowerCase();
       });
 
       if (nftTokens.length === 0) {
-        console.log('No NFT tokens found via API for contract:', CONTRACT_ADDRESS);
+        console.log('No NFT tokens found via API for contract:', this.contracts.contractAddress);
         return [];
       }
 
@@ -306,7 +310,7 @@ export class Web3Service {
       const giftCardPromises = tokenIds.map(tokenId => 
         this.safeRequest(async () => {
           const giftCardInfo = await this.publicClient.readContract({
-            address: CONTRACT_ADDRESS as `0x${string}`,
+            address: this.contracts.contractAddress! as `0x${string}`,
             abi: GiftCardABI,
             functionName: 'getGiftCardInfo',
             args: [BigInt(tokenId)],
@@ -393,12 +397,14 @@ export class Web3Service {
       }
     }
 
+    if (!this.contracts.contractAddress) return [];
+
     // Fallback: use direct blockchain reading
     try {
       // Get balance using readContract with retry
       const balance = await this.safeRequest(async () => {
         return await this.publicClient.readContract({
-          address: CONTRACT_ADDRESS as `0x${string}`,
+          address: this.contracts.contractAddress! as `0x${string}`,
           abi: GiftCardABI,
           functionName: 'balanceOf',
           args: [this.account as `0x${string}`],
@@ -425,7 +431,7 @@ export class Web3Service {
         try {
           const tokenId = await this.safeRequest(async () => {
             return await this.publicClient.readContract({
-              address: CONTRACT_ADDRESS as `0x${string}`,
+              address: this.contracts.contractAddress! as `0x${string}`,
               abi: GiftCardABI,
               functionName: 'tokenOfOwnerByIndex',
               args: [this.account as `0x${string}`, BigInt(index)],
@@ -442,7 +448,7 @@ export class Web3Service {
       const giftCardPromises = tokenIds.map(tokenId => 
         this.safeRequest(async () => {
           const giftCardInfo = await this.publicClient.readContract({
-            address: CONTRACT_ADDRESS as `0x${string}`,
+            address: this.contracts.contractAddress! as `0x${string}`,
             abi: GiftCardABI,
             functionName: 'getGiftCardInfo',
             args: [tokenId],
@@ -552,7 +558,7 @@ export class Web3Service {
       const telegramLogs: any[] = [];
       
       console.log(`Loading sent gift cards in ${numberOfBatches} batches of ${maxBlockRange} blocks each`);
-      console.log(`Vault addresses: Twitter=${VAULT_CONTRACT_ADDRESS}, Twitch=${TWITCH_VAULT_CONTRACT_ADDRESS}, Telegram=${TELEGRAM_VAULT_CONTRACT_ADDRESS}, TikTok=${TIKTOK_VAULT_CONTRACT_ADDRESS}, Instagram=${INSTAGRAM_VAULT_CONTRACT_ADDRESS}`);
+      console.log(`Vault addresses: Twitter=${this.contracts.vaultContract!}, Twitch=${this.contracts.twitchVault!}, Telegram=${this.contracts.telegramVault!}, TikTok=${this.contracts.tiktokVault!}, Instagram=${this.contracts.instagramVault!}`);
       
       // Query in batches
       for (let i = 0; i < numberOfBatches; i++) {
@@ -569,7 +575,7 @@ export class Web3Service {
           // Get Transfer events
           const batchLogs = await this.safeRequest(async () => {
             return await this.publicClient.getLogs({
-              address: CONTRACT_ADDRESS as `0x${string}`,
+              address: this.contracts.contractAddress! as `0x${string}`,
               event: {
                 type: 'event',
                 name: 'Transfer',
@@ -621,7 +627,7 @@ export class Web3Service {
           try {
             const giftCardCreatedBatch = await this.safeRequest(async () => {
               return await this.publicClient.getLogs({
-                address: CONTRACT_ADDRESS as `0x${string}`,
+                address: this.contracts.contractAddress! as `0x${string}`,
                 event: {
                   type: 'event',
                   name: 'GiftCardCreated',
@@ -681,7 +687,7 @@ export class Web3Service {
           try {
             const twitterBatch = await this.safeRequest(async () => {
               return await this.publicClient.getLogs({
-                address: CONTRACT_ADDRESS as `0x${string}`,
+                address: this.contracts.contractAddress! as `0x${string}`,
                 event: {
                   type: 'event',
                   name: 'GiftCardCreatedForTwitter',
@@ -720,7 +726,7 @@ export class Web3Service {
           try {
             const twitchBatch = await this.safeRequest(async () => {
               return await this.publicClient.getLogs({
-                address: CONTRACT_ADDRESS as `0x${string}`,
+                address: this.contracts.contractAddress! as `0x${string}`,
                 event: {
                   type: 'event',
                   name: 'GiftCardCreatedForTwitch',
@@ -754,7 +760,7 @@ export class Web3Service {
         try {
           const telegramBatch = await this.safeRequest(async () => {
             return await this.publicClient.getLogs({
-              address: CONTRACT_ADDRESS as `0x${string}`,
+              address: this.contracts.contractAddress! as `0x${string}`,
               event: {
                 type: 'event',
                 name: 'GiftCardCreatedForTelegram',
@@ -799,9 +805,9 @@ export class Web3Service {
       
       // Filter out transfers to Vault contracts (these are handled by Twitter/Twitch events)
       const vaultAddresses = [
-        VAULT_CONTRACT_ADDRESS.toLowerCase(),
-        TWITCH_VAULT_CONTRACT_ADDRESS.toLowerCase(),
-        TELEGRAM_VAULT_CONTRACT_ADDRESS.toLowerCase()
+        this.contracts.vaultContract!.toLowerCase(),
+        this.contracts.twitchVault!.toLowerCase(),
+        this.contracts.telegramVault!.toLowerCase()
       ];
       const filteredLogs = logs.filter((log: any) => {
         if (!log.args || !log.args.to) return false;
@@ -822,7 +828,7 @@ export class Web3Service {
           const tokenId = log.args.tokenId.toString();
           
           const giftCardInfo = await this.publicClient.readContract({
-            address: CONTRACT_ADDRESS as `0x${string}`,
+            address: this.contracts.contractAddress! as `0x${string}`,
             abi: GiftCardABI,
             functionName: 'getGiftCardInfo',
             args: [BigInt(tokenId)],
@@ -858,7 +864,7 @@ export class Web3Service {
           let redeemed = false;
           try {
             const giftCardInfo = await this.publicClient.readContract({
-              address: CONTRACT_ADDRESS as `0x${string}`,
+              address: this.contracts.contractAddress! as `0x${string}`,
               abi: GiftCardABI,
               functionName: 'getGiftCardInfo',
               args: [BigInt(tokenId)],
@@ -898,7 +904,7 @@ export class Web3Service {
           let redeemed = false;
           try {
             const giftCardInfo = await this.publicClient.readContract({
-              address: CONTRACT_ADDRESS as `0x${string}`,
+              address: this.contracts.contractAddress! as `0x${string}`,
               abi: GiftCardABI,
               functionName: 'getGiftCardInfo',
               args: [BigInt(tokenId)],
@@ -939,7 +945,7 @@ export class Web3Service {
         let redeemed = false;
         try {
           const giftCardInfo = await this.publicClient.readContract({
-            address: CONTRACT_ADDRESS as `0x${string}`,
+            address: this.contracts.contractAddress! as `0x${string}`,
             abi: GiftCardABI,
             functionName: 'getGiftCardInfo',
             args: [BigInt(tokenId)],
@@ -1031,7 +1037,7 @@ export class Web3Service {
     try {
       const giftCardInfo = await this.safeRequest(async () => {
         return await this.publicClient.readContract({
-          address: CONTRACT_ADDRESS as `0x${string}`,
+          address: this.contracts.contractAddress! as `0x${string}`,
           abi: GiftCardABI,
           functionName: 'getGiftCardInfo',
           args: [BigInt(tokenId)],
@@ -1055,7 +1061,7 @@ export class Web3Service {
     try {
       const owner = await this.safeRequest(async () => {
         return await this.publicClient.readContract({
-          address: CONTRACT_ADDRESS as `0x${string}`,
+          address: this.contracts.contractAddress! as `0x${string}`,
           abi: GiftCardABI,
           functionName: 'ownerOf',
           args: [BigInt(tokenId)],
@@ -1093,7 +1099,7 @@ export class Web3Service {
       // Get Transfer events for this token from a reasonable range
       const logs = await this.safeRequest(async () => {
         return await this.publicClient.getLogs({
-          address: CONTRACT_ADDRESS as `0x${string}`,
+          address: this.contracts.contractAddress! as `0x${string}`,
           event: {
             type: 'event',
             name: 'Transfer',
@@ -1175,7 +1181,7 @@ export class Web3Service {
 
     // Get chain ID from wallet client (most reliable source)
     const walletChainId = await this.walletClient.getChainId();
-    const targetChainId = arcTestnet.id;
+    const targetChainId = this.chain.id;
     
     // Check directly from provider for logging/debugging only
     // Note: window.ethereum may return stale chain ID, so we only trust walletChainId
@@ -1233,13 +1239,13 @@ export class Web3Service {
           address: tokenAddress as `0x${string}`,
           abi: ERC20ABI,
           functionName: 'allowance',
-          args: [this.account as `0x${string}`, CONTRACT_ADDRESS as `0x${string}`],
+          args: [this.account as `0x${string}`, this.contracts.contractAddress! as `0x${string}`],
         });
       });
 
       if (BigInt(allowance) < BigInt(amountWei)) {
         console.log(`Approving ${amountWei} tokens on chain ${targetChainId}...`);
-        console.log(`Token address: ${tokenAddress}, Spender: ${CONTRACT_ADDRESS}`);
+        console.log(`Token address: ${tokenAddress}, Spender: ${this.contracts.contractAddress!}`);
         
         // Re-verify chain ID one more time right before transaction
         const finalCheck = await this.walletClient.getChainId();
@@ -1251,16 +1257,16 @@ export class Web3Service {
         // Coinbase Wallet may require explicit chain specification
         console.log('Sending approve transaction...');
         console.log('WalletClient chain:', await this.walletClient.getChainId());
-        console.log('ArcTestnet chain ID:', arcTestnet.id);
+        console.log('ArcTestnet chain ID:', this.chain.id);
         console.log('Target chain ID:', targetChainId);
         
         // Try with explicit chain parameter - this ensures chain ID is included in transaction
         const hash = await this.walletClient.writeContract({
-          chain: arcTestnet,
+          chain: this.chain,
           address: tokenAddress as `0x${string}`,
           abi: ERC20ABI,
           functionName: 'approve',
-          args: [CONTRACT_ADDRESS as `0x${string}`, BigInt(amountWei)],
+          args: [this.contracts.contractAddress! as `0x${string}`, BigInt(amountWei)],
           account: this.account as `0x${string}`,
         });
         
@@ -1291,7 +1297,7 @@ export class Web3Service {
     await this.ensureCorrectChain();
 
     const walletChainId = await this.walletClient.getChainId();
-    const targetChainId = arcTestnet.id;
+    const targetChainId = this.chain.id;
     if (walletChainId !== targetChainId) {
       throw new Error(
         `Please switch to Arc Testnet (Chain ID: ${targetChainId}) in your wallet. Current: ${walletChainId}`
@@ -1315,7 +1321,7 @@ export class Web3Service {
     }
 
     const approveHash = await this.walletClient.writeContract({
-      chain: arcTestnet,
+      chain: this.chain,
       address: tokenAddress as `0x${string}`,
       abi: ERC20ABI,
       functionName: 'approve',
@@ -1378,14 +1384,14 @@ export class Web3Service {
 
       // Verify chain ID one more time before creating gift card
       const finalChainCheck = await this.walletClient.getChainId();
-      if (finalChainCheck !== arcTestnet.id) {
-        throw new Error(`Chain ID mismatch before creating gift card: expected ${arcTestnet.id}, got ${finalChainCheck}`);
+      if (finalChainCheck !== this.chain.id) {
+        throw new Error(`Chain ID mismatch before creating gift card: expected ${this.chain.id}, got ${finalChainCheck}`);
       }
 
       // Create gift card with explicit chain parameter
       const hash = await this.walletClient.writeContract({
-        chain: arcTestnet,
-        address: CONTRACT_ADDRESS as `0x${string}`,
+        chain: this.chain,
+        address: this.contracts.contractAddress! as `0x${string}`,
         abi: GiftCardABI,
         functionName: 'createGiftCard',
         args: [
@@ -1417,7 +1423,7 @@ export class Web3Service {
       const transferEvent = receipt.logs.find((log: any) => 
         log.topics[0] === transferEventSignature &&
         log.topics[1]?.toLowerCase() === zeroAddressTopic.toLowerCase() &&
-        log.address.toLowerCase() === CONTRACT_ADDRESS.toLowerCase()
+        log.address.toLowerCase() === this.contracts.contractAddress!.toLowerCase()
       );
 
       if (transferEvent && transferEvent.topics[3]) {
@@ -1456,13 +1462,13 @@ export class Web3Service {
     try {
       // Verify chain ID before redeeming
       const currentChain = await this.walletClient.getChainId();
-      if (currentChain !== arcTestnet.id) {
-        throw new Error(`Please switch to Arc Testnet (Chain ID: ${arcTestnet.id}) in your wallet`);
+      if (currentChain !== this.chain.id) {
+        throw new Error(`Please switch to Arc Testnet (Chain ID: ${this.chain.id}) in your wallet`);
       }
 
       const hash = await this.walletClient.writeContract({
-        chain: arcTestnet,
-        address: CONTRACT_ADDRESS as `0x${string}`,
+        chain: this.chain,
+        address: this.contracts.contractAddress! as `0x${string}`,
         abi: GiftCardABI,
         functionName: 'redeemGiftCard',
         args: [BigInt(tokenId)],
@@ -1495,8 +1501,8 @@ export class Web3Service {
     try {
       // Verify chain ID
       const currentChain = await this.walletClient.getChainId();
-      if (currentChain !== arcTestnet.id) {
-        throw new Error(`Please switch to Arc Testnet (Chain ID: ${arcTestnet.id}) in your wallet`);
+      if (currentChain !== this.chain.id) {
+        throw new Error(`Please switch to Arc Testnet (Chain ID: ${this.chain.id}) in your wallet`);
       }
 
       // Verify that the current account owns the card
@@ -1507,8 +1513,8 @@ export class Web3Service {
 
       // Transfer the NFT using transferFrom
       const hash = await this.walletClient.writeContract({
-        chain: arcTestnet,
-        address: CONTRACT_ADDRESS as `0x${string}`,
+        chain: this.chain,
+        address: this.contracts.contractAddress! as `0x${string}`,
         abi: GiftCardABI,
         functionName: 'transferFrom',
         args: [
@@ -1623,7 +1629,7 @@ export class Web3Service {
 
       // Send transfer transaction
       const hash = await this.walletClient.writeContract({
-        chain: arcTestnet,
+        chain: this.chain,
         address: tokenAddress as `0x${string}`,
         abi: ERC20ABI,
         functionName: 'transfer',
@@ -1679,8 +1685,8 @@ export class Web3Service {
     if (!tokenAddress || tokenAddress === '0x0000000000000000000000000000000000000000') {
       throw new Error(`${input.tokenType} address is not configured`);
     }
-    if (!ZKSEND_CONTRACT_ADDRESS || ZKSEND_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
-      throw new Error('ZKSEND_CONTRACT_ADDRESS is not configured');
+    if (!this.contracts.zksend || this.contracts.zksend === '0x0000000000000000000000000000000000000000') {
+      throw new Error('this.contracts.zksend is not configured');
     }
 
     // Calculate fee (0.1% = 10 / 10000) and total amount needed
@@ -1705,11 +1711,11 @@ export class Web3Service {
     }
 
     // Approve zkSEND contract as spender - need to approve amount + fee (pass wei to avoid float precision loss)
-    await this.approveTokenForSpender(tokenAddress, ZKSEND_CONTRACT_ADDRESS, totalFromSenderWei.toString(), true);
+    await this.approveTokenForSpender(tokenAddress, this.contracts.zksend, totalFromSenderWei.toString(), true);
 
     const hash = await this.walletClient.writeContract({
-      chain: arcTestnet,
-      address: ZKSEND_CONTRACT_ADDRESS as `0x${string}`,
+      chain: this.chain,
+      address: this.contracts.zksend as `0x${string}`,
       abi: ZkSendABI,
       functionName: 'createPayment',
       args: [
@@ -1765,8 +1771,8 @@ export class Web3Service {
     if (!tokenAddress || tokenAddress === '0x0000000000000000000000000000000000000000') {
       throw new Error(`${input.tokenType} address is not configured`);
     }
-    if (!DIRECT_SEND_CONTRACT_ADDRESS || DIRECT_SEND_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
-      throw new Error('DIRECT_SEND_CONTRACT_ADDRESS is not configured. Deploy DirectSend and set VITE_ARC_DIRECT_SEND_CONTRACT_ADDRESS.');
+    if (!this.contracts.directSend! || this.contracts.directSend! === '0x0000000000000000000000000000000000000000') {
+      throw new Error('DirectSend is not configured for this network. Deploy DirectSend and set VITE_ARC_DIRECT_SEND_CONTRACT_ADDRESS.');
     }
 
     const amountWei = BigInt(this.parseAmount(input.amount));
@@ -1788,11 +1794,11 @@ export class Web3Service {
       throw new Error(`Insufficient ${input.tokenType} balance. Required: ${totalRequired} (${input.amount} + ${this.formatAmount(feeWei)} fee), Available: ${this.formatAmount(BigInt(balance))}`);
     }
 
-    await this.approveTokenForSpender(tokenAddress, DIRECT_SEND_CONTRACT_ADDRESS, totalFromSenderWei.toString(), true);
+    await this.approveTokenForSpender(tokenAddress, this.contracts.directSend!, totalFromSenderWei.toString(), true);
 
     const hash = await this.walletClient.writeContract({
-      chain: arcTestnet,
-      address: DIRECT_SEND_CONTRACT_ADDRESS as `0x${string}`,
+      chain: this.chain,
+      address: this.contracts.directSend! as `0x${string}`,
       abi: DirectSendABI,
       functionName: 'sendToAddress',
       args: [input.recipient, BigInt(amountWei), tokenAddress as `0x${string}`],
@@ -1811,13 +1817,13 @@ export class Web3Service {
   }
 
   async getZkSendPendingPayments(socialIdentityHash: `0x${string}`): Promise<string[]> {
-    if (!ZKSEND_CONTRACT_ADDRESS || ZKSEND_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
-      throw new Error('ZKSEND_CONTRACT_ADDRESS is not configured');
+    if (!this.contracts.zksend || this.contracts.zksend === '0x0000000000000000000000000000000000000000') {
+      throw new Error('this.contracts.zksend is not configured');
     }
 
     const ids = await this.safeRequest(async () => {
       return await this.publicClient.readContract({
-        address: ZKSEND_CONTRACT_ADDRESS as `0x${string}`,
+        address: this.contracts.zksend as `0x${string}`,
         abi: ZkSendABI,
         functionName: 'getPendingPayments',
         args: [socialIdentityHash],
@@ -1840,13 +1846,13 @@ export class Web3Service {
     createdAt: number;
     claimedAt: number;
   }> {
-    if (!ZKSEND_CONTRACT_ADDRESS || ZKSEND_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
-      throw new Error('ZKSEND_CONTRACT_ADDRESS is not configured');
+    if (!this.contracts.zksend || this.contracts.zksend === '0x0000000000000000000000000000000000000000') {
+      throw new Error('this.contracts.zksend is not configured');
     }
 
     const p = await this.safeRequest(async () => {
       return await this.publicClient.readContract({
-        address: ZKSEND_CONTRACT_ADDRESS as `0x${string}`,
+        address: this.contracts.zksend as `0x${string}`,
         abi: ZkSendABI,
         functionName: 'getPayment',
         args: [BigInt(paymentId)],
@@ -1880,13 +1886,13 @@ export class Web3Service {
     }
     await this.ensureCorrectChain();
 
-    if (!ZKSEND_CONTRACT_ADDRESS || ZKSEND_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
-      throw new Error('ZKSEND_CONTRACT_ADDRESS is not configured');
+    if (!this.contracts.zksend || this.contracts.zksend === '0x0000000000000000000000000000000000000000') {
+      throw new Error('this.contracts.zksend is not configured');
     }
 
     const hash = await this.walletClient.writeContract({
-      chain: arcTestnet,
-      address: ZKSEND_CONTRACT_ADDRESS as `0x${string}`,
+      chain: this.chain,
+      address: this.contracts.zksend as `0x${string}`,
       abi: ZkSendABI,
       functionName: 'claimPayment',
       args: [BigInt(input.paymentId), input.proof, input.recipient],
@@ -1910,13 +1916,13 @@ export class Web3Service {
     }
     await this.ensureCorrectChain();
 
-    if (!ZKSEND_CONTRACT_ADDRESS || ZKSEND_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
-      throw new Error('ZKSEND_CONTRACT_ADDRESS is not configured');
+    if (!this.contracts.zksend || this.contracts.zksend === '0x0000000000000000000000000000000000000000') {
+      throw new Error('this.contracts.zksend is not configured');
     }
 
     const hash = await this.walletClient.writeContract({
-      chain: arcTestnet,
-      address: ZKSEND_CONTRACT_ADDRESS as `0x${string}`,
+      chain: this.chain,
+      address: this.contracts.zksend as `0x${string}`,
       abi: ZkSendABI,
       functionName: 'claimPayments',
       args: [
@@ -1956,7 +1962,7 @@ export class Web3Service {
         throw new Error(`${currency} address is not configured`);
       }
       
-      if (VAULT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      if (this.contracts.vaultContract! === '0x0000000000000000000000000000000000000000') {
         throw new Error('Vault contract address is not configured');
       }
 
@@ -1985,18 +1991,18 @@ export class Web3Service {
           address: tokenAddress as `0x${string}`,
           abi: ERC20ABI,
           functionName: 'allowance',
-          args: [this.account as `0x${string}`, CONTRACT_ADDRESS as `0x${string}`],
+          args: [this.account as `0x${string}`, this.contracts.contractAddress! as `0x${string}`],
         });
       });
 
       if (allowance < amountBigInt) {
         console.log('Approving token spend...');
         const approveHash = await this.walletClient.writeContract({
-          chain: arcTestnet,
+          chain: this.chain,
           address: tokenAddress as `0x${string}`,
           abi: ERC20ABI,
           functionName: 'approve',
-          args: [CONTRACT_ADDRESS as `0x${string}`, amountBigInt],
+          args: [this.contracts.contractAddress! as `0x${string}`, amountBigInt],
           account: this.account as `0x${string}`,
         });
 
@@ -2006,8 +2012,8 @@ export class Web3Service {
       }
 
       const hash = await this.walletClient.writeContract({
-        chain: arcTestnet,
-        address: CONTRACT_ADDRESS as `0x${string}`,
+        chain: this.chain,
+        address: this.contracts.contractAddress! as `0x${string}`,
         abi: GiftCardABI,
         functionName: 'createGiftCardForTwitter',
         args: [
@@ -2039,8 +2045,8 @@ export class Web3Service {
       const transferEvent = receipt.logs.find((log: any) => 
         log.topics[0] === transferEventSignature &&
         log.topics[1]?.toLowerCase() === zeroAddressTopic.toLowerCase() &&
-        (log.address.toLowerCase() === CONTRACT_ADDRESS.toLowerCase() ||
-         log.address.toLowerCase() === VAULT_CONTRACT_ADDRESS.toLowerCase())
+        (log.address.toLowerCase() === this.contracts.contractAddress!.toLowerCase() ||
+         log.address.toLowerCase() === this.contracts.vaultContract!.toLowerCase())
       );
 
       if (transferEvent && transferEvent.topics[3]) {
@@ -2068,25 +2074,25 @@ export class Web3Service {
 
   async getPendingTwitterCards(username: string): Promise<string[]> {
     try {
-      if (VAULT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      if (this.contracts.vaultContract! === '0x0000000000000000000000000000000000000000') {
         throw new Error('Vault contract address is not configured');
       }
 
       // Normalize username: remove @ and convert to lowercase
       const normalizedUsername = username.toLowerCase().replace(/^@/, '').trim();
       console.log(`[getPendingTwitterCards] Original username: "${username}", Normalized: "${normalizedUsername}"`);
-      console.log(`[getPendingTwitterCards] Using Vault address: ${VAULT_CONTRACT_ADDRESS}`);
+      console.log(`[getPendingTwitterCards] Using Vault address: ${this.contracts.vaultContract!}`);
       console.log(`[getPendingTwitterCards] PublicClient initialized:`, !!this.publicClient);
       console.log(`[getPendingTwitterCards] Current RPC: ${ARC_RPC_URLS[this.currentRpcIndex]}`);
 
       const result = await this.safeRequest(async () => {
         console.log(`[getPendingTwitterCards] Calling readContract with:`, {
-          address: VAULT_CONTRACT_ADDRESS,
+          address: this.contracts.vaultContract!,
           functionName: 'getPendingCardsForUsername',
           args: [normalizedUsername]
         });
         const contractResult = await this.publicClient.readContract({
-          address: VAULT_CONTRACT_ADDRESS as `0x${string}`,
+          address: this.contracts.vaultContract! as `0x${string}`,
           abi: TwitterCardVaultABI,
           functionName: 'getPendingCardsForUsername',
           args: [normalizedUsername],
@@ -2104,7 +2110,7 @@ export class Web3Service {
       console.error('Error details:', {
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
-        vaultAddress: VAULT_CONTRACT_ADDRESS,
+        vaultAddress: this.contracts.vaultContract!,
         hasPublicClient: !!this.publicClient
       });
       throw error;
@@ -2119,7 +2125,7 @@ export class Web3Service {
     await this.ensureCorrectChain();
 
     try {
-      if (VAULT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      if (this.contracts.vaultContract! === '0x0000000000000000000000000000000000000000') {
         throw new Error('Vault contract address is not configured');
       }
 
@@ -2128,8 +2134,8 @@ export class Web3Service {
       console.log(`[claimTwitterCard] Claiming tokenId ${tokenId} for username "${normalizedUsername}" (original: "${username}")`);
 
       const hash = await this.walletClient.writeContract({
-        chain: arcTestnet,
-        address: VAULT_CONTRACT_ADDRESS as `0x${string}`,
+        chain: this.chain,
+        address: this.contracts.vaultContract! as `0x${string}`,
         abi: TwitterCardVaultABI,
         functionName: 'claimCard',
         args: [BigInt(tokenId), normalizedUsername, this.account],
@@ -2154,13 +2160,13 @@ export class Web3Service {
 
   async isTwitterCardClaimed(tokenId: string): Promise<boolean> {
     try {
-      if (VAULT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      if (this.contracts.vaultContract! === '0x0000000000000000000000000000000000000000') {
         throw new Error('Vault contract address is not configured');
       }
 
       const result = await this.safeRequest(async () => {
         return await this.publicClient.readContract({
-          address: VAULT_CONTRACT_ADDRESS as `0x${string}`,
+          address: this.contracts.vaultContract! as `0x${string}`,
           abi: TwitterCardVaultABI,
           functionName: 'isCardClaimed',
           args: [BigInt(tokenId)],
@@ -2180,13 +2186,13 @@ export class Web3Service {
    */
   async getUsernameForToken(tokenId: string): Promise<string> {
     try {
-      if (VAULT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      if (this.contracts.vaultContract! === '0x0000000000000000000000000000000000000000') {
         throw new Error('Vault contract address is not configured');
       }
 
       const result = await this.safeRequest(async () => {
         return await this.publicClient.readContract({
-          address: VAULT_CONTRACT_ADDRESS as `0x${string}`,
+          address: this.contracts.vaultContract! as `0x${string}`,
           abi: TwitterCardVaultABI,
           functionName: 'getUsernameForToken',
           args: [BigInt(tokenId)],
@@ -2224,7 +2230,7 @@ export class Web3Service {
         throw new Error(`${currency} address is not configured`);
       }
       
-      if (TWITCH_VAULT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      if (this.contracts.twitchVault! === '0x0000000000000000000000000000000000000000') {
         throw new Error('Twitch Vault contract address is not configured');
       }
 
@@ -2252,18 +2258,18 @@ export class Web3Service {
           address: tokenAddress as `0x${string}`,
           abi: ERC20ABI,
           functionName: 'allowance',
-          args: [this.account as `0x${string}`, CONTRACT_ADDRESS as `0x${string}`],
+          args: [this.account as `0x${string}`, this.contracts.contractAddress! as `0x${string}`],
         });
       });
 
       if (allowance < amountBigInt) {
         console.log('Approving token spend...');
         const approveHash = await this.walletClient.writeContract({
-          chain: arcTestnet,
+          chain: this.chain,
           address: tokenAddress as `0x${string}`,
           abi: ERC20ABI,
           functionName: 'approve',
-          args: [CONTRACT_ADDRESS as `0x${string}`, amountBigInt],
+          args: [this.contracts.contractAddress! as `0x${string}`, amountBigInt],
           account: this.account as `0x${string}`,
         });
 
@@ -2273,8 +2279,8 @@ export class Web3Service {
       }
 
       const hash = await this.walletClient.writeContract({
-        chain: arcTestnet,
-        address: CONTRACT_ADDRESS as `0x${string}`,
+        chain: this.chain,
+        address: this.contracts.contractAddress! as `0x${string}`,
         abi: GiftCardABI,
         functionName: 'createGiftCardForTwitch',
         args: [
@@ -2304,8 +2310,8 @@ export class Web3Service {
       const transferEvent = receipt.logs.find((log: any) => 
         log.topics[0] === transferEventSignature &&
         log.topics[1]?.toLowerCase() === zeroAddressTopic.toLowerCase() &&
-        (log.address.toLowerCase() === CONTRACT_ADDRESS.toLowerCase() ||
-         log.address.toLowerCase() === TWITCH_VAULT_CONTRACT_ADDRESS.toLowerCase())
+        (log.address.toLowerCase() === this.contracts.contractAddress!.toLowerCase() ||
+         log.address.toLowerCase() === this.contracts.twitchVault!.toLowerCase())
       );
 
       if (transferEvent && transferEvent.topics[3]) {
@@ -2327,7 +2333,7 @@ export class Web3Service {
 
   async getPendingTwitchCards(username: string): Promise<string[]> {
     try {
-      if (TWITCH_VAULT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      if (this.contracts.twitchVault! === '0x0000000000000000000000000000000000000000') {
         throw new Error('Twitch Vault contract address is not configured');
       }
 
@@ -2336,7 +2342,7 @@ export class Web3Service {
 
       const result = await this.safeRequest(async () => {
         return await this.publicClient.readContract({
-          address: TWITCH_VAULT_CONTRACT_ADDRESS as `0x${string}`,
+          address: this.contracts.twitchVault! as `0x${string}`,
           abi: TwitchCardVaultABI,
           functionName: 'getPendingCardsForUsername',
           args: [normalizedUsername],
@@ -2361,7 +2367,7 @@ export class Web3Service {
     await this.ensureCorrectChain();
 
     try {
-      if (TWITCH_VAULT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      if (this.contracts.twitchVault! === '0x0000000000000000000000000000000000000000') {
         throw new Error('Twitch Vault contract address is not configured');
       }
 
@@ -2369,8 +2375,8 @@ export class Web3Service {
       console.log(`[claimTwitchCard] Claiming tokenId ${tokenId} for username "${normalizedUsername}" (original: "${username}")`);
 
       const hash = await this.walletClient.writeContract({
-        chain: arcTestnet,
-        address: TWITCH_VAULT_CONTRACT_ADDRESS as `0x${string}`,
+        chain: this.chain,
+        address: this.contracts.twitchVault! as `0x${string}`,
         abi: TwitchCardVaultABI,
         functionName: 'claimCard',
         args: [BigInt(tokenId), normalizedUsername, this.account],
@@ -2415,7 +2421,7 @@ export class Web3Service {
         throw new Error(`${currency} address is not configured`);
       }
       
-      if (TELEGRAM_VAULT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      if (this.contracts.telegramVault! === '0x0000000000000000000000000000000000000000') {
         throw new Error('Telegram Vault contract address is not configured');
       }
 
@@ -2443,18 +2449,18 @@ export class Web3Service {
           address: tokenAddress as `0x${string}`,
           abi: ERC20ABI,
           functionName: 'allowance',
-          args: [this.account as `0x${string}`, CONTRACT_ADDRESS as `0x${string}`],
+          args: [this.account as `0x${string}`, this.contracts.contractAddress! as `0x${string}`],
         });
       });
 
       if (allowance < amountBigInt) {
         console.log('Approving token spend...');
         const approveHash = await this.walletClient.writeContract({
-          chain: arcTestnet,
+          chain: this.chain,
           address: tokenAddress as `0x${string}`,
           abi: ERC20ABI,
           functionName: 'approve',
-          args: [CONTRACT_ADDRESS as `0x${string}`, amountBigInt],
+          args: [this.contracts.contractAddress! as `0x${string}`, amountBigInt],
           account: this.account as `0x${string}`,
         });
 
@@ -2464,8 +2470,8 @@ export class Web3Service {
       }
 
       const hash = await this.walletClient.writeContract({
-        chain: arcTestnet,
-        address: CONTRACT_ADDRESS as `0x${string}`,
+        chain: this.chain,
+        address: this.contracts.contractAddress! as `0x${string}`,
         abi: GiftCardABI,
         functionName: 'createGiftCardForTelegram',
         args: [
@@ -2495,8 +2501,8 @@ export class Web3Service {
       const transferEvent = receipt.logs.find((log: any) => 
         log.topics[0] === transferEventSignature &&
         log.topics[1]?.toLowerCase() === zeroAddressTopic.toLowerCase() &&
-        (log.address.toLowerCase() === CONTRACT_ADDRESS.toLowerCase() ||
-         log.address.toLowerCase() === TELEGRAM_VAULT_CONTRACT_ADDRESS.toLowerCase())
+        (log.address.toLowerCase() === this.contracts.contractAddress!.toLowerCase() ||
+         log.address.toLowerCase() === this.contracts.telegramVault!.toLowerCase())
       );
 
       if (transferEvent && transferEvent.topics[3]) {
@@ -2518,7 +2524,7 @@ export class Web3Service {
 
   async getPendingTelegramCards(username: string): Promise<string[]> {
     try {
-      if (TELEGRAM_VAULT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      if (this.contracts.telegramVault! === '0x0000000000000000000000000000000000000000') {
         throw new Error('Telegram Vault contract address is not configured');
       }
 
@@ -2527,7 +2533,7 @@ export class Web3Service {
 
       const result = await this.safeRequest(async () => {
         return await this.publicClient.readContract({
-          address: TELEGRAM_VAULT_CONTRACT_ADDRESS as `0x${string}`,
+          address: this.contracts.telegramVault! as `0x${string}`,
           abi: TelegramCardVaultABI,
           functionName: 'getPendingCardsForUsername',
           args: [normalizedUsername],
@@ -2552,7 +2558,7 @@ export class Web3Service {
     await this.ensureCorrectChain();
 
     try {
-      if (TELEGRAM_VAULT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      if (this.contracts.telegramVault! === '0x0000000000000000000000000000000000000000') {
         throw new Error('Telegram Vault contract address is not configured');
       }
 
@@ -2560,8 +2566,8 @@ export class Web3Service {
       console.log(`[claimTelegramCard] Claiming tokenId ${tokenId} for username "${normalizedUsername}" (original: "${username}")`);
 
       const hash = await this.walletClient.writeContract({
-        chain: arcTestnet,
-        address: TELEGRAM_VAULT_CONTRACT_ADDRESS as `0x${string}`,
+        chain: this.chain,
+        address: this.contracts.telegramVault! as `0x${string}`,
         abi: TelegramCardVaultABI,
         functionName: 'claimCard',
         args: [BigInt(tokenId), normalizedUsername, this.account],
@@ -2606,7 +2612,7 @@ export class Web3Service {
         throw new Error(`${currency} address is not configured`);
       }
 
-      if (TIKTOK_VAULT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      if (this.contracts.tiktokVault! === '0x0000000000000000000000000000000000000000') {
         throw new Error('TikTok Vault contract address is not configured');
       }
 
@@ -2634,18 +2640,18 @@ export class Web3Service {
           address: tokenAddress as `0x${string}`,
           abi: ERC20ABI,
           functionName: 'allowance',
-          args: [this.account as `0x${string}`, CONTRACT_ADDRESS as `0x${string}`],
+          args: [this.account as `0x${string}`, this.contracts.contractAddress! as `0x${string}`],
         });
       });
 
       if (allowance < amountBigInt) {
         console.log('Approving token spend...');
         const approveHash = await this.walletClient.writeContract({
-          chain: arcTestnet,
+          chain: this.chain,
           address: tokenAddress as `0x${string}`,
           abi: ERC20ABI,
           functionName: 'approve',
-          args: [CONTRACT_ADDRESS as `0x${string}`, amountBigInt],
+          args: [this.contracts.contractAddress! as `0x${string}`, amountBigInt],
           account: this.account as `0x${string}`,
         });
 
@@ -2655,8 +2661,8 @@ export class Web3Service {
       }
 
       const hash = await this.walletClient.writeContract({
-        chain: arcTestnet,
-        address: CONTRACT_ADDRESS as `0x${string}`,
+        chain: this.chain,
+        address: this.contracts.contractAddress! as `0x${string}`,
         abi: GiftCardABI,
         functionName: 'createGiftCardForTikTok',
         args: [
@@ -2686,8 +2692,8 @@ export class Web3Service {
       const transferEvent = receipt.logs.find((log: any) =>
         log.topics[0] === transferEventSignature &&
         log.topics[1]?.toLowerCase() === zeroAddressTopic.toLowerCase() &&
-        (log.address.toLowerCase() === CONTRACT_ADDRESS.toLowerCase() ||
-         log.address.toLowerCase() === TIKTOK_VAULT_CONTRACT_ADDRESS.toLowerCase())
+        (log.address.toLowerCase() === this.contracts.contractAddress!.toLowerCase() ||
+         log.address.toLowerCase() === this.contracts.tiktokVault!.toLowerCase())
       );
 
       if (transferEvent && transferEvent.topics[3]) {
@@ -2709,7 +2715,7 @@ export class Web3Service {
 
   async getPendingTikTokCards(username: string): Promise<string[]> {
     try {
-      if (TIKTOK_VAULT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      if (this.contracts.tiktokVault! === '0x0000000000000000000000000000000000000000') {
         throw new Error('TikTok Vault contract address is not configured');
       }
 
@@ -2718,7 +2724,7 @@ export class Web3Service {
 
       const result = await this.safeRequest(async () => {
         return await this.publicClient.readContract({
-          address: TIKTOK_VAULT_CONTRACT_ADDRESS as `0x${string}`,
+          address: this.contracts.tiktokVault! as `0x${string}`,
           abi: TikTokCardVaultABI,
           functionName: 'getPendingCardsForUsername',
           args: [normalizedUsername],
@@ -2743,7 +2749,7 @@ export class Web3Service {
     await this.ensureCorrectChain();
 
     try {
-      if (TIKTOK_VAULT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      if (this.contracts.tiktokVault! === '0x0000000000000000000000000000000000000000') {
         throw new Error('TikTok Vault contract address is not configured');
       }
 
@@ -2751,8 +2757,8 @@ export class Web3Service {
       console.log(`[claimTikTokCard] Claiming tokenId ${tokenId} for username "${normalizedUsername}" (original: "${username}")`);
 
       const hash = await this.walletClient.writeContract({
-        chain: arcTestnet,
-        address: TIKTOK_VAULT_CONTRACT_ADDRESS as `0x${string}`,
+        chain: this.chain,
+        address: this.contracts.tiktokVault! as `0x${string}`,
         abi: TikTokCardVaultABI,
         functionName: 'claimCard',
         args: [BigInt(tokenId), normalizedUsername, this.account],
@@ -2797,7 +2803,7 @@ export class Web3Service {
         throw new Error(`${currency} address is not configured`);
       }
 
-      if (INSTAGRAM_VAULT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      if (this.contracts.instagramVault! === '0x0000000000000000000000000000000000000000') {
         throw new Error('Instagram Vault contract address is not configured');
       }
 
@@ -2825,18 +2831,18 @@ export class Web3Service {
           address: tokenAddress as `0x${string}`,
           abi: ERC20ABI,
           functionName: 'allowance',
-          args: [this.account as `0x${string}`, CONTRACT_ADDRESS as `0x${string}`],
+          args: [this.account as `0x${string}`, this.contracts.contractAddress! as `0x${string}`],
         });
       });
 
       if (allowance < amountBigInt) {
         console.log('Approving token spend...');
         const approveHash = await this.walletClient.writeContract({
-          chain: arcTestnet,
+          chain: this.chain,
           address: tokenAddress as `0x${string}`,
           abi: ERC20ABI,
           functionName: 'approve',
-          args: [CONTRACT_ADDRESS as `0x${string}`, amountBigInt],
+          args: [this.contracts.contractAddress! as `0x${string}`, amountBigInt],
           account: this.account as `0x${string}`,
         });
 
@@ -2846,8 +2852,8 @@ export class Web3Service {
       }
 
       const hash = await this.walletClient.writeContract({
-        chain: arcTestnet,
-        address: CONTRACT_ADDRESS as `0x${string}`,
+        chain: this.chain,
+        address: this.contracts.contractAddress! as `0x${string}`,
         abi: GiftCardABI,
         functionName: 'createGiftCardForInstagram',
         args: [
@@ -2877,8 +2883,8 @@ export class Web3Service {
       const transferEvent = receipt.logs.find((log: any) =>
         log.topics[0] === transferEventSignature &&
         log.topics[1]?.toLowerCase() === zeroAddressTopic.toLowerCase() &&
-        (log.address.toLowerCase() === CONTRACT_ADDRESS.toLowerCase() ||
-         log.address.toLowerCase() === INSTAGRAM_VAULT_CONTRACT_ADDRESS.toLowerCase())
+        (log.address.toLowerCase() === this.contracts.contractAddress!.toLowerCase() ||
+         log.address.toLowerCase() === this.contracts.instagramVault!.toLowerCase())
       );
 
       if (transferEvent && transferEvent.topics[3]) {
@@ -2900,7 +2906,7 @@ export class Web3Service {
 
   async getPendingInstagramCards(username: string): Promise<string[]> {
     try {
-      if (INSTAGRAM_VAULT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      if (this.contracts.instagramVault! === '0x0000000000000000000000000000000000000000') {
         throw new Error('Instagram Vault contract address is not configured');
       }
 
@@ -2909,7 +2915,7 @@ export class Web3Service {
 
       const result = await this.safeRequest(async () => {
         return await this.publicClient.readContract({
-          address: INSTAGRAM_VAULT_CONTRACT_ADDRESS as `0x${string}`,
+          address: this.contracts.instagramVault! as `0x${string}`,
           abi: InstagramCardVaultABI,
           functionName: 'getPendingCardsForUsername',
           args: [normalizedUsername],
@@ -2934,7 +2940,7 @@ export class Web3Service {
     await this.ensureCorrectChain();
 
     try {
-      if (INSTAGRAM_VAULT_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      if (this.contracts.instagramVault! === '0x0000000000000000000000000000000000000000') {
         throw new Error('Instagram Vault contract address is not configured');
       }
 
@@ -2942,8 +2948,8 @@ export class Web3Service {
       console.log(`[claimInstagramCard] Claiming tokenId ${tokenId} for username "${normalizedUsername}" (original: "${username}")`);
 
       const hash = await this.walletClient.writeContract({
-        chain: arcTestnet,
-        address: INSTAGRAM_VAULT_CONTRACT_ADDRESS as `0x${string}`,
+        chain: this.chain,
+        address: this.contracts.instagramVault! as `0x${string}`,
         abi: InstagramCardVaultABI,
         functionName: 'claimCard',
         args: [BigInt(tokenId), normalizedUsername, this.account],

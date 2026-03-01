@@ -33,21 +33,46 @@ export const arcTestnet = defineChain({
   },
 });
 
+// Avalanche Fuji Testnet chain definition
+const avaxChainId = Number(import.meta.env.VITE_AVAX_CHAIN_ID || 43113);
+const avaxRpcUrl = import.meta.env.VITE_AVAX_RPC_URL || 'https://api.avax-test.network/ext/bc/C/rpc';
+const avaxExplorerUrl = import.meta.env.VITE_AVAX_BLOCK_EXPLORER_URL || 'https://testnet.snowtrace.io';
+
+export const avalancheFuji = defineChain({
+  id: avaxChainId,
+  name: 'Avalanche Fuji',
+  nativeCurrency: {
+    name: 'Avalanche',
+    symbol: 'AVAX',
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: { http: [avaxRpcUrl] },
+    public: { http: [avaxRpcUrl, 'https://43113.rpc.thirdweb.com'] },
+  },
+  blockExplorers: {
+    default: { name: 'Snowtrace', url: avaxExplorerUrl },
+  },
+});
+
 // RainbowKit configuration - getDefaultConfig automatically includes Rainbow Wallet
+const allChains = [arcTestnet, avalancheFuji];
+
 export const config = isZkLocalhost()
   ? createConfig({
-      chains: [arcTestnet],
+      chains: allChains,
       connectors: [injected()],
       transports: {
         [arcTestnet.id]: http(arcRpcUrl),
+        [avalancheFuji.id]: http(avaxRpcUrl),
       },
       ssr: false,
     })
   : getDefaultConfig({
       appName: 'Sendly NFT Gift Cards',
       projectId: projectId,
-      chains: [arcTestnet],
+      chains: allChains,
       ssr: false,
     });
 
-export const chains = [arcTestnet];
+export const chains = allChains;

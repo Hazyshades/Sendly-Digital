@@ -83,6 +83,105 @@ export const ARC_RPC_URLS = (
 
 export const ARC_RPC_URL = ARC_RPC_URLS[0];
 
+// Arc block explorer API (Blockscout-based)
+export const ARCSCAN_API_URL = 'https://testnet.arcscan.app/api/v2';
+
+// Avalanche Fuji contract addresses and RPC
+export const AVAX_ZKSEND_CONTRACT_ADDRESS =
+  import.meta.env.VITE_AVAX_ZKSEND_CONTRACT_ADDRESS ||
+  "0xF49Cf8F6e0a630Ad328087D3f5fd98DBB3F1b709";
+
+export const AVAX_USDC_ADDRESS =
+  import.meta.env.VITE_AVAX_USDC_ADDRESS ||
+  "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E";
+
+export const AVAX_USDT_ADDRESS =
+  import.meta.env.VITE_AVAX_USDT_ADDRESS ||
+  "0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7";
+
+export const AVAX_RECLAIM_VERIFIER_CONTRACT_ADDRESS =
+  import.meta.env.VITE_AVAX_RECLAIM_VERIFIER_ADDRESS ||
+  "0x19a2D8029E66275c864907E0edDB768c9f0E56aB";
+
+export const AVAX_RPC_URLS = (
+  import.meta.env.VITE_AVAX_RPC_URLS?.split(',').map((s: string) => s.trim()).filter(Boolean)
+  || []
+).concat([
+  import.meta.env.VITE_AVAX_RPC_URL || 'https://api.avax-test.network/ext/bc/C/rpc',
+  'https://43113.rpc.thirdweb.com',
+]).filter(Boolean);
+
+export const AVAX_RPC_URL = AVAX_RPC_URLS[0];
+export const SNOWTRACE_API_URL = 'https://api-testnet.snowtrace.io/api';
+export const SNOWTRACE_EXPLORER_URL = 'https://testnet.snowtrace.io';
+
+export interface ChainContracts {
+  chainId: number;
+  contractAddress?: string;
+  zksend: string;
+  usdc: string;
+  usdt?: string;
+  eurc?: string;
+  usyc?: string;
+  reclaimVerifier: string;
+  vaultContract?: string;
+  twitchVault?: string;
+  telegramVault?: string;
+  tiktokVault?: string;
+  instagramVault?: string;
+  directSend?: string;
+  rpcUrls: string[];
+  explorerUrl: string;
+  explorerApiUrl: string;
+}
+
+const ARC_CHAIN_ID = Number(import.meta.env.VITE_ARC_CHAIN_ID || 5042002);
+const AVAX_CHAIN_ID = Number(import.meta.env.VITE_AVAX_CHAIN_ID || 43113);
+
+export function getContractsForChain(chainId: number): ChainContracts {
+  if (chainId === AVAX_CHAIN_ID) {
+    return {
+      chainId: AVAX_CHAIN_ID,
+      zksend: AVAX_ZKSEND_CONTRACT_ADDRESS,
+      usdc: AVAX_USDC_ADDRESS,
+      usdt: AVAX_USDT_ADDRESS,
+      reclaimVerifier: AVAX_RECLAIM_VERIFIER_CONTRACT_ADDRESS,
+      rpcUrls: [...AVAX_RPC_URLS],
+      explorerUrl: SNOWTRACE_EXPLORER_URL,
+      explorerApiUrl: SNOWTRACE_API_URL,
+    };
+  }
+  return {
+    chainId: ARC_CHAIN_ID,
+    contractAddress: CONTRACT_ADDRESS,
+    zksend: ZKSEND_CONTRACT_ADDRESS,
+    usdc: USDC_ADDRESS,
+    usdt: USDT_ADDRESS,
+    eurc: EURC_ADDRESS,
+    usyc: USYC_ADDRESS,
+    reclaimVerifier: RECLAIM_VERIFIER_CONTRACT_ADDRESS,
+    vaultContract: VAULT_CONTRACT_ADDRESS,
+    twitchVault: TWITCH_VAULT_CONTRACT_ADDRESS,
+    telegramVault: TELEGRAM_VAULT_CONTRACT_ADDRESS,
+    tiktokVault: TIKTOK_VAULT_CONTRACT_ADDRESS,
+    instagramVault: INSTAGRAM_VAULT_CONTRACT_ADDRESS,
+    directSend: DIRECT_SEND_CONTRACT_ADDRESS,
+    rpcUrls: [...ARC_RPC_URLS],
+    explorerUrl: import.meta.env.VITE_ARC_BLOCK_EXPLORER_URL || 'https://testnet.arcscan.app',
+    explorerApiUrl: ARCSCAN_API_URL,
+  };
+}
+
+export function getExplorerTxUrl(chainId: number, txHash: string): string {
+  const { explorerUrl } = getContractsForChain(chainId);
+  return `${explorerUrl}/tx/${txHash}`;
+}
+
+export function getExplorerAddressUrl(chainId: number, address: string): string {
+  const { explorerUrl } = getContractsForChain(chainId);
+  return `${explorerUrl}/address/${address}`;
+}
+
 // GiftCard ABI
 export const GiftCardABI = [
   {
