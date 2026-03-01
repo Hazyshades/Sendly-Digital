@@ -4,7 +4,8 @@ import { toast } from 'sonner';
 import { Wallet } from 'lucide-react';
 
 import web3Service from '@/lib/web3/web3Service';
-import { USDC_ADDRESS, EURC_ADDRESS, DIRECT_SEND_CONTRACT_ADDRESS } from '@/lib/web3/constants';
+import { getExplorerTxUrl } from '@/lib/web3/constants';
+import { useChain } from '@/contexts/ChainContext';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -18,12 +19,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const ARC_EXPLORER_URL = import.meta.env.VITE_ARC_BLOCK_EXPLORER_URL || 'https://testnet.arcscan.app';
-
-const TOKEN_OPTIONS = [
-  { value: 'USDC' as const, label: 'USDC', address: USDC_ADDRESS },
-  { value: 'EURC' as const, label: 'EURC', address: EURC_ADDRESS },
-] as const;
 
 function isValidAddress(value: string): boolean {
   return /^0x[a-fA-F0-9]{40}$/.test(value.trim());
@@ -32,6 +27,11 @@ function isValidAddress(value: string): boolean {
 export function DirectSendForm() {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
+  const { activeChainId, contracts } = useChain();
+  const TOKEN_OPTIONS = [
+    { value: 'USDC' as const, label: 'USDC', address: contracts.usdc },
+    { value: 'EURC' as const, label: 'EURC', address: contracts.eurc ?? contracts.usdc },
+  ] as const;
 
   const [recipientAddress, setRecipientAddress] = useState('');
   const [amount, setAmount] = useState('');
@@ -57,7 +57,7 @@ export function DirectSendForm() {
       if (!amount || Number(amount) <= 0) throw new Error('Enter amount > 0');
 
       setLoading(true);
-      await web3Service.initialize(walletClient, address);
+      await web3Service.initialize(walletClient, address, activeChainId);
 
       const { txHash } = await web3Service.sendDirectToAddress({
         recipient: recipientTrimmed as `0x${string}`,
@@ -70,7 +70,7 @@ export function DirectSendForm() {
           <span>
             Sent successfully.{' '}
             <a
-              href={`${ARC_EXPLORER_URL}/tx/${txHash}`}
+              href={getExplorerTxUrl(activeChainId, txHash)}
               target="_blank"
               rel="noopener noreferrer"
               className="underline font-medium"

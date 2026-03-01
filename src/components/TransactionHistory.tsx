@@ -11,7 +11,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useAccount } from 'wagmi';
 import { createWalletClient, custom } from 'viem';
-import { arcTestnet } from '@/lib/web3/wagmiConfig';
+import { useChain } from '@/contexts/ChainContext';
+import { getExplorerTxUrl } from '@/lib/web3/constants';
 import web3Service from '@/lib/web3/web3Service';
 import { GiftCardsService } from '@/lib/supabase/giftCards';
 import { isZkHost } from '@/lib/runtime/zkHost';
@@ -115,6 +116,7 @@ function toTransactionFromReceived(row: ZkSendPaymentRow): Transaction {
 
 export function TransactionHistory() {
   const { address, isConnected } = useAccount();
+  const { activeChain, activeChainId } = useChain();
   const [dateFilter, setDateFilter] = useState('all');
   const [currencyFilter, setCurrencyFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -324,11 +326,11 @@ export function TransactionHistory() {
       
       // Initialize web3 service
       const walletClient = createWalletClient({
-        chain: arcTestnet,
+        chain: activeChain,
         transport: custom(window.ethereum)
       });
 
-      await web3Service.initialize(walletClient, address);
+      await web3Service.initialize(walletClient, address, activeChainId);
       
       // Load received gift cards first (usually faster)
       // Using API to get fresh data without cache
@@ -544,8 +546,7 @@ export function TransactionHistory() {
   };
 
   const handleTxHashClick = (txHash: string) => {
-    const explorer = (import.meta as any).env?.VITE_ARC_BLOCK_EXPLORER_URL || 'https://testnet.arcscan.app';
-    window.open(`${explorer}/tx/${txHash}`, '_blank');
+    window.open(getExplorerTxUrl(activeChainId, txHash), '_blank');
   };
 
   const filteredTransactions = transactions.filter(tx => {
@@ -1076,7 +1077,7 @@ export function TransactionHistory() {
                         {tx.txHash.slice(0, 10)}...{tx.txHash.slice(-8)}
                       </button>
                     ) : (
-                      <span className="text-gray-400">—</span>
+                      <span className="text-gray-400">- </span>
                     )}
                   </div>
                 </CardContent>

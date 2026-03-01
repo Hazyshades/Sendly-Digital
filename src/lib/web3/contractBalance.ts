@@ -1,169 +1,154 @@
-// Utility to get contract balance via ArcScan API or RPC
+// Utility to get contract balance via block explorer API or RPC
 import { createPublicClient, http } from 'viem';
-import { arcTestnet } from './wagmiConfig';
-import { CONTRACT_ADDRESS, USDC_ADDRESS, ERC20ABI, ARC_RPC_URLS } from './constants';
+import { chains } from './wagmiConfig';
+import { getContractsForChain, ERC20ABI } from './constants';
 
-const ARCSCAN_API_URL = 'https://testnet.arcscan.app/api/v2';
+const ARC_CHAIN_ID = Number(import.meta.env.VITE_ARC_CHAIN_ID || 5042002);
+const AVAX_CHAIN_ID = Number(import.meta.env.VITE_AVAX_CHAIN_ID || 43113);
 
 /**
- * Get contract balance in USDC using ArcScan API
- * @param contractAddress - Contract address to check balance for
- * @param tokenAddress - Token address (USDC by default)
- * @returns Balance in USDC (already divided by decimals)
+ * Get contract balance in USDC using block explorer API (ArcScan or SnowTrace)
  */
 export async function getContractBalanceViaAPI(
-  contractAddress: string = CONTRACT_ADDRESS,
-  tokenAddress: string = USDC_ADDRESS
+  contractAddress: string,
+  tokenAddress: string,
+  chainId: number = ARC_CHAIN_ID
 ): Promise<number> {
+  const contracts = getContractsForChain(chainId);
   try {
-    // Try ArcScan API first (Blockscout-based)
-    // Get token balances for the contract address
-    const response = await fetch(`${ARCSCAN_API_URL}/addresses/${contractAddress.toLowerCase()}/token-balances`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`ArcScan API error: ${response.status} ${response.statusText}`);
+    if (chainId === AVAX_CHAIN_ID) {
+      // SnowTrace (Etherscan-compatible) API: tokenbalance
+      const params = new URLSearchParams({
+        module: 'account',
+        action: 'tokenbalance',
+        contractaddress: tokenAddress,
+        address: contractAddress,
+        tag: 'latest',
+      });
+      const response = await fetch(`${contracts.explorerApiUrl}?${params}`);
+      if (!response.ok) throw new Error(`SnowTrace API error: ${response.status}`);
+      const data = await response.json();
+      if (data.result && data.status === '1') {
+        const balanceWei = BigInt(data.result);
+        return Number(balanceWei) / 1_000_000;
+      }
+      return await getContractBalanceViaRPC(contractAddress, tokenAddress, chainId);
     }
-
+    // ArcScan (Blockscout-based)
+    const response = await fetch(
+      `${contracts.explorerApiUrl}/addresses/${contractAddress.toLowerCase()}/token-balances`,
+      { method: 'GET', headers: { 'Content-Type': 'application/json' } }
+    );
+    if (!response.ok) throw new Error(`ArcScan API error: ${response.status} ${response.statusText}`);
     const data = await response.json();
-
-    // Find USDC token in the balances
     if (data.items && Array.isArray(data.items)) {
-      const usdcBalance = data.items.find((item: any) => 
-        item.token?.address?.toLowerCase() === tokenAddress.toLowerCase() ||
-        item.token?.symbol === 'USDC'
+      const usdcBalance = data.items.find(
+        (item: any) =>
+          item.token?.address?.toLowerCase() === tokenAddress.toLowerCase() ||
+          item.token?.symbol === 'USDC'
       );
-
       if (usdcBalance) {
         const balanceWei = BigInt(usdcBalance.value || usdcBalance.balance || '0');
         return Number(balanceWei) / 1_000_000;
       }
     }
-    return await getContractBalanceViaRPC(contractAddress, tokenAddress);
+    return await getContractBalanceViaRPC(contractAddress, tokenAddress, chainId);
   } catch (error) {
-    // Fallback to RPC
-    return await getContractBalanceViaRPC(contractAddress, tokenAddress);
+    return await getContractBalanceViaRPC(contractAddress, tokenAddress, chainId);
   }
 }
 
 /**
  * Get contract balance in USDC using RPC call
- * @param contractAddress - Contract address to check balance for
- * @param tokenAddress - Token address (USDC by default)
- * @returns Balance in USDC (already divided by decimals)
  */
 export async function getContractBalanceViaRPC(
-  contractAddress: string = CONTRACT_ADDRESS,
-  tokenAddress: string = USDC_ADDRESS
+  contractAddress: string,
+  tokenAddress: string,
+  chainId: number = ARC_CHAIN_ID
 ): Promise<number> {
-  try {
-    const publicClient = createPublicClient({
-      chain: arcTestnet,
-      transport: http(ARC_RPC_URLS[0] || 'https://rpc.testnet.arc.network'),
-    });
-
-    const balance = await publicClient.readContract({
-      address: tokenAddress as `0x${string}`,
-      abi: ERC20ABI,
-      functionName: 'balanceOf',
-      args: [contractAddress as `0x${string}`],
-    }) as bigint;
-
-    return Number(balance) / 1_000_000;
-  } catch (error) {
-    console.error('[ContractBalance] RPC fetch failed:', error);
-    throw new Error(`Failed to get contract balance: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
+  const contracts = getContractsForChain(chainId);
+  const chain = chains.find((c) => c.id === chainId) ?? chains[0];
+  const rpcUrl = contracts.rpcUrls[0];
+  const publicClient = createPublicClient({
+    chain,
+    transport: http(rpcUrl),
+  });
+  const balance = (await publicClient.readContract({
+    address: tokenAddress as `0x${string}`,
+    abi: ERC20ABI,
+    functionName: 'balanceOf',
+    args: [contractAddress as `0x${string}`],
+  })) as bigint;
+  return Number(balance) / 1_000_000;
 }
 
 /**
  * Get contract balance (tries API first, then RPC as fallback)
- * @param contractAddress - Contract address to check balance for (optional, defaults to CONTRACT_ADDRESS)
- * @param tokenAddress - Token address (optional, defaults to USDC_ADDRESS)
- * @returns Balance in USDC
  */
 export async function getContractBalance(
   contractAddress?: string,
-  tokenAddress?: string
+  tokenAddress?: string,
+  chainId: number = ARC_CHAIN_ID
 ): Promise<number> {
-  return await getContractBalanceViaAPI(contractAddress, tokenAddress);
+  const contracts = getContractsForChain(chainId);
+  const addr = contractAddress ?? contracts.zksend;
+  const token = tokenAddress ?? contracts.usdc;
+  return await getContractBalanceViaAPI(addr, token, chainId);
 }
 
 /**
- * Get contract counters (transactions_count, token_transfers_count, gas_usage_count) via ArcScan API
- * @param contractAddress - Contract address to check counters for (optional, defaults to CONTRACT_ADDRESS)
- * @returns Object with transactions_count, token_transfers_count, and gas_usage_count
+ * Get contract counters via block explorer API (ArcScan only; SnowTrace may not support)
  */
 export async function getContractCounters(
-  contractAddress: string = CONTRACT_ADDRESS
+  contractAddress: string,
+  chainId: number = ARC_CHAIN_ID
 ): Promise<{
   transactions_count: number;
   token_transfers_count: number;
   gas_usage_count: string;
 }> {
-  try {
-    // Use the /counters endpoint from ArcScan API (Blockscout-based)
-    const response = await fetch(`${ARCSCAN_API_URL}/addresses/${contractAddress.toLowerCase()}/counters`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`ArcScan API error: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    // Parse the response
+  const contracts = getContractsForChain(chainId);
+  if (chainId === AVAX_CHAIN_ID) {
     return {
-      transactions_count: data.transactions_count ? parseInt(data.transactions_count, 10) : 0,
-      token_transfers_count: data.token_transfers_count ? parseInt(data.token_transfers_count, 10) : 0,
-      gas_usage_count: data.gas_usage_count || '0',
+      transactions_count: 0,
+      token_transfers_count: 0,
+      gas_usage_count: '0',
     };
-  } catch (error) {
-    console.error('[ContractBalance] Failed to get contract counters:', error);
-    throw new Error(`Failed to get contract counters: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
+  const response = await fetch(
+    `${contracts.explorerApiUrl}/addresses/${contractAddress.toLowerCase()}/counters`,
+    { method: 'GET', headers: { 'Content-Type': 'application/json' } }
+  );
+  if (!response.ok) throw new Error(`ArcScan API error: ${response.status} ${response.statusText}`);
+  const data = await response.json();
+  return {
+    transactions_count: data.transactions_count ? parseInt(data.transactions_count, 10) : 0,
+    token_transfers_count: data.token_transfers_count ? parseInt(data.token_transfers_count, 10) : 0,
+    gas_usage_count: data.gas_usage_count || '0',
+  };
 }
 
 /**
- * Get contract transactions count via ArcScan API
- * @param contractAddress - Contract address to check transactions for (optional, defaults to CONTRACT_ADDRESS)
- * @returns Number of transactions
+ * Get contract transactions count via block explorer API
  */
 export async function getContractTransactionsCount(
-  contractAddress: string = CONTRACT_ADDRESS
+  contractAddress: string,
+  chainId: number = ARC_CHAIN_ID
 ): Promise<number> {
   try {
-    const counters = await getContractCounters(contractAddress);
+    const counters = await getContractCounters(contractAddress, chainId);
     return counters.transactions_count;
   } catch (error) {
-    console.error('[ContractBalance] Failed to get transactions count:', error);
-    // Fallback to old method if new endpoint fails
-    try {
-      const addressUrl = `${ARCSCAN_API_URL}/addresses/${contractAddress.toLowerCase()}`;
-      const response = await fetch(addressUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.transactions_count !== undefined) return parseInt(data.transactions_count, 10);
-      }
-    } catch (fallbackError) {
-      console.error('[ContractBalance] Fallback method also failed:', fallbackError);
+    if (chainId === AVAX_CHAIN_ID) return 0;
+    const contracts = getContractsForChain(chainId);
+    const response = await fetch(
+      `${contracts.explorerApiUrl}/addresses/${contractAddress.toLowerCase()}`,
+      { method: 'GET', headers: { 'Content-Type': 'application/json' } }
+    );
+    if (response.ok) {
+      const data = await response.json();
+      if (data.transactions_count !== undefined) return parseInt(data.transactions_count, 10);
     }
-    
-    throw new Error(`Failed to get contract transactions count: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to get contract transactions count: ${error instanceof Error ? error.message : 'Unknown'}`);
   }
 }
-

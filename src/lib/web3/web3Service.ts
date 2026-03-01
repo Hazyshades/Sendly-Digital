@@ -2074,8 +2074,8 @@ export class Web3Service {
 
   async getPendingTwitterCards(username: string): Promise<string[]> {
     try {
-      if (this.contracts.vaultContract! === '0x0000000000000000000000000000000000000000') {
-        throw new Error('Vault contract address is not configured');
+      if (!this.contracts.vaultContract || this.contracts.vaultContract === '0x0000000000000000000000000000000000000000') {
+        return [];
       }
 
       // Normalize username: remove @ and convert to lowercase
@@ -2083,7 +2083,7 @@ export class Web3Service {
       console.log(`[getPendingTwitterCards] Original username: "${username}", Normalized: "${normalizedUsername}"`);
       console.log(`[getPendingTwitterCards] Using Vault address: ${this.contracts.vaultContract!}`);
       console.log(`[getPendingTwitterCards] PublicClient initialized:`, !!this.publicClient);
-      console.log(`[getPendingTwitterCards] Current RPC: ${ARC_RPC_URLS[this.currentRpcIndex]}`);
+      console.log(`[getPendingTwitterCards] Current RPC: ${this.contracts.rpcUrls[this.currentRpcIndex]}`);
 
       const result = await this.safeRequest(async () => {
         console.log(`[getPendingTwitterCards] Calling readContract with:`, {
@@ -2333,8 +2333,8 @@ export class Web3Service {
 
   async getPendingTwitchCards(username: string): Promise<string[]> {
     try {
-      if (this.contracts.twitchVault! === '0x0000000000000000000000000000000000000000') {
-        throw new Error('Twitch Vault contract address is not configured');
+      if (!this.contracts.twitchVault || this.contracts.twitchVault === '0x0000000000000000000000000000000000000000') {
+        return [];
       }
 
       const normalizedUsername = username.toLowerCase().trim();
@@ -2524,8 +2524,8 @@ export class Web3Service {
 
   async getPendingTelegramCards(username: string): Promise<string[]> {
     try {
-      if (this.contracts.telegramVault! === '0x0000000000000000000000000000000000000000') {
-        throw new Error('Telegram Vault contract address is not configured');
+      if (!this.contracts.telegramVault || this.contracts.telegramVault === '0x0000000000000000000000000000000000000000') {
+        return [];
       }
 
       const normalizedUsername = username.toLowerCase().replace(/^@/, '').trim();
@@ -2715,8 +2715,8 @@ export class Web3Service {
 
   async getPendingTikTokCards(username: string): Promise<string[]> {
     try {
-      if (this.contracts.tiktokVault! === '0x0000000000000000000000000000000000000000') {
-        throw new Error('TikTok Vault contract address is not configured');
+      if (!this.contracts.tiktokVault || this.contracts.tiktokVault === '0x0000000000000000000000000000000000000000') {
+        return [];
       }
 
       const normalizedUsername = username.toLowerCase().replace(/^@/, '').trim();
@@ -2906,8 +2906,8 @@ export class Web3Service {
 
   async getPendingInstagramCards(username: string): Promise<string[]> {
     try {
-      if (this.contracts.instagramVault! === '0x0000000000000000000000000000000000000000') {
-        throw new Error('Instagram Vault contract address is not configured');
+      if (!this.contracts.instagramVault || this.contracts.instagramVault === '0x0000000000000000000000000000000000000000') {
+        return [];
       }
 
       const normalizedUsername = username.toLowerCase().replace(/^@/, '').trim();

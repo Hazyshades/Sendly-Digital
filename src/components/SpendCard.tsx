@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { useAccount } from 'wagmi';
 import { createWalletClient, custom } from 'viem';
 import { useNavigate } from 'react-router-dom';
-import { arcTestnet } from '@/lib/web3/wagmiConfig';
+import { useChain } from '@/contexts/ChainContext';
 import web3Service from '@/lib/web3/web3Service';
 import { GiftCardsService } from '@/lib/supabase/giftCards';
 import { USDC_ADDRESS, EURC_ADDRESS, USYC_ADDRESS, CONTRACT_ADDRESS, GiftCardABI } from '@/lib/web3/constants';
@@ -59,6 +59,7 @@ const SERVICE_DISPLAY_NAMES: Record<string, string> = {
 
 export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
   const { address, isConnected } = useAccount();
+  const { activeChain, activeChainId } = useChain();
   const { authenticated, user: privyUser } = usePrivySafe();
   const navigate = useNavigate();
   const [hasDeveloperWallet, setHasDeveloperWallet] = useState(false);
@@ -210,11 +211,11 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
       if (isConnected && address) {
         // Initialize web3 service
         const walletClient = createWalletClient({
-          chain: arcTestnet,
+          chain: activeChain,
           transport: custom(window.ethereum)
         });
 
-        await web3Service.initialize(walletClient, address as string);
+        await web3Service.initialize(walletClient, address as string, activeChainId);
 
         // Get gift card info from blockchain
         giftCardInfo = await web3Service.getGiftCardInfo(tokenId);
@@ -235,7 +236,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
         // For Internal wallet use a public RPC for reading
         const { createPublicClient, http } = await import('viem');
         const publicClient = createPublicClient({
-          chain: arcTestnet,
+          chain: activeChain,
           transport: http()
         });
 
@@ -432,7 +433,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
         // For Internal wallet use public RPC for reading
         const { createPublicClient, http } = await import('viem');
         const publicClient = createPublicClient({
-          chain: arcTestnet,
+          chain: activeChain,
           transport: http()
         });
 
@@ -469,11 +470,11 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
       } else {
         // For MetaMask use web3Service
         const walletClient = createWalletClient({
-          chain: arcTestnet,
+          chain: activeChain,
           transport: custom(window.ethereum)
         });
 
-        await web3Service.initialize(walletClient, address as string);
+        await web3Service.initialize(walletClient, address as string, activeChainId);
 
         giftCardInfo = await web3Service.getGiftCardInfo(currentCard.tokenId);
         owner = await web3Service.getCardOwner(currentCard.tokenId);

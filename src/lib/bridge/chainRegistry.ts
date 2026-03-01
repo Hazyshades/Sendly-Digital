@@ -51,6 +51,7 @@ export const SUPPORTED_CHAINS: ChainConfig[] = [
     slug: 'avalanche-fuji',
     domain: 1,
     bridgeKitId: 'Avalanche_Fuji',
+    rpcUrl: 'https://api.avax-test.network/ext/bc/C/rpc',
     blockExplorer: 'https://testnet.snowtrace.io',
     isTestnet: true,
     nativeCurrency: { name: 'AVAX', symbol: 'AVAX', decimals: 18 }

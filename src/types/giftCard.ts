@@ -1,6 +1,7 @@
 export interface GiftCardRecord {
   id?: number;
   token_id: string;
+  chain_id?: number | null;
   sender_address: string;
   recipient_address?: string | null;
   recipient_username?: string | null;
@@ -18,6 +19,7 @@ export interface GiftCardRecord {
 
 export interface GiftCardInsert {
   token_id: string;
+  chain_id?: number | null;
   sender_address: string;
   recipient_address?: string | null;
   recipient_username?: string | null;

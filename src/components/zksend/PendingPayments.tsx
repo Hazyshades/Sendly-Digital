@@ -12,12 +12,12 @@ import { fetchReclaimProofRequestConfig, verifyReclaimProofs } from '@/lib/recla
 import { toOnchainReclaimProof } from '@/lib/reclaim/onchain';
 import type { ReclaimProof } from '@/lib/reclaim/types';
 import { markZkSendPaymentClaimed } from '@/lib/zksend/zksendPaymentsAPI';
-import { EURC_ADDRESS, USDC_ADDRESS } from '@/lib/web3/constants';
+import { getExplorerTxUrl, getExplorerAddressUrl } from '@/lib/web3/constants';
+import { useChain } from '@/contexts/ChainContext';
 import { ReclaimProofRequest } from '@reclaimprotocol/js-sdk';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
 import { isZkLocalhost } from '@/lib/runtime/zkHost';
 
-const ARC_EXPLORER_URL = import.meta.env.VITE_ARC_BLOCK_EXPLORER_URL || 'https://testnet.arcscan.app';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -65,6 +65,7 @@ function shortenAddress(addr: string): string {
 }
 
 export function PendingPayments({ platform, username, isActive, isIdentityValid = false, truncateAddresses = false }: Props) {
+  const { activeChainId } = useChain();
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
   const { authenticated, getAccessToken } = usePrivySafe();
@@ -553,7 +554,7 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       }
 
       setClaimingId(paymentId);
-      await web3Service.initialize(walletClient, address);
+      await web3Service.initialize(walletClient, address, activeChainId);
 
       if (
         normalizedPlatform !== 'twitter' &&
@@ -613,7 +614,7 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
           <span>
             Payment claimed.{' '}
             <a
-              href={`${ARC_EXPLORER_URL}/tx/${txHash}`}
+              href={getExplorerTxUrl(activeChainId, txHash)}
               target="_blank"
               rel="noopener noreferrer"
               className="underline font-medium"
@@ -792,7 +793,7 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
         <span>
           Payment claimed.{' '}
           <a
-            href={`${ARC_EXPLORER_URL}/tx/${txHash}`}
+            href={getExplorerTxUrl(activeChainId, txHash)}
             target="_blank"
             rel="noopener noreferrer"
             className="underline font-medium"
@@ -847,7 +848,7 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
       }
 
       setClaimingAll(true);
-      await web3Service.initialize(walletClient, address);
+      await web3Service.initialize(walletClient, address, activeChainId);
 
       const paymentIds = rows.map((r) => r.paymentId);
       const identityHashValue = identityHash ?? generateSocialIdentityHash(platform, u);
@@ -904,7 +905,7 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
           <span>
             All payments claimed.{' '}
             <a
-              href={`${ARC_EXPLORER_URL}/tx/${txHash}`}
+              href={getExplorerTxUrl(activeChainId, txHash)}
               target="_blank"
               rel="noopener noreferrer"
               className="underline font-medium"
@@ -1054,7 +1055,7 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
         <span>
           All payments claimed.{' '}
           <a
-            href={`${ARC_EXPLORER_URL}/tx/${txHash}`}
+            href={getExplorerTxUrl(activeChainId, txHash)}
             target="_blank"
             rel="noopener noreferrer"
             className="underline font-medium"
@@ -1209,7 +1210,7 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
           <div className="text-sm text-muted-foreground">
             {lastClaimedTxHash ? (
               <a
-                href={`${ARC_EXPLORER_URL}/tx/${lastClaimedTxHash}`}
+                href={getExplorerTxUrl(activeChainId, lastClaimedTxHash)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline font-medium text-foreground hover:opacity-80"
@@ -1250,7 +1251,7 @@ export function PendingPayments({ platform, username, isActive, isIdentityValid 
                   <div className="text-xs text-muted-foreground">
                     from:{' '}
                     <a
-                      href={`${ARC_EXPLORER_URL}/address/${p.sender}`}
+                      href={getExplorerAddressUrl(activeChainId, p.sender)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary hover:underline"

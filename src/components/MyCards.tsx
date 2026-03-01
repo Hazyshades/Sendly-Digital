@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useAccount } from 'wagmi';
 import { createWalletClient, custom } from 'viem';
-import { arcTestnet } from '@/lib/web3/wagmiConfig';
+import { useChain } from '@/contexts/ChainContext';
 import web3Service from '@/lib/web3/web3Service';
 import { ClaimCards } from './ClaimCards';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
@@ -41,6 +41,7 @@ interface MyCardsProps {
 
 export function MyCards({ onSpendCard }: MyCardsProps) {
   const { address, isConnected } = useAccount();
+  const { activeChain, activeChainId } = useChain();
   const { authenticated, user } = usePrivySafe();
   const telegramAccount = (user as any)?.telegram;
   const telegramUsername = ((telegramAccount?.username || telegramAccount?.telegramUserId || telegramAccount?.id || '') as string).replace(/^@/, '').trim();
@@ -98,10 +99,10 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
       // publicClient is already created in web3Service constructor, so we can use it without initialization
       if (isConnected && address && typeof window !== 'undefined' && window.ethereum) {
         const walletClient = createWalletClient({
-          chain: arcTestnet,
+          chain: activeChain,
           transport: custom(window.ethereum)
         });
-        await web3Service.initialize(walletClient, address);
+        await web3Service.initialize(walletClient, address, activeChainId);
       }
       // If no wallet connected, web3Service can still use publicClient for read operations
       
@@ -341,11 +342,11 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
       
       // Initialize web3 service
       const walletClient = createWalletClient({
-        chain: arcTestnet,
+        chain: activeChain,
         transport: custom(window.ethereum)
       });
 
-      await web3Service.initialize(walletClient, userAddress);
+      await web3Service.initialize(walletClient, userAddress, activeChainId);
       
       // Load gift cards from blockchain
       console.log('Loading received cards from blockchain...');
@@ -499,11 +500,11 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
       
       // Initialize web3 service
       const walletClient = createWalletClient({
-        chain: arcTestnet,
+        chain: activeChain,
         transport: custom(window.ethereum)
       });
 
-      await web3Service.initialize(walletClient, address);
+      await web3Service.initialize(walletClient, address, activeChainId);
       
       // Load gift cards from blockchain
       const blockchainCards = await web3Service.loadGiftCards(false, true);

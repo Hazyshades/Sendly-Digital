@@ -210,29 +210,29 @@ export function PrivyOAuthInfographic({
 
   // SVG dimensions for positioning
   const svgWidth = compact ? 800 : 900;
-  const svgHeight = compact ? 480 : 580;
-  const centerX = svgWidth / 2; // Center of SVG (aligned with title)
+  const svgHeight = compact ? 380 : 600;
 
-  // Node positions (centers) - arranged in 3 rows, centered relative to title
-  // Row 1 (top): User -> Privy -> Backend
-  // Row 2 (middle): MPC Key (centered above Privy)
-  // Row 3 (bottom): OAuth Gateway -> Provider APIs
-  const row1Y = compact ? 130 : 150;
-  const row2Y = compact ? 10 : 15; // MPC Key еще выше
-  const row3Y = compact ? 340 : 400;
-  
-  // Original positions (Privy is at 300, which is the reference center)
-  const privyCenterX = 300;
-  const offsetX = centerX - privyCenterX; // Shift to align with title center
-  
-  const positions = {
-    user: { x: 80 + offsetX, y: row1Y },
-    privy: { x: centerX, y: row1Y }, // Privy centered (aligned with title)
-    backend: { x: 520 + offsetX, y: row1Y },
-    mpc: { x: centerX, y: row2Y }, // MPC Key centered above Privy
-    gateway: { x: 180 + offsetX, y: row3Y },
-    providers: { x: 400 + offsetX, y: row3Y },
-  };
+  // Node positions (centers)
+  // Row 0 (top): MPC Key (only non-compact, centered above Privy)
+  // Row 1 (middle): User -> Privy -> Backend
+  // Row 2 (bottom): OAuth Gateway -> Provider APIs
+  const positions = compact
+    ? {
+        user:      { x: 130, y: 100 },
+        privy:     { x: 400, y: 100 },
+        backend:   { x: 670, y: 100 },
+        mpc:       { x: 400, y: 10 },
+        gateway:   { x: 270, y: 280 },
+        providers: { x: 530, y: 280 },
+      }
+    : {
+        user:      { x: 150, y: 230 },
+        privy:     { x: 450, y: 230 },
+        backend:   { x: 750, y: 230 },
+        mpc:       { x: 450, y: 60 },
+        gateway:   { x: 300, y: 470 },
+        providers: { x: 600, y: 470 },
+      };
 
   return (
     <div

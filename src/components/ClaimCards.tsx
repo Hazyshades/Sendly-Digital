@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
 import { useAccount } from 'wagmi';
 import { createWalletClient, custom, createPublicClient, http } from 'viem';
-import { arcTestnet } from '@/lib/web3/wagmiConfig';
+import { useChain } from '@/contexts/ChainContext';
 import web3Service from '@/lib/web3/web3Service';
 import { getTwitterCardMapping, claimTwitterCard, type TwitterCardMapping } from '@/lib/twitter';
 import { getTwitchCardMapping, claimTwitchCard, type TwitchCardMapping } from '@/lib/twitch';
@@ -19,7 +19,7 @@ import { getTikTokCardMapping, claimTikTokCard, type TikTokCardMapping } from '@
 import { getInstagramCardMapping, claimInstagramCard, type InstagramCardMapping } from '@/lib/instagram';
 import { PrivyAuthModal } from './PrivyAuthModal';
 import { DeveloperWalletService } from '@/lib/circle/developerWalletService';
-import { TWITCH_VAULT_CONTRACT_ADDRESS, VAULT_CONTRACT_ADDRESS, TELEGRAM_VAULT_CONTRACT_ADDRESS, TIKTOK_VAULT_CONTRACT_ADDRESS, INSTAGRAM_VAULT_CONTRACT_ADDRESS, CONTRACT_ADDRESS, GiftCardABI, USDC_ADDRESS, EURC_ADDRESS, USYC_ADDRESS, ARC_RPC_URLS } from '@/lib/web3/constants';
+import { GiftCardABI } from '@/lib/web3/constants';
 import { WalletChoiceModal } from './WalletChoiceModal';
 
 type PendingCard = (TwitterCardMapping | TwitchCardMapping | TelegramCardMapping | TikTokCardMapping | InstagramCardMapping) & {
@@ -35,6 +35,7 @@ interface ClaimCardsProps {
 export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = false }: ClaimCardsProps) {
   const { authenticated, user } = usePrivySafe();
   const { address, isConnected } = useAccount();
+  const { activeChain, activeChainId, contracts } = useChain();
   const [pendingCards, setPendingCards] = useState<PendingCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [claimingTokenId, setClaimingTokenId] = useState<string | null>(null);
@@ -48,12 +49,13 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
   const getCardInfoFromContract = async (tokenId: string): Promise<{ amount: string; currency: string; message: string } | null> => {
     try {
       const publicClient = createPublicClient({
-        chain: arcTestnet,
-        transport: http(ARC_RPC_URLS[0] || 'https://rpc.testnet.arc.network'),
+        chain: activeChain,
+        transport: http(contracts.rpcUrls[0] || 'https://rpc.testnet.arc.network'),
       });
 
+      if (!contracts.contractAddress) return null;
       const giftCardInfo = await publicClient.readContract({
-        address: CONTRACT_ADDRESS as `0x${string}`,
+        address: contracts.contractAddress as `0x${string}`,
         abi: GiftCardABI,
         functionName: 'getGiftCardInfo',
         args: [BigInt(tokenId)],
@@ -68,15 +70,11 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
       const amount = (Number(giftCardInfo.amount) / 1000000).toString();
       
       // Get token symbol from address
-      const tokenAddress = giftCardInfo.token.toLowerCase();
-      let currency = 'USDC'; // Default
-      if (tokenAddress === USDC_ADDRESS.toLowerCase()) {
-        currency = 'USDC';
-      } else if (tokenAddress === EURC_ADDRESS.toLowerCase()) {
-        currency = 'EURC';
-      } else if (tokenAddress === USYC_ADDRESS.toLowerCase()) {
-        currency = 'USYC';
-      }
+      const tokenAddr = giftCardInfo.token.toLowerCase();
+      let currency = 'USDC';
+      if (tokenAddr === contracts.usdc.toLowerCase()) currency = 'USDC';
+      else if (contracts.eurc && tokenAddr === contracts.eurc.toLowerCase()) currency = 'EURC';
+      else if (contracts.usyc && tokenAddr === contracts.usyc.toLowerCase()) currency = 'USYC';
 
       return {
         amount,
@@ -896,11 +894,11 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
         }
 
         const walletClient = createWalletClient({
-          chain: arcTestnet,
+          chain: activeChain,
           transport: custom(window.ethereum)
         });
 
-        await web3Service.initialize(walletClient, address);
+        await web3Service.initialize(walletClient, address, activeChainId);
         
         toast.info('Claiming card from vault...');
         
@@ -1025,11 +1023,11 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
         }
 
         const walletClient = createWalletClient({
-          chain: arcTestnet,
+          chain: activeChain,
           transport: custom(window.ethereum)
         });
 
-        await web3Service.initialize(walletClient, address);
+        await web3Service.initialize(walletClient, address, activeChainId);
         
         toast.info('Claiming card from vault...');
         
@@ -1149,11 +1147,11 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
         }
 
         const walletClient = createWalletClient({
-          chain: arcTestnet,
+          chain: activeChain,
           transport: custom(window.ethereum)
         });
 
-        await web3Service.initialize(walletClient, address);
+        await web3Service.initialize(walletClient, address, activeChainId);
 
         toast.info('Claiming card from vault...');
         
@@ -1278,11 +1276,11 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
         }
 
         const walletClient = createWalletClient({
-          chain: arcTestnet,
+          chain: activeChain,
           transport: custom(window.ethereum)
         });
 
-        await web3Service.initialize(walletClient, address);
+        await web3Service.initialize(walletClient, address, activeChainId);
 
         toast.info('Claiming card from vault...');
         
@@ -1407,11 +1405,11 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
         }
 
         const walletClient = createWalletClient({
-          chain: arcTestnet,
+          chain: activeChain,
           transport: custom(window.ethereum)
         });
 
-        await web3Service.initialize(walletClient, address);
+        await web3Service.initialize(walletClient, address, activeChainId);
 
         toast.info('Claiming card from vault...');
         

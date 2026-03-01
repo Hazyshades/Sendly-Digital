@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useMemo, useEffect, ReactNode } from 'react';
 import { chains } from '@/lib/web3/wagmiConfig';
 import { getContractsForChain, type ChainContracts } from '@/lib/web3/constants';
+import web3Service from '@/lib/web3/web3Service';
 import type { Chain } from 'viem';
 
 const ARC_CHAIN_ID = Number(import.meta.env.VITE_ARC_CHAIN_ID || 5042002);
@@ -35,6 +36,10 @@ export function ChainProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.setItem(STORAGE_KEY, String(activeChainId));
     } catch (_) {}
+  }, [activeChainId]);
+
+  useEffect(() => {
+    web3Service.setChainId(activeChainId);
   }, [activeChainId]);
 
   const switchChain = (chainId: number) => {

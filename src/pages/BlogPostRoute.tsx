@@ -8,6 +8,7 @@ import { ZkTLSArchitectureInfographic } from '@/components/figma/ZkTLSArchitectu
 import { PrivyOAuthInfographic } from '@/components/figma/PrivyOAuthInfographic';
 import { ZkSendPanel } from '@/components/zksend/ZkSendPanel';
 import type { SendPaymentPreviewValues } from '@/components/zksend/SendPaymentForm';
+import { CreateGiftCardPreview } from '@/components/CreateGiftCardPreview';
 import { BlogLayout } from '@/components/BlogLayout';
 import { fetchTwitterUserPreview } from '@/lib/twitter/userLookup';
 
@@ -39,7 +40,7 @@ interface BlogPost {
 interface BlogSection {
   id: string;
   title: string;
-  paragraphs: string[];
+  paragraphs: (string | React.ReactNode)[];
   bullets?: string[];
   imageId?: string;
 }
@@ -47,7 +48,7 @@ interface BlogSection {
 interface BlogImage {
   id: string;
   src?: string;
-  componentId?: 'verification-infographic' | 'zktls-infographic' | 'zktls-architecture-infographic' | 'privy-oauth-infographic' | 'payments-send-embed' | 'payments-receive-embed';
+  componentId?: 'verification-infographic' | 'zktls-infographic' | 'zktls-architecture-infographic' | 'privy-oauth-infographic' | 'payments-send-embed' | 'payments-receive-embed' | 'gift-card-create-embed';
   alt: string;
   caption: string;
 }
@@ -130,7 +131,7 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'learnings',
         title: 'Operational takeaways',
         paragraphs: [
-          'At ~$0.05/tx the gas cost is viable for production. TVL per user ($3.54) sets a baseline for deposit incentive design. Twitter accounts for 80% of cards \u2014 Telegram (12%) and Twitch (8%) are worth supporting but secondary in priority.',
+          'At ~$0.05/tx the gas cost is viable for production. Twitter accounts for 80% of cards \u2014 Telegram (12%) and Twitch (8%) are worth supporting but secondary in priority.',
           'Provider SLA: implement retries with exponential backoff (3x, cap 30s) and circuit-breaker per provider. Keep OAuth token TTL minimal (session-only) and request only the scopes actually used. Run on-chain \u2194 analytics reconciliation daily; alert on >1% discrepancy.'
         ]
       }
@@ -163,13 +164,13 @@ const blogPosts: Record<string, BlogPost> = {
       {
         id: 'send-tab',
         componentId: 'payments-send-embed',
-        alt: 'Payments — Send tab (live)',
+        alt: 'Payments -  Send tab (live)',
         caption: ''
       },
       {
         id: 'receive-tab',
         componentId: 'payments-receive-embed',
-        alt: 'Payments — Receive tab (live)',
+        alt: 'Payments -  Receive tab (live)',
         caption: ''
       }
     ],
@@ -220,7 +221,7 @@ const blogPosts: Record<string, BlogPost> = {
         title: 'Sending a payment (Send tab)',
         paragraphs: [
           'Steps:',
-          '(1) Open zk.sendly.digital \u2192 Payments \u2192 Send tab.',
+          <>(1) Open <a href="https://www.zk.sendly.digital/payments" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">zk.sendly.digital → Payments</a> → Send tab.</>,
           '(2) Connect your wallet.',
           '(3) Enter amount, select token (USDC or EURC), select platform, enter recipient username.',
           '(4) Click Send and confirm in wallet. The contract creates a payment with a paymentId; it becomes visible in Receive tab for the same platform:username.'
@@ -236,7 +237,7 @@ const blogPosts: Record<string, BlogPost> = {
         title: 'Receiving a payment (Receive tab)',
         paragraphs: [
           'Steps:',
-          '(1) Open Payments \u2192 Receive tab, connect wallet.',
+          <>(1) Open <a href="https://www.zk.sendly.digital/payments" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Payments</a> → Receive tab, connect wallet.</>,
           '(2) Enter username and select platform.',
           '(3) Wait for pending payments (or click Refresh).',
           '(4) To prove ownership: click Connect Twitter/X, Connect Twitch, Connect GitHub, Connect Telegram, or Connect LinkedIn; complete OAuth; return and Refresh.'
@@ -279,7 +280,7 @@ const blogPosts: Record<string, BlogPost> = {
   },
   nft_gift_cards_guide: {
     slug: 'nft_gift_cards_guide',
-    title: 'NFT Gift Cards — User Guide',
+    title: 'NFT Gift Cards -  User Guide',
     description:
       'An NFT gift card is a digital card minted on-chain. You choose the amount, add a message, and send it either to a wallet address or to someone\'s social username.',
     date: '2026-02-11',
@@ -289,9 +290,9 @@ const blogPosts: Record<string, BlogPost> = {
     images: [
       {
         id: 'nft-flow',
-        src: '/nft_create.png',
-        alt: 'NFT gift cards on-chain',
-        caption: 'On-chain NFT gift cards'
+        componentId: 'gift-card-create-embed',
+        alt: 'Create Gift Card tab (live)',
+        caption: ''
       }
     ],
     sections: [
@@ -553,6 +554,9 @@ export function BlogPostRoute() {
       if (img.componentId === 'privy-oauth-infographic') {
         return (<button type="button" onClick={() => setActiveImage(img)} className="w-full text-left rounded-xl overflow-hidden bg-[#FAFAFA]" aria-label={`Open: ${img.caption}`}><PrivyOAuthInfographic compact />{img.caption && <div className="mt-3 text-sm text-gray-600">{img.caption}</div>}</button>);
       }
+      if (img.componentId === 'gift-card-create-embed') {
+        return (<button type="button" onClick={() => setActiveImage(img)} className="w-full text-left rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden" aria-label={`Open: ${img.alt}`}><div className="p-2 min-h-[200px]"><CreateGiftCardPreview compact /></div></button>);
+      }
       if (img.componentId === 'payments-send-embed') {
         return (<button type="button" onClick={() => setActiveImage(img)} className="w-full text-left rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden" aria-label={`Open: ${img.alt}`}><div className="p-4 min-h-[200px]"><ZkSendPanel initialTab="send" preview previewValues={paymentsPreviewValues ?? PAYMENTS_SEND_PREVIEW_FALLBACK} /></div></button>);
       }
@@ -568,7 +572,7 @@ export function BlogPostRoute() {
         <div className={cohereStyle ? `px-4 md:px-6 ${isLast ? 'pb-12' : 'pb-8'}` : `px-12 md:px-22 ${isLast ? 'pb-12 md:pb-22' : ''}`}>
           <h2 className={cohereStyle ? 'text-2xl md:text-3xl font-medium text-gray-900 mb-6 tracking-tight' : 'text-3xl md:text-4xl font-bold text-gray-900 mb-4'}>{section.title}</h2>
           <div className={cohereStyle ? 'space-y-5 text-gray-600 text-lg leading-[1.7] font-normal' : 'space-y-4 text-gray-700 text-lg leading-relaxed'}>
-            {section.paragraphs.map((p) => <p key={p}>{p}</p>)}
+            {section.paragraphs.map((p, i) => <p key={typeof p === 'string' ? p : i}>{p}</p>)}
           </div>
           {section.bullets && section.bullets.length > 0 && (
             <ul className={cohereStyle ? 'list-disc list-inside mt-6 space-y-3 text-gray-600 text-lg leading-[1.7]' : 'list-disc list-inside mt-6 space-y-2 text-gray-700 text-lg'}>
@@ -641,48 +645,48 @@ export function BlogPostRoute() {
     <BlogLayout backLink={backLink} cohereTypography={hasEnhancedLayout}>
       {hasEnhancedLayout ? (
         <>
-          {/* Grid: article (hero + sections + footer) | TOC — hero and sections share same column width */}
+          {/* Hero -  full width, above the grid */}
+          <div
+            className="flex flex-col items-center text-center w-full px-4 md:px-6"
+            style={{ paddingTop: 6, paddingBottom: 6 }}
+          >
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <span className="px-4 py-1.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-full">
+                {post.category}
+              </span>
+              {post.readTime && (
+                <span className="text-sm text-gray-500 flex items-center gap-1">
+                  <Clock className="w-4 h-4" />
+                  {post.readTime}
+                </span>
+              )}
+            </div>
+            <h1 className="hero-title text-gray-900">{post.title}</h1>
+            <p className="hero-subtitle w-full max-w-2xl mx-auto mb-12">
+              {post.description}
+            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-center gap-4 pb-6 border-b border-gray-200 flex-wrap">
+              <span className="text-sm text-gray-500 flex items-center gap-1">
+                <Calendar className="w-4 h-4" />
+                {formatDate(post.date)}
+              </span>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {post.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-3 py-1 bg-gray-50 text-gray-600 text-sm rounded-md flex items-center gap-1"
+                  >
+                    <Tag className="w-3 h-3" />
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Grid: sections + footer | TOC -  starts at section level */}
           <div className="grid grid-cols-1 lg:grid-cols-[1fr,240px] gap-8 items-start">
             <article className="relative">
-              {/* Hero — same column as sections, so same width */}
-              <div
-                className="flex flex-col items-center text-center w-full px-4 md:px-6"
-                style={{ paddingTop: 6, paddingBottom: 6 }}
-              >
-                <div className="flex items-center justify-center gap-3 mb-6">
-                  <span className="px-4 py-1.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-full">
-                    {post.category}
-                  </span>
-                  {post.readTime && (
-                    <span className="text-sm text-gray-500 flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      {post.readTime}
-                    </span>
-                  )}
-                </div>
-                <h1 className="hero-title text-gray-900">{post.title}</h1>
-                <p className="hero-subtitle w-full max-w-2xl mx-auto mb-12">
-                  {post.description}
-                </p>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-center gap-4 pb-6 border-b border-gray-200 flex-wrap">
-                  <span className="text-sm text-gray-500 flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    {formatDate(post.date)}
-                  </span>
-                  <div className="flex flex-wrap gap-2 justify-center">
-                    {post.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-3 py-1 bg-gray-50 text-gray-600 text-sm rounded-md flex items-center gap-1"
-                      >
-                        <Tag className="w-3 h-3" />
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
               {post.sections && post.images &&
                 renderSections(post.sections, post.images, true)}
               <div className="pt-12 border-t border-gray-200 mt-12">
@@ -701,7 +705,7 @@ export function BlogPostRoute() {
               </div>
             </article>
 
-            {/* TOC - aligns with first section */}
+            {/* TOC -  aligns with first section */}
             <aside className="lg:sticky lg:top-24 h-fit">
               <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-4">
@@ -887,6 +891,10 @@ export function BlogPostRoute() {
                 <p className="px-4 py-2 text-xs text-gray-500 text-center border-t border-gray-100">
                   Scroll or pinch to zoom · Double-tap to zoom in
                 </p>
+              </div>
+            ) : activeImage.componentId === 'gift-card-create-embed' ? (
+              <div className="bg-white rounded-xl overflow-hidden p-6 max-h-[85vh] overflow-y-auto">
+                <CreateGiftCardPreview />
               </div>
             ) : activeImage.componentId === 'payments-send-embed' || activeImage.id === 'send-tab' ? (
               <div className="bg-white rounded-xl overflow-hidden p-6 max-h-[85vh] overflow-y-auto">

@@ -10,9 +10,9 @@ import {
   normalizeSocialUsername,
 } from '@/lib/reclaim/identity';
 import { createZkSendPaymentRecord } from '@/lib/zksend/zksendPaymentsAPI';
-import { USDC_ADDRESS, EURC_ADDRESS } from '@/lib/web3/constants';
+import { getExplorerTxUrl } from '@/lib/web3/constants';
+import { useChain } from '@/contexts/ChainContext';
 
-const ARC_EXPLORER_URL = import.meta.env.VITE_ARC_BLOCK_EXPLORER_URL || 'https://testnet.arcscan.app';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -51,11 +51,6 @@ type Props = {
   previewValues?: SendPaymentPreviewValues;
 };
 
-const TOKEN_OPTIONS = [
-  { value: 'USDC' as const, label: 'USDC', address: USDC_ADDRESS },
-  { value: 'EURC' as const, label: 'EURC', address: EURC_ADDRESS },
-] as const;
-
 export function SendPaymentForm({
   platform,
   onPlatformChange,
@@ -68,6 +63,11 @@ export function SendPaymentForm({
 }: Props) {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
+  const { activeChainId, contracts } = useChain();
+  const TOKEN_OPTIONS = [
+    { value: 'USDC' as const, label: 'USDC', address: contracts.usdc },
+    { value: 'EURC' as const, label: 'EURC', address: contracts.eurc ?? contracts.usdc },
+  ] as const;
 
   const [amount, setAmount] = useState(preview && previewValues ? previewValues.amount : '');
   const [tokenType, setTokenType] = useState<'USDC' | 'EURC'>(preview && previewValues ? previewValues.token : 'USDC');
@@ -96,7 +96,7 @@ export function SendPaymentForm({
       if (!amount || Number(amount) <= 0) throw new Error('Enter amount > 0');
 
       setLoading(true);
-      await web3Service.initialize(walletClient, address);
+      await web3Service.initialize(walletClient, address, activeChainId);
 
       if (platform === 'address') {
         const recipientTrimmed = username.trim();
@@ -111,7 +111,7 @@ export function SendPaymentForm({
             <span>
               Sent successfully.{' '}
               <a
-                href={`${ARC_EXPLORER_URL}/tx/${txHash}`}
+                href={getExplorerTxUrl(activeChainId, txHash)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline font-medium"
@@ -161,7 +161,7 @@ export function SendPaymentForm({
           <span>
             Payment created successfully.{' '}
             <a
-              href={`${ARC_EXPLORER_URL}/tx/${txHash}`}
+              href={getExplorerTxUrl(activeChainId, txHash)}
               target="_blank"
               rel="noopener noreferrer"
               className="underline font-medium"
@@ -207,7 +207,7 @@ export function SendPaymentForm({
           <span>
             {cleanMsg}{' '}
             <a
-              href={`${ARC_EXPLORER_URL}/tx/${txHash}`}
+              href={getExplorerTxUrl(activeChainId, txHash)}
               target="_blank"
               rel="noopener noreferrer"
               className="underline font-medium"

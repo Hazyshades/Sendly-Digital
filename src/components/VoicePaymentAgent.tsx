@@ -11,7 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { toast } from 'sonner';
 import { useAccount, useWalletClient } from 'wagmi';
 import { createWalletClient, custom } from 'viem';
-import { arcTestnet } from '@/lib/web3/wagmiConfig';
+import { useChain } from '@/contexts/ChainContext';
 import web3Service from '@/lib/web3/web3Service';
 import pinataService from '@/lib/pinata';
 import imageGenerator from '@/lib/imageGenerator';
@@ -28,6 +28,7 @@ const VOICE_AGENT_ENABLED = false;
 export function VoicePaymentAgent() {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
+  const { activeChain, activeChainId } = useChain();
   const { authenticated, user: privyUser } = usePrivySafe();
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const [contacts] = useState<Contact[]>([]);
@@ -207,12 +208,12 @@ export function VoicePaymentAgent() {
       let clientToUse = walletClient;
       if (!clientToUse) {
         clientToUse = createWalletClient({
-          chain: arcTestnet,
+          chain: activeChain,
           transport: custom(window.ethereum)
         });
       }
 
-      await web3Service.initialize(clientToUse, address);
+      await web3Service.initialize(clientToUse, address, activeChainId);
 
       if (!contact.wallet) {
         setError('Contact wallet address is missing');

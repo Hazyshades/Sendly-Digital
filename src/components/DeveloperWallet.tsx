@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAccount, useWalletClient } from 'wagmi';
 import { toast } from 'sonner';
 import { createWalletClient, custom, createPublicClient, http } from 'viem';
-import { arcTestnet } from '@/lib/web3/wagmiConfig';
+import { useChain } from '@/contexts/ChainContext';
 import { DeveloperWalletService, DeveloperWallet } from '@/lib/circle/developerWalletService';
 import web3Service from '@/lib/web3/web3Service';
 import { USDC_ADDRESS, EURC_ADDRESS, ERC20ABI } from '@/lib/web3/constants';
@@ -25,6 +25,7 @@ interface DeveloperWalletProps {
 export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletCreated }: DeveloperWalletProps) {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
+  const { activeChain, activeChainId } = useChain();
   const { user: privyUser, authenticated } = usePrivySafe();
   const [wallet, setWallet] = useState<DeveloperWallet | null>(null);
   const [loading, setLoading] = useState(false);
@@ -378,7 +379,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
     try {
       setLoadingBalances(true);
       const publicClient = createPublicClient({
-        chain: arcTestnet,
+        chain: activeChain,
         transport: http()
       });
 
@@ -494,12 +495,12 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
       let clientToUse = walletClient;
       if (!clientToUse) {
         clientToUse = createWalletClient({
-          chain: arcTestnet,
+          chain: activeChain,
           transport: custom(window.ethereum)
         });
       }
 
-      await web3Service.initialize(clientToUse, address);
+      await web3Service.initialize(clientToUse, address, activeChainId);
 
       // Send tokens to Internal wallet
       const txHash = await web3Service.sendToken(
@@ -619,7 +620,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
           return;
         }
         signer = createWalletClient({
-          chain: arcTestnet,
+          chain: activeChain,
           transport: custom((window as any).ethereum)
         });
       }

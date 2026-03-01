@@ -19,9 +19,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { toast } from 'sonner';
 import { useAccount, useWalletClient } from 'wagmi';
 import { createWalletClient, custom, createPublicClient, http } from 'viem';
-import { arcTestnet } from '@/lib/web3/wagmiConfig';
+import { useChain } from '@/contexts/ChainContext';
 import web3Service from '@/lib/web3/web3Service';
-import { CONTRACT_ADDRESS, USDC_ADDRESS, EURC_ADDRESS, ERC20ABI, VAULT_CONTRACT_ADDRESS, TWITCH_VAULT_CONTRACT_ADDRESS, TELEGRAM_VAULT_CONTRACT_ADDRESS, TIKTOK_VAULT_CONTRACT_ADDRESS, INSTAGRAM_VAULT_CONTRACT_ADDRESS } from '@/lib/web3/constants';
+import { ERC20ABI, getExplorerTxUrl } from '@/lib/web3/constants';
 import { generateNewIpfsUri } from '@/lib/newIpfsUri';
 // import { insertFakeUri } from '@/lib/supabase/uriService';
 import { createTwitterCardMapping } from '@/lib/twitter';
@@ -196,6 +196,7 @@ function getWalletName(): string {
 export function CreateGiftCard() {
   const { address, isConnected, connector } = useAccount();
   const { data: walletClient } = useWalletClient();
+  const { activeChain, activeChainId, contracts } = useChain();
   const { authenticated, user: privyUser } = usePrivySafe();
   const [walletName, setWalletName] = useState<string>('Web3 Wallet');
   const navigate = useNavigate();
@@ -548,14 +549,14 @@ export function CreateGiftCard() {
       const metadataUri = generateNewIpfsUri();
 
       // Step 2: Check token balance and prepare for creation
-      const tokenAddress = formData.currency === 'USDC' ? USDC_ADDRESS : EURC_ADDRESS;
+      const tokenAddress = formData.currency === 'USDC' ? contracts.usdc : (contracts.eurc ?? contracts.usdc);
       
       const amountWei = (parseFloat(formData.amount) * 1000000).toString(); // 6 decimals for USDC/EURC
       
       // Check balance for Internal wallet
       if (useDeveloperWallet) {
         const publicClient = createPublicClient({
-          chain: arcTestnet,
+          chain: activeChain,
           transport: http()
         });
         
@@ -579,7 +580,7 @@ export function CreateGiftCard() {
         // For social usernames, the card creation functions are in the main CONTRACT_ADDRESS, not in vault contracts
         // Vault contracts are only used for storing cards, not for creating them
         // For address recipients, also use CONTRACT_ADDRESS
-        const spenderAddress = CONTRACT_ADDRESS;
+        const spenderAddress = contracts.contractAddress!;
 
         const currentAllowance = await publicClient.readContract({
           address: tokenAddress as `0x${string}`,
@@ -735,7 +736,7 @@ export function CreateGiftCard() {
         const txResult = await DeveloperWalletService.sendTransaction({
           walletId: developerWallet.circle_wallet_id,
           walletAddress: developerWallet.wallet_address,
-          contractAddress: CONTRACT_ADDRESS,
+          contractAddress: contracts.contractAddress!,
           functionName: functionName,
           args: args,
           blockchain: 'ARC-TESTNET',
@@ -865,7 +866,7 @@ export function CreateGiftCard() {
         } else {
           // Wait for transaction receipt and extract tokenId
           const publicClient = createPublicClient({
-            chain: arcTestnet,
+            chain: activeChain,
             transport: http()
           });
           
@@ -887,13 +888,13 @@ export function CreateGiftCard() {
           const transferEvent = receipt.logs.find((log: any) => 
             log.topics[0] === transferEventSignature &&
             log.topics[1]?.toLowerCase() === zeroAddressTopic.toLowerCase() &&
-            (log.address.toLowerCase() === CONTRACT_ADDRESS.toLowerCase() ||
-             log.address.toLowerCase() === (formData.recipientType === 'twitter' ? VAULT_CONTRACT_ADDRESS :
-                                          formData.recipientType === 'twitch' ? TWITCH_VAULT_CONTRACT_ADDRESS :
-                                          formData.recipientType === 'telegram' ? TELEGRAM_VAULT_CONTRACT_ADDRESS :
-                                          formData.recipientType === 'tiktok' ? TIKTOK_VAULT_CONTRACT_ADDRESS :
-                                          formData.recipientType === 'instagram' ? INSTAGRAM_VAULT_CONTRACT_ADDRESS :
-                                          CONTRACT_ADDRESS).toLowerCase())
+            (log.address.toLowerCase() === contracts.contractAddress!.toLowerCase() ||
+             log.address.toLowerCase() === (formData.recipientType === 'twitter' ? contracts.vaultContract! :
+                                          formData.recipientType === 'twitch' ? contracts.twitchVault! :
+                                          formData.recipientType === 'telegram' ? contracts.telegramVault! :
+                                          formData.recipientType === 'tiktok' ? contracts.tiktokVault! :
+                                          formData.recipientType === 'instagram' ? contracts.instagramVault! :
+                                          contracts.contractAddress!).toLowerCase())
           );
           
           if (transferEvent && transferEvent.topics[3]) {
@@ -912,12 +913,12 @@ export function CreateGiftCard() {
         if (!clientToUse) {
           // Creating manual wallet client
           clientToUse = createWalletClient({
-            chain: arcTestnet,
+            chain: activeChain,
             transport: custom(window.ethereum)
           });
         }
 
-        await web3Service.initialize(clientToUse, createAddress);
+        await web3Service.initialize(clientToUse, createAddress, activeChainId);
         
         // Use different methods based on recipient type
         if (formData.recipientType === 'twitter') {
@@ -1132,7 +1133,7 @@ export function CreateGiftCard() {
           tx_hash: result.txHash,
         });
 
-        // Save new IPFS URI to uri table (commented out — only saving in gift_cards_graph)
+        // Save new IPFS URI to uri table (commented out -  only saving in gift_cards_graph)
         // await insertFakeUri(metadataUri, result.tokenId);
 
         // Also save to gift_cards_graph table for leaderboard calculations
@@ -1186,7 +1187,7 @@ export function CreateGiftCard() {
       const txHash = txHashMatch ? txHashMatch[0] : null;
       setErrorTxHash(txHash);
 
-      // User rejected transaction — short popup message
+      // User rejected transaction -  short popup message
       const isUserRejected =
         errorCode === 4001 ||
         errorMessage.toLowerCase().includes('user rejected') ||
@@ -1787,11 +1788,10 @@ If recipient never log in on Sendly with this social, please, DONT'T SEND the fu
                     TX:{' '}
                     <button
                       onClick={() => {
-                        const explorer = import.meta.env.VITE_ARC_BLOCK_EXPLORER_URL || 'https://testnet.arcscan.app';
-                        window.open(`${explorer}/tx/${errorTxHash}`, '_blank');
+                        window.open(getExplorerTxUrl(activeChainId, errorTxHash), '_blank');
                       }}
                       className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
-                      title={`View on Arc Explorer: ${errorTxHash}`}
+                      title={`View on Explorer: ${errorTxHash}`}
                     >
                       {errorTxHash.slice(0, 10)}...{errorTxHash.slice(-8)}
                     </button>
@@ -1811,11 +1811,10 @@ If recipient never log in on Sendly with this social, please, DONT'T SEND the fu
                   TX: 
                   <button
                     onClick={() => {
-                      const explorer = import.meta.env.VITE_ARC_BLOCK_EXPLORER_URL || 'https://testnet.arcscan.app';
-                      window.open(`${explorer}/tx/${createdCard.tx_hash}`, '_blank');
+                      window.open(getExplorerTxUrl(activeChainId, createdCard.tx_hash ?? ''), '_blank');
                     }}
                     className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors ml-1"
-                    title={`View on Arc Explorer: ${createdCard.tx_hash}`}
+                    title={`View on Explorer: ${createdCard.tx_hash}`}
                   >
                     {createdCard.tx_hash.slice(0, 10)}...{createdCard.tx_hash.slice(-8)}
                   </button>

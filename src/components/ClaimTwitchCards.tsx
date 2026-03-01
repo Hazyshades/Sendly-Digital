@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
 import { useAccount } from 'wagmi';
 import { createWalletClient, custom } from 'viem';
-import { arcTestnet } from '@/lib/web3/wagmiConfig';
+import { useChain } from '@/contexts/ChainContext';
 import web3Service from '@/lib/web3/web3Service';
 import { getTwitchCardMapping, type TwitchCardMapping } from '@/lib/twitch';
 import { PrivyAuthModal } from '@/components/PrivyAuthModal';
@@ -21,6 +21,7 @@ import { WalletChoiceModal } from '@/components/WalletChoiceModal';
 export function ClaimTwitchCards() {
   const { authenticated, user } = usePrivySafe();
   const { address, isConnected } = useAccount();
+  const { activeChain, activeChainId } = useChain();
   const [pendingCards, setPendingCards] = useState<TwitchCardMapping[]>([]);
   const [loading, setLoading] = useState(true);
   const [claimingTokenId, setClaimingTokenId] = useState<string | null>(null);
@@ -323,11 +324,11 @@ export function ClaimTwitchCards() {
       }
 
       const walletClient = createWalletClient({
-        chain: arcTestnet,
+        chain: activeChain,
         transport: custom(window.ethereum)
       });
 
-      await web3Service.initialize(walletClient, address);
+      await web3Service.initialize(walletClient, address, activeChainId);
       
       toast.info('Claiming card from vault...');
       

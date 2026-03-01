@@ -3,12 +3,15 @@ import type { GiftCardRecord, GiftCardInsert } from '@/types/giftCard';
 
 export type { GiftCardRecord, GiftCardInsert };
 
+const DEFAULT_CHAIN_ID = 5042002;
+
 export class GiftCardsService {
-  static async upsertCard(card: GiftCardInsert): Promise<GiftCardRecord | null> {
+  static async upsertCard(card: GiftCardInsert, chainId?: number): Promise<GiftCardRecord | null> {
     try {
+      const row = { ...card, chain_id: card.chain_id ?? chainId ?? DEFAULT_CHAIN_ID, last_synced_at: new Date().toISOString() };
       const { data, error } = await supabase
         .from('gift_cards')
-        .upsert({ ...card, last_synced_at: new Date().toISOString() }, { onConflict: 'token_id', ignoreDuplicates: false })
+        .upsert(row, { onConflict: 'token_id', ignoreDuplicates: false })
         .select()
         .single();
       if (error) {
@@ -22,13 +25,14 @@ export class GiftCardsService {
     }
   }
 
-  static async getCardsBySender(senderAddress: string): Promise<GiftCardRecord[]> {
+  static async getCardsBySender(senderAddress: string, chainId?: number): Promise<GiftCardRecord[]> {
     try {
-      const { data, error } = await supabase
+      let q = supabase
         .from('gift_cards')
         .select('*')
-        .eq('sender_address', senderAddress.toLowerCase())
-        .order('created_at', { ascending: false });
+        .eq('sender_address', senderAddress.toLowerCase());
+      if (chainId != null) q = q.eq('chain_id', chainId);
+      const { data, error } = await q.order('created_at', { ascending: false });
       if (error) {
         console.error('Error fetching sent cards:', error);
         return [];
@@ -40,14 +44,15 @@ export class GiftCardsService {
     }
   }
 
-  static async getCardsByRecipientAddress(recipientAddress: string): Promise<GiftCardRecord[]> {
+  static async getCardsByRecipientAddress(recipientAddress: string, chainId?: number): Promise<GiftCardRecord[]> {
     try {
-      const { data, error } = await supabase
+      let q = supabase
         .from('gift_cards')
         .select('*')
         .eq('recipient_address', recipientAddress.toLowerCase())
-        .eq('recipient_type', 'address')
-        .order('created_at', { ascending: false });
+        .eq('recipient_type', 'address');
+      if (chainId != null) q = q.eq('chain_id', chainId);
+      const { data, error } = await q.order('created_at', { ascending: false });
       if (error) {
         console.error('Error fetching received cards:', error);
         return [];
@@ -79,13 +84,11 @@ export class GiftCardsService {
     }
   }
 
-  static async getCardByTokenId(tokenId: string): Promise<GiftCardRecord | null> {
+  static async getCardByTokenId(tokenId: string, chainId?: number): Promise<GiftCardRecord | null> {
     try {
-      const { data, error } = await supabase
-        .from('gift_cards')
-        .select('*')
-        .eq('token_id', tokenId)
-        .single();
+      let q = supabase.from('gift_cards').select('*').eq('token_id', tokenId);
+      if (chainId != null) q = q.eq('chain_id', chainId);
+      const { data, error } = await q.single();
       if (error) {
         if (error.code === 'PGRST116') return null;
         console.error('Error fetching card by token ID:', error);
@@ -98,12 +101,14 @@ export class GiftCardsService {
     }
   }
 
-  static async updateCardRedeemedStatus(tokenId: string, redeemed: boolean): Promise<boolean> {
+  static async updateCardRedeemedStatus(tokenId: string, redeemed: boolean, chainId?: number): Promise<boolean> {
     try {
-      const { error } = await supabase
+      let q = supabase
         .from('gift_cards')
         .update({ redeemed, last_synced_at: new Date().toISOString() })
         .eq('token_id', tokenId);
+      if (chainId != null) q = q.eq('chain_id', chainId);
+      const { error } = await q;
       if (error) {
         console.error('Error updating card redeemed status:', error);
         return false;
@@ -140,9 +145,11 @@ export class GiftCardsService {
     block_timestamp?: number | null;
     event_type?: string | null;
     uri?: string | null;
-  }): Promise<boolean> {
+  }, chainId?: number): Promise<boolean> {
     try {
+      const cid = card.chain_id ?? chainId ?? DEFAULT_CHAIN_ID;
       const graphCard = {
+        chain_id: cid,
         token_id: card.token_id,
         sender_address: card.sender_address?.toLowerCase() ?? null,
         recipient_address: card.recipient_address?.toLowerCase() ?? null,
@@ -160,7 +167,7 @@ export class GiftCardsService {
       };
       const { error } = await supabase
         .from('gift_cards_graph')
-        .upsert(graphCard, { onConflict: 'token_id', ignoreDuplicates: false });
+        .upsert(graphCard, { onConflict: 'chain_id,token_id', ignoreDuplicates: false });
       if (error) {
         console.error('Error upserting gift card to graph:', error);
         return false;
