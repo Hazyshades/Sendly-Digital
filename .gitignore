@@ -7,6 +7,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+/playwright-report/
+/test-results/
+/tests/
 
 # Dependency directories
 node_modules/
@@ -30,6 +33,10 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+.env.test
+
+# E2E extensions (Rabby, etc.)
+extensions/
 
 # Local history files
 .history
@@ -69,7 +76,8 @@ mkcert.exe
 /.git backup/
 /.git backup2/
 
-/tests/
+# Avoid duplicate node_modules in tests (causes "Requiring @playwright/test second time")
+tests/node_modules/
 
 /cursor/
 .cursorignore

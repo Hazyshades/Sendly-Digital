@@ -72,7 +72,7 @@ export default defineConfig(({ mode }) => {
     }
   } else {
     console.log('ℹ️  HTTP mode (HTTPS disabled)');
-    console.log('ℹ️  Server will be available at: http://localhost:3002');
+    console.log('ℹ️  Server will be available at: https://localhost:3002');
   }
 
   return {
