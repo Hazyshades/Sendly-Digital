@@ -56,6 +56,20 @@
   --circle-shape-pink: #FFD1D1;
   --circle-shape-blue: #A5D8FF;
   --circle-shape-purple: #D6BBFF;
+
+  /* Sendly brand colors */
+  --sendly-indigo: #6366f1;
+  --sendly-indigo-dark: #4f46e5;
+  --sendly-violet: #8b5cf6;
+  --sendly-background: #0f172a;
+  --sendly-card: #1e293b;
+  --sendly-border: #334155;
+  --sendly-text-primary: #f8fafc;
+  --sendly-text-secondary: #94a3b8;
+  --sendly-text-muted: #64748b;
+  --sendly-success: #10b981;
+  --sendly-warning: #f59e0b;
+  --sendly-error: #ef4444;
 }
 
 .dark {
@@ -224,6 +238,7 @@
     background: linear-gradient(135deg, var(--circle-gradient-start) 0%, var(--circle-gradient-mid) 50%, var(--circle-gradient-end) 100%);
     position: relative;
     overflow: hidden;
+    min-height: 100vh;
   }
   
   .circle-gradient-bg::before {
@@ -238,6 +253,7 @@
     border-radius: 50%;
     animation: float 20s ease-in-out infinite;
     z-index: 0;
+    filter: blur(60px);
   }
   
   .circle-gradient-bg::after {
@@ -252,6 +268,7 @@
     border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
     animation: float 25s ease-in-out infinite reverse;
     z-index: 0;
+    filter: blur(60px);
   }
   
   .circle-gradient-bg .abstract-shape {
@@ -265,6 +282,7 @@
     right: 5%;
     animation: float 30s ease-in-out infinite;
     z-index: 0;
+    filter: blur(80px);
   }
   
   @keyframes float {
@@ -411,21 +429,31 @@ html {
   backdrop-filter: blur(20px) saturate(180%);
 }
 
-/* Custom scrollbar for landing */
+/* Custom scrollbar - Sendly indigo aesthetic */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0a0a0f;
+  background: #0f172a;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(249, 115, 22, 0.5);
+  background: rgba(99, 102, 241, 0.5);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(249, 115, 22, 0.7);
+  background: rgba(99, 102, 241, 0.8);
+}
+
+/* Cursor blink for landing typing animation */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.cursor-blink {
+  animation: cursor-blink 1s ease-in-out infinite;
 }
