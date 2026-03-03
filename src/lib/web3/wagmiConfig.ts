@@ -1,5 +1,5 @@
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { defineChain, http } from 'viem';
+import { defineChain, http, type Chain } from 'viem';
 import { createConfig } from 'wagmi';
 import { injected } from 'wagmi/connectors';
 import { isZkLocalhost } from '@/lib/runtime/zkHost';
@@ -55,8 +55,31 @@ export const avalancheFuji = defineChain({
   },
 });
 
+// Base Sepolia Testnet chain definition
+const baseSepoliaChainId = Number(import.meta.env.VITE_BASE_CHAIN_ID || 84532);
+const baseSepoliaRpcUrl = import.meta.env.VITE_BASE_RPC_URL || 'https://sepolia.base.org';
+const baseSepoliaRpcFallback = import.meta.env.VITE_BASE_RPC_FALLBACK_URL || 'https://base-sepolia-rpc.publicnode.com';
+const baseSepoliaExplorerUrl = import.meta.env.VITE_BASE_BLOCK_EXPLORER_URL || 'https://sepolia.basescan.org';
+
+export const baseSepolia = defineChain({
+  id: baseSepoliaChainId,
+  name: 'Base Sepolia',
+  nativeCurrency: {
+    name: 'Ether',
+    symbol: 'ETH',
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: { http: [baseSepoliaRpcUrl] },
+    public: { http: [baseSepoliaRpcUrl, baseSepoliaRpcFallback] },
+  },
+  blockExplorers: {
+    default: { name: 'BaseScan', url: baseSepoliaExplorerUrl },
+  },
+});
+
 // RainbowKit configuration - getDefaultConfig automatically includes Rainbow Wallet
-const allChains = [arcTestnet, avalancheFuji];
+const allChains: [Chain, ...Chain[]] = [arcTestnet, avalancheFuji, baseSepolia];
 
 export const config = isZkLocalhost()
   ? createConfig({
@@ -65,6 +88,7 @@ export const config = isZkLocalhost()
       transports: {
         [arcTestnet.id]: http(arcRpcUrl),
         [avalancheFuji.id]: http(avaxRpcUrl),
+        [baseSepolia.id]: http(baseSepoliaRpcUrl),
       },
       ssr: false,
     })

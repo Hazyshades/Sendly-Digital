@@ -17,7 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { useChain } from '@/contexts/ChainContext';
 import web3Service from '@/lib/web3/web3Service';
 import { GiftCardsService } from '@/lib/supabase/giftCards';
-import { USDC_ADDRESS, EURC_ADDRESS, USYC_ADDRESS, CONTRACT_ADDRESS, GiftCardABI } from '@/lib/web3/constants';
+import { GiftCardABI } from '@/lib/web3/constants';
 import BridgeDialog from './BridgeDialog';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
 import { DeveloperWalletService } from '@/lib/circle/developerWalletService';
@@ -59,7 +59,7 @@ const SERVICE_DISPLAY_NAMES: Record<string, string> = {
 
 export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
   const { address, isConnected } = useAccount();
-  const { activeChain, activeChainId } = useChain();
+  const { activeChain, activeChainId, contracts } = useChain();
   const { authenticated, user: privyUser } = usePrivySafe();
   const navigate = useNavigate();
   const [hasDeveloperWallet, setHasDeveloperWallet] = useState(false);
@@ -244,13 +244,13 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
         // Use the correct ABI from GiftCardABI
         const [contractData, ownerData, creatorData] = await Promise.all([
           publicClient.readContract({
-            address: CONTRACT_ADDRESS as `0x${string}`,
+            address: (contracts.contractAddress ?? contracts.zksend) as `0x${string}`,
             abi: GiftCardABI,
             functionName: 'getGiftCardInfo',
             args: [BigInt(tokenId)]
           }),
           publicClient.readContract({
-            address: CONTRACT_ADDRESS as `0x${string}`,
+            address: (contracts.contractAddress ?? contracts.zksend) as `0x${string}`,
             abi: [
               {
                 inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
@@ -264,7 +264,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
             args: [BigInt(tokenId)]
           }),
           publicClient.readContract({
-            address: CONTRACT_ADDRESS as `0x${string}`,
+            address: (contracts.contractAddress ?? contracts.zksend) as `0x${string}`,
             abi: [
               {
                 inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
@@ -311,9 +311,9 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
       // Determine token symbol from address
       const tokenAddress = giftCardInfo.token.toLowerCase();
       const tokenSymbol: RedeemableCard['currency'] = 
-        tokenAddress === USDC_ADDRESS.toLowerCase() ? 'USDC' :
-        tokenAddress === EURC_ADDRESS.toLowerCase() ? 'EURC' :
-        tokenAddress === USYC_ADDRESS.toLowerCase() ? 'USYC' :
+        tokenAddress === contracts.usdc.toLowerCase() ? 'USDC' :
+        (contracts.eurc && tokenAddress === contracts.eurc.toLowerCase()) ? 'EURC' :
+        (contracts.usyc && tokenAddress === contracts.usyc.toLowerCase()) ? 'USYC' :
         'USDC';
 
       // Format creator address (show first 6 and last 4 characters)
@@ -439,13 +439,13 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
 
         [giftCardInfo, owner] = await Promise.all([
           publicClient.readContract({
-            address: CONTRACT_ADDRESS as `0x${string}`,
+            address: (contracts.contractAddress ?? contracts.zksend) as `0x${string}`,
             abi: GiftCardABI,
             functionName: 'getGiftCardInfo',
             args: [BigInt(currentCard.tokenId)]
           }),
           publicClient.readContract({
-            address: CONTRACT_ADDRESS as `0x${string}`,
+            address: (contracts.contractAddress ?? contracts.zksend) as `0x${string}`,
             abi: [
               {
                 inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
@@ -569,7 +569,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
         const txResult = await DeveloperWalletService.sendTransaction({
           walletId: developerWallet.circle_wallet_id,
           walletAddress: developerWallet.wallet_address,
-          contractAddress: CONTRACT_ADDRESS,
+          contractAddress: contracts.contractAddress ?? contracts.zksend,
           functionName: 'redeemGiftCard',
           args: [BigInt(currentCard.tokenId)],
           blockchain: 'ARC-TESTNET',

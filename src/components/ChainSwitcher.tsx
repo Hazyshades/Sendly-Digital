@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 const CHAIN_LABELS: Record<number, string> = {
   5042002: 'Arc Testnet',
   43113: 'Avalanche Fuji',
+  84532: 'Base Sepolia',
 };
 
 export function ChainSwitcher() {

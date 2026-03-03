@@ -5,7 +5,7 @@ import { createWalletClient, custom, createPublicClient, http } from 'viem';
 import { useChain } from '@/contexts/ChainContext';
 import { DeveloperWalletService, DeveloperWallet } from '@/lib/circle/developerWalletService';
 import web3Service from '@/lib/web3/web3Service';
-import { USDC_ADDRESS, EURC_ADDRESS, ERC20ABI } from '@/lib/web3/constants';
+import { USDC_ADDRESS, EURC_ADDRESS, ERC20ABI, getExplorerTxUrl, getExplorerAddressUrl } from '@/lib/web3/constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -455,26 +455,29 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
     return names[blockchain] || blockchain;
   };
 
+  const blockchainToChainId: Record<string, number> = {
+    'ARC-TESTNET': 5042002,
+    'ETH-SEPOLIA': 11155111,
+    'BASE-SEPOLIA': 84532,
+    'MATIC-AMOY': 80002,
+  };
+
   const getExplorerUrl = (blockchain: string, address: string) => {
-    const urls: Record<string, string> = {
-      'ARC-TESTNET': `https://testnet.arcscan.app/address/${address}`,
-      'ETH-SEPOLIA': `https://sepolia.etherscan.io/address/${address}`,
-      'BASE-SEPOLIA': `https://sepolia.basescan.org/address/${address}`,
-      'MATIC-AMOY': `https://amoy.polygonscan.com/address/${address}`,
-      'SOL-DEVNET': `https://explorer.solana.com/address/${address}?cluster=devnet`
-    };
-    return urls[blockchain] || '#';
+    if (blockchain === 'SOL-DEVNET') {
+      return `https://explorer.solana.com/address/${address}?cluster=devnet`;
+    }
+    const chainId = blockchainToChainId[blockchain];
+    if (chainId != null) return getExplorerAddressUrl(chainId, address);
+    return '#';
   };
 
   const getTransactionUrl = (blockchain: string, txHash: string) => {
-    const urls: Record<string, string> = {
-      'ARC-TESTNET': `https://testnet.arcscan.app/tx/${txHash}`,
-      'ETH-SEPOLIA': `https://sepolia.etherscan.io/tx/${txHash}`,
-      'BASE-SEPOLIA': `https://sepolia.basescan.org/tx/${txHash}`,
-      'MATIC-AMOY': `https://amoy.polygonscan.com/tx/${txHash}`,
-      'SOL-DEVNET': `https://explorer.solana.com/tx/${txHash}?cluster=devnet`
-    };
-    return urls[blockchain] || '#';
+    if (blockchain === 'SOL-DEVNET') {
+      return `https://explorer.solana.com/tx/${txHash}?cluster=devnet`;
+    }
+    const chainId = blockchainToChainId[blockchain];
+    if (chainId != null) return getExplorerTxUrl(chainId, txHash);
+    return '#';
   };
 
   const handleTopUp = async () => {

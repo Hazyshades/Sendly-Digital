@@ -112,7 +112,8 @@ export const SUPPORTED_CHAINS: ChainConfig[] = [
     slug: 'base-sepolia',
     domain: 6,
     bridgeKitId: 'Base_Sepolia',
-    blockExplorer: 'https://base-sepolia.blockscout.com',
+    rpcUrl: 'https://sepolia.base.org',
+    blockExplorer: 'https://sepolia.basescan.org',
     isTestnet: true,
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 }
   },

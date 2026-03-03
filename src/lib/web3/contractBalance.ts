@@ -5,9 +5,14 @@ import { getContractsForChain, ERC20ABI } from './constants';
 
 const ARC_CHAIN_ID = Number(import.meta.env.VITE_ARC_CHAIN_ID || 5042002);
 const AVAX_CHAIN_ID = Number(import.meta.env.VITE_AVAX_CHAIN_ID || 43113);
+const BASE_SEPOLIA_CHAIN_ID = Number(import.meta.env.VITE_BASE_CHAIN_ID || 84532);
+
+function isEtherscanLikeChain(chainId: number): boolean {
+  return chainId === AVAX_CHAIN_ID || chainId === BASE_SEPOLIA_CHAIN_ID;
+}
 
 /**
- * Get contract balance in USDC using block explorer API (ArcScan or SnowTrace)
+ * Get contract balance in USDC using block explorer API (ArcScan, SnowTrace, or BaseScan)
  */
 export async function getContractBalanceViaAPI(
   contractAddress: string,
@@ -16,8 +21,8 @@ export async function getContractBalanceViaAPI(
 ): Promise<number> {
   const contracts = getContractsForChain(chainId);
   try {
-    if (chainId === AVAX_CHAIN_ID) {
-      // SnowTrace (Etherscan-compatible) API: tokenbalance
+    if (isEtherscanLikeChain(chainId)) {
+      // SnowTrace / BaseScan (Etherscan-compatible) API: tokenbalance
       const params = new URLSearchParams({
         module: 'account',
         action: 'tokenbalance',
@@ -26,7 +31,7 @@ export async function getContractBalanceViaAPI(
         tag: 'latest',
       });
       const response = await fetch(`${contracts.explorerApiUrl}?${params}`);
-      if (!response.ok) throw new Error(`SnowTrace API error: ${response.status}`);
+      if (!response.ok) throw new Error(`Explorer API error: ${response.status}`);
       const data = await response.json();
       if (data.result && data.status === '1') {
         const balanceWei = BigInt(data.result);
@@ -108,7 +113,7 @@ export async function getContractCounters(
   gas_usage_count: string;
 }> {
   const contracts = getContractsForChain(chainId);
-  if (chainId === AVAX_CHAIN_ID) {
+  if (chainId === AVAX_CHAIN_ID || chainId === BASE_SEPOLIA_CHAIN_ID) {
     return {
       transactions_count: 0,
       token_transfers_count: 0,
@@ -139,7 +144,7 @@ export async function getContractTransactionsCount(
     const counters = await getContractCounters(contractAddress, chainId);
     return counters.transactions_count;
   } catch (error) {
-    if (chainId === AVAX_CHAIN_ID) return 0;
+    if (chainId === AVAX_CHAIN_ID || chainId === BASE_SEPOLIA_CHAIN_ID) return 0;
     const contracts = getContractsForChain(chainId);
     const response = await fetch(
       `${contracts.explorerApiUrl}/addresses/${contractAddress.toLowerCase()}`,

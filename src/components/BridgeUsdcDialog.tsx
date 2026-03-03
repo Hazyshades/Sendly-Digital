@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
 import bridgeService from '@/lib/bridge/bridgeService';
+import { getExplorerTxUrl } from '@/lib/web3/constants';
 
 interface Props {
   open: boolean;
@@ -83,7 +84,7 @@ export default function BridgeUsdcDialog({ open, onOpenChange, onBridgeComplete,
             <div className="text-sm">
               Burn tx:{' '}
               <a
-                href={`${import.meta.env.VITE_ARC_BLOCK_EXPLORER_URL || 'https://testnet.arcscan.app'}/tx/${txFrom}`}
+                href={getExplorerTxUrl(5042002, txFrom)}
                 target="_blank"
                 rel="noreferrer"
                 className="text-blue-600 hover:text-blue-800 underline break-all"
@@ -96,7 +97,7 @@ export default function BridgeUsdcDialog({ open, onOpenChange, onBridgeComplete,
             <div className="text-sm">
               Mint tx:{' '}
               <a
-                href={`https://base-sepolia.blockscout.com/tx/${txTo}`}
+                href={getExplorerTxUrl(84532, txTo)}
                 target="_blank"
                 rel="noreferrer"
                 className="text-blue-600 hover:text-blue-800 underline break-all"

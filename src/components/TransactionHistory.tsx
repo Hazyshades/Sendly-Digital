@@ -1072,7 +1072,7 @@ export function TransactionHistory() {
                         type="button"
                         onClick={() => handleTxHashClick(tx.txHash)}
                         className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors dark:text-blue-400 dark:hover:text-blue-300"
-                        title={`View on Arc Explorer: ${tx.txHash}`}
+                        title={`View on Explorer: ${tx.txHash}`}
                       >
                         {tx.txHash.slice(0, 10)}...{tx.txHash.slice(-8)}
                       </button>

@@ -64,15 +64,17 @@ export class GiftCardsService {
     }
   }
 
-  static async getAllCardsWithNullRecipient(): Promise<GiftCardRecord[]> {
+  static async getAllCardsWithNullRecipient(chainId?: number): Promise<GiftCardRecord[]> {
     try {
-      const { data, error } = await supabase
+      let q = supabase
         .from('gift_cards')
         .select('*')
         .is('recipient_address', null)
         .eq('recipient_type', 'address')
         .order('created_at', { ascending: false })
         .limit(100);
+      if (chainId != null) q = q.eq('chain_id', chainId);
+      const { data, error } = await q;
       if (error) {
         console.error('Error fetching cards with null recipient:', error);
         return [];

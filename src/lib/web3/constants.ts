@@ -149,6 +149,28 @@ export const AVAX_RPC_URL = AVAX_RPC_URLS[0];
 export const SNOWTRACE_API_URL = 'https://api-testnet.snowtrace.io/api';
 export const SNOWTRACE_EXPLORER_URL = 'https://testnet.snowtrace.io';
 
+// Base Sepolia Testnet (84532)
+export const BASE_SEPOLIA_CHAIN_ID = Number(import.meta.env.VITE_BASE_CHAIN_ID || 84532);
+export const BASE_SEPOLIA_RPC_URLS = (
+  import.meta.env.VITE_BASE_RPC_URLS?.split(',').map((s: string) => s.trim()).filter(Boolean)
+  || []
+).concat([
+  import.meta.env.VITE_BASE_RPC_URL || 'https://sepolia.base.org',
+  import.meta.env.VITE_BASE_RPC_FALLBACK_URL || 'https://base-sepolia-rpc.publicnode.com',
+]).filter(Boolean);
+export const BASE_SEPOLIA_RPC_URL = BASE_SEPOLIA_RPC_URLS[0];
+export const BASE_SEPOLIA_EXPLORER_URL = import.meta.env.VITE_BASE_BLOCK_EXPLORER_URL || 'https://sepolia.basescan.org';
+export const BASE_SEPOLIA_EXPLORER_API_URL = 'https://api-sepolia.basescan.org/api';
+
+export const BASE_SEPOLIA_ZKSEND_CONTRACT_ADDRESS =
+  import.meta.env.VITE_BASE_ZKSEND_CONTRACT_ADDRESS || '';
+export const BASE_SEPOLIA_USDC_ADDRESS =
+  import.meta.env.VITE_BASE_USDC_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+export const BASE_SEPOLIA_USDT_ADDRESS =
+  import.meta.env.VITE_BASE_USDT_ADDRESS || '';
+export const BASE_SEPOLIA_RECLAIM_VERIFIER_CONTRACT_ADDRESS =
+  import.meta.env.VITE_BASE_RECLAIM_VERIFIER_ADDRESS || '';
+
 export interface ChainContracts {
   chainId: number;
   contractAddress?: string;
@@ -191,6 +213,19 @@ export function getContractsForChain(chainId: number): ChainContracts {
       rpcUrls: [...AVAX_RPC_URLS],
       explorerUrl: SNOWTRACE_EXPLORER_URL,
       explorerApiUrl: SNOWTRACE_API_URL,
+    };
+  }
+  if (chainId === BASE_SEPOLIA_CHAIN_ID) {
+    return {
+      chainId: BASE_SEPOLIA_CHAIN_ID,
+      contractAddress: undefined,
+      zksend: BASE_SEPOLIA_ZKSEND_CONTRACT_ADDRESS,
+      usdc: BASE_SEPOLIA_USDC_ADDRESS,
+      usdt: BASE_SEPOLIA_USDT_ADDRESS || undefined,
+      reclaimVerifier: BASE_SEPOLIA_RECLAIM_VERIFIER_CONTRACT_ADDRESS,
+      rpcUrls: [...BASE_SEPOLIA_RPC_URLS],
+      explorerUrl: BASE_SEPOLIA_EXPLORER_URL,
+      explorerApiUrl: BASE_SEPOLIA_EXPLORER_API_URL,
     };
   }
   return {

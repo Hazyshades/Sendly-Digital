@@ -15,13 +15,13 @@ import web3Service from '@/lib/web3/web3Service';
 import { getTwitchCardMapping, type TwitchCardMapping } from '@/lib/twitch';
 import { PrivyAuthModal } from '@/components/PrivyAuthModal';
 import { DeveloperWalletService } from '@/lib/circle/developerWalletService';
-import { TWITCH_VAULT_CONTRACT_ADDRESS } from '@/lib/web3/constants';
 import { WalletChoiceModal } from '@/components/WalletChoiceModal';
 
 export function ClaimTwitchCards() {
   const { authenticated, user } = usePrivySafe();
   const { address, isConnected } = useAccount();
-  const { activeChain, activeChainId } = useChain();
+  const { activeChain, activeChainId, contracts } = useChain();
+  const twitchVaultAddress = contracts.twitchVault ?? '';
   const [pendingCards, setPendingCards] = useState<TwitchCardMapping[]>([]);
   const [loading, setLoading] = useState(true);
   const [claimingTokenId, setClaimingTokenId] = useState<string | null>(null);
@@ -197,7 +197,7 @@ export function ClaimTwitchCards() {
       const txResult = await DeveloperWalletService.sendTransaction({
         walletId: devWallet.circle_wallet_id,
         walletAddress: devWallet.wallet_address,
-        contractAddress: TWITCH_VAULT_CONTRACT_ADDRESS,
+        contractAddress: twitchVaultAddress,
         functionName: 'claimCard',
         args: [BigInt(selectedCardForClaim.tokenId), normalizedLoggedIn, devWallet.wallet_address],
         blockchain: 'ARC-TESTNET',
@@ -299,7 +299,7 @@ export function ClaimTwitchCards() {
         const txResult = await DeveloperWalletService.sendTransaction({
           walletId: devWallet.circle_wallet_id,
           walletAddress: devWallet.wallet_address,
-          contractAddress: TWITCH_VAULT_CONTRACT_ADDRESS,
+          contractAddress: twitchVaultAddress,
           functionName: 'claimCard',
           args: [BigInt(card.tokenId), normalizedLoggedIn, devWallet.wallet_address],
           blockchain: 'ARC-TESTNET',
