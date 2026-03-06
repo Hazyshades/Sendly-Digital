@@ -118,8 +118,11 @@ export function SideNav() {
                 href={typeof window !== 'undefined' ? `${window.location.protocol}//zk.${window.location.host}/payments` : 'https://zk.localhost:3002/payments'}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex flex-col items-center justify-center gap-3 p-5 rounded-2xl bg-white/80 backdrop-blur-sm border border-gray-200 shadow-circle-card hover:shadow-lg hover:shadow-[#6366f1]/20 hover:scale-[1.02] transition-all duration-300"
+                className="relative flex flex-col items-center justify-center gap-3 p-5 rounded-2xl bg-white/80 backdrop-blur-sm border-2 border-[#6366f1]/60 shadow-circle-card hover:shadow-lg hover:shadow-[#6366f1]/20 hover:scale-[1.02] hover:border-[#6366f1] transition-all duration-300"
               >
+                <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-[10px] font-semibold text-white uppercase tracking-wide">
+                  New
+                </span>
                 <span className="font-medium text-gray-800">Payments</span>
               </a>
               <Link
