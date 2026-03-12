@@ -22,11 +22,15 @@ export function TwitterOAuth1CallbackRoute() {
     const params = new URLSearchParams(location.search);
     const oauthToken = params.get('oauth_token');
     const oauthVerifier = params.get('oauth_verifier');
-    const redirectUrl = localStorage.getItem('twitter_oauth1_redirect') || '/dashboard';
 
     const exchange = async () => {
       if (!oauthToken || !oauthVerifier) {
-        navigate(redirectUrl);
+        // if no needed parameters — simply close the popup, if not opened from the popup, redirect to the main page.
+        if (window.opener && !window.opener.closed) {
+          window.close();
+        } else {
+          navigate('/');
+        }
         return;
       }
 
@@ -60,7 +64,6 @@ export function TwitterOAuth1CallbackRoute() {
           }
 
           if (window.opener && !window.opener.closed) {
-            localStorage.removeItem('twitter_oauth1_redirect');
             window.opener.postMessage(
               {
                 type: 'twitter_oauth1_token',
@@ -78,8 +81,13 @@ export function TwitterOAuth1CallbackRoute() {
         console.error('[OAuth1 Callback] exchange failed:', error);
       }
 
-      localStorage.removeItem('twitter_oauth1_redirect');
-      navigate(redirectUrl);
+      // If popup opened not from the parent window (opener is not accessible) — redirect to the main page.
+      if (!window.opener || window.opener.closed) {
+        navigate('/');
+      } else {
+        // In normal flow the popup is simply closed above.
+        window.close();
+      }
     };
 
     exchange();

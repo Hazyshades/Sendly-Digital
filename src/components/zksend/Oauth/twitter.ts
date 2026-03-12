@@ -50,8 +50,17 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
     originUrl.hostname = toZkHostname(originUrl.hostname);
     const defaultCallback = `${originUrl.origin}/auth/twitter-oauth1/callback`;
 
+    const envCallback = import.meta.env.VITE_TWITTER_OAUTH1_CALLBACK as string | undefined;
+    const isLocalOrigin = originUrl.hostname.includes('localhost');
+
+    // Use env callback only when:
+    // - it is set AND
+    //   - or this not localhost
+    // else in prode ingone callback zk.localhost + defaultCallback.
     const baseCallback =
-      (import.meta.env.VITE_TWITTER_OAUTH1_CALLBACK as string | undefined) || defaultCallback;
+      envCallback && (!envCallback.includes('localhost') || isLocalOrigin)
+        ? envCallback
+        : defaultCallback;
 
     let callbackUrl = baseCallback.replace(/\/$/, '');
 
@@ -95,8 +104,6 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
         }
 
         const authorizeUrl = `https://api.x.com/oauth/authorize?oauth_token=${encodeURIComponent(data.oauthToken)}`;
-
-        localStorage.setItem('twitter_oauth1_redirect', window.location.href);
 
         toast.info('Opening Twitter authorization...');
 
