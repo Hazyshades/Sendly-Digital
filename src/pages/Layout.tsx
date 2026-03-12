@@ -26,6 +26,7 @@ export function Layout({ children }: LayoutProps) {
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const zk = isZkHost();
   const zkLocal = isZkLocalhost();
+  const disablePaymentsInHeader = !zk && location.pathname === '/create';
 
   const navigationItems = zk
     ? [
@@ -92,12 +93,23 @@ export function Layout({ children }: LayoutProps) {
               </button>
             ) : null}
             {!zk ? (
-              <a
-                href={toZkUrl(`${window.location.origin}/payments`)}
-                className="bg-white border border-gray-200 text-gray-900 hover:bg-gray-50 px-4 py-2 rounded-2xl transition-all duration-200 flex items-center gap-2 font-medium"
-              >
-                Payments
-              </a>
+              disablePaymentsInHeader ? (
+                <button
+                  type="button"
+                  disabled
+                  aria-disabled="true"
+                  className="bg-white/70 border border-gray-200 text-gray-400 px-4 py-2 rounded-2xl transition-all duration-200 flex items-center gap-2 font-medium cursor-not-allowed"
+                >
+                  Payments
+                </button>
+              ) : (
+                <a
+                  href={toZkUrl(`${window.location.origin}/payments`)}
+                  className="bg-white border border-gray-200 text-gray-900 hover:bg-gray-50 px-4 py-2 rounded-2xl transition-all duration-200 flex items-center gap-2 font-medium"
+                >
+                  Payments
+                </a>
+              )
             ) : null}
             <ConnectButton />
           </div>
