@@ -37,6 +37,39 @@ export type TwitterOAuth1Tokens = {
   screenName?: string;
 };
 
+const exchangeTwitterOAuth1AccessToken = async (
+  apiUrl: string,
+  oauthToken: string,
+  oauthVerifier: string
+): Promise<TwitterOAuth1Tokens | null> => {
+  const res = await fetch(`${apiUrl}/api/twitter/oauth1/access-token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ oauthToken, oauthVerifier }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`OAuth1 access-token failed: ${res.status}${text ? ` ${text}` : ''}`);
+  }
+
+  const data = (await res.json()) as {
+    oauthToken?: string;
+    oauthTokenSecret?: string;
+    screenName?: string;
+  };
+
+  if (!data.oauthToken || !data.oauthTokenSecret) {
+    throw new Error('Missing oauth token/secret in OAuth1 access-token response');
+  }
+
+  return {
+    oauthToken: data.oauthToken,
+    oauthTokenSecret: data.oauthTokenSecret,
+    screenName: data.screenName,
+  };
+};
+
 /**
  * Request Twitter OAuth 1.0a token (request token -> authorize -> access token)
  */
@@ -115,6 +148,47 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
           return;
         }
 
+        let settled = false;
+        let checkStorage: ReturnType<typeof setInterval> | null = null;
+        let checkPopup: ReturnType<typeof setInterval> | null = null;
+        let checkPopupOAuthParams: ReturnType<typeof setInterval> | null = null;
+        let flowTimeout: ReturnType<typeof setTimeout> | null = null;
+        let sawSameOriginWithoutOAuth = false;
+
+        const cleanup = () => {
+          window.removeEventListener('message', messageHandler);
+          if (checkStorage) {
+            clearInterval(checkStorage);
+            checkStorage = null;
+          }
+          if (checkPopup) {
+            clearInterval(checkPopup);
+            checkPopup = null;
+          }
+          if (checkPopupOAuthParams) {
+            clearInterval(checkPopupOAuthParams);
+            checkPopupOAuthParams = null;
+          }
+          if (flowTimeout) {
+            clearTimeout(flowTimeout);
+            flowTimeout = null;
+          }
+        };
+
+        const settle = (value: TwitterOAuth1Tokens | null, closePopup = false) => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          if (closePopup && popup && !popup.closed) {
+            try {
+              popup.close();
+            } catch {
+              // ignore
+            }
+          }
+          resolve(value);
+        };
+
         const messageHandler = (event: MessageEvent) => {
           if (event.data?.target === 'metamask-inpage' || event.data?.name === 'metamask-provider') {
             return;
@@ -127,37 +201,78 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
             event.data.oauthToken &&
             event.data.oauthTokenSecret
           ) {
-            window.removeEventListener('message', messageHandler);
-            if (popup) popup.close();
-            resolve({
+            settle({
               oauthToken: event.data.oauthToken as string,
               oauthTokenSecret: event.data.oauthTokenSecret as string,
               screenName: event.data.screenName as string | undefined,
-            });
+            }, true);
           }
         };
 
         window.addEventListener('message', messageHandler);
 
-        const checkStorage = setInterval(() => {
+        checkStorage = setInterval(() => {
           const token = localStorage.getItem('twitter_oauth1_token');
           const secret = localStorage.getItem('twitter_oauth1_secret');
           if (token && secret) {
-            clearInterval(checkStorage);
-            window.removeEventListener('message', messageHandler);
-            if (popup) popup.close();
-            resolve({ oauthToken: token, oauthTokenSecret: secret });
+            settle({ oauthToken: token, oauthTokenSecret: secret }, true);
           }
         }, 500);
 
-        const checkPopup = setInterval(() => {
+        checkPopupOAuthParams = setInterval(() => {
+          if (!popup || popup.closed || settled) return;
+          try {
+            const popupUrl = new URL(popup.location.href);
+            const isSameOrigin = popupUrl.origin === originUrl.origin;
+            if (!isSameOrigin) return;
+
+            const oauthToken = popupUrl.searchParams.get('oauth_token');
+            const oauthVerifier = popupUrl.searchParams.get('oauth_verifier');
+
+            if (oauthToken && oauthVerifier) {
+              void exchangeTwitterOAuth1AccessToken(apiUrl, oauthToken, oauthVerifier)
+                .then((tokens) => {
+                  settle(tokens, true);
+                })
+                .catch((error) => {
+                  console.error('[Twitter OAuth1] fallback exchange error:', error);
+                  toast.error('Twitter callback returned, but token exchange failed');
+                  settle(null, true);
+                });
+              return;
+            }
+
+            const hasKnownOAuthSignal =
+              popupUrl.searchParams.has('oauth_token') ||
+              popupUrl.searchParams.has('oauth_verifier') ||
+              popupUrl.searchParams.has('denied');
+            if (!hasKnownOAuthSignal) {
+              // Popup returned to our origin (often /payments) without OAuth params:
+              // this usually means callback URL is misconfigured and flow can hang.
+              if (sawSameOriginWithoutOAuth) {
+                toast.error('Twitter callback URL seems misconfigured. Please verify OAuth callback settings.');
+                settle(null, true);
+              } else {
+                sawSameOriginWithoutOAuth = true;
+              }
+            }
+          } catch {
+            // Cross-origin popup page (Twitter/X) - ignore until it returns to our origin.
+          }
+        }, 700);
+
+        checkPopup = setInterval(() => {
           if (popup?.closed) {
-            clearInterval(checkPopup);
-            clearInterval(checkStorage);
-            window.removeEventListener('message', messageHandler);
-            resolve(null);
+            settle(null);
           }
         }, 500);
+
+        flowTimeout = setTimeout(() => {
+          if (!settled) {
+            toast.error('Twitter connection timed out. Please try again.');
+            settle(null, true);
+          }
+        }, 120000);
       } catch (error) {
         console.error('[Twitter OAuth1] request token error:', error);
         toast.error('Failed to start Twitter authorization');
