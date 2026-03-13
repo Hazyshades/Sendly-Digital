@@ -1,6 +1,5 @@
 import { toast } from 'sonner';
 import { createPopupWindow } from './utils';
-import { toZkHostname } from '@/lib/runtime/zkHost';
 
 const getZkTlsApiUrl = (): string => {
   // В проде используем явный API-хост (api.sendly.digital),
@@ -120,9 +119,9 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
     const apiUrl = getZkTlsApiUrl().replace(/\/$/, '');
     const origin = window.location.origin;
 
-    // Default callback: same origin but normalized to zk-host
+    // Default callback must stay on the exact current origin (including www)
+    // so popup/localStorage/postMessage all use the same site context.
     const originUrl = new URL(origin);
-    originUrl.hostname = toZkHostname(originUrl.hostname);
     const defaultCallback = `${originUrl.origin}/auth/twitter-oauth1/callback`;
 
     const envCallback = import.meta.env.VITE_TWITTER_OAUTH1_CALLBACK as string | undefined;
@@ -139,14 +138,8 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
 
     let callbackUrl = baseCallback.replace(/\/$/, '');
 
-    // Normalize callback hostname as zk-host (e.g. strip www., ensure zk.*)
-    try {
-      const cbUrl = new URL(callbackUrl);
-      cbUrl.hostname = toZkHostname(cbUrl.hostname);
-      callbackUrl = cbUrl.toString().replace(/\/$/, '');
-    } catch {
-      // ignore, fall back to raw callbackUrl
-    }
+    // Keep callback origin as-is; rewriting host can break OAuth completion
+    // when app runs on www vs non-www subdomains.
 
     const run = async () => {
       try {
