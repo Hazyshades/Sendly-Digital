@@ -235,6 +235,7 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
         let lastSeenOauthToken: string | null = null;
         let lastSeenOauthVerifier: string | null = null;
         let popupCloseRescueAttempted = false;
+        let popupClosedAtMs: number | null = null;
 
         const readStoredOAuth1Tokens = (): TwitterOAuth1Tokens | null => {
           const token = localStorage.getItem('twitter_oauth1_token');
@@ -375,6 +376,10 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
         checkPopup = setInterval(() => {
           if (settled) return;
           if (popup?.closed) {
+            if (popupClosedAtMs === null) {
+              popupClosedAtMs = Date.now();
+            }
+
             const stored = readStoredOAuth1Tokens();
             if (stored) {
               settle(stored);
@@ -400,6 +405,12 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
                   console.error('[Twitter OAuth1] popup-close rescue exchange error:', error);
                   settle(null);
                 });
+              return;
+            }
+
+            // Popup can close slightly earlier than storage/message propagation.
+            // Give a short grace period before declaring "cancelled".
+            if (Date.now() - popupClosedAtMs < 2500) {
               return;
             }
 
