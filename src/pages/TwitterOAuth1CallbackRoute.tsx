@@ -52,6 +52,17 @@ const parseOAuth1AccessTokenResponse = (
   return { oauthToken: token, oauthTokenSecret: secret, screenName };
 };
 
+const getPostMessageTargetOrigin = (): string => {
+  if (typeof document !== 'undefined' && document.referrer) {
+    try {
+      return new URL(document.referrer).origin;
+    } catch {
+      // ignore and fallback to wildcard
+    }
+  }
+  return '*';
+};
+
 const getZkTlsApiUrl = (): string => {
   if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
   const envUrl =
@@ -112,6 +123,7 @@ export function TwitterOAuth1CallbackRoute() {
           }
 
           if (window.opener && !window.opener.closed) {
+            const targetOrigin = getPostMessageTargetOrigin();
             window.opener.postMessage(
               {
                 type: 'twitter_oauth1_token',
@@ -119,7 +131,7 @@ export function TwitterOAuth1CallbackRoute() {
                 oauthTokenSecret: parsed.oauthTokenSecret,
                 screenName: parsed.screenName,
               },
-              window.location.origin
+              targetOrigin
             );
             window.close();
             return;

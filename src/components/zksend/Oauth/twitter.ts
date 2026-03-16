@@ -86,6 +86,23 @@ const parseOAuth1AccessTokenResponse = (raw: unknown): TwitterOAuth1Tokens | nul
   return { oauthToken, oauthTokenSecret, screenName };
 };
 
+const isCallbackNotApprovedError = (status: number, bodyText: string): boolean => {
+  if (status !== 403) return false;
+  const text = bodyText.toLowerCase();
+  return text.includes('callback url not approved') || text.includes('error code="415"');
+};
+
+const stripWwwHostname = (urlString: string): string | null => {
+  try {
+    const url = new URL(urlString);
+    if (!url.hostname.toLowerCase().startsWith('www.')) return null;
+    url.hostname = url.hostname.slice(4);
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    return null;
+  }
+};
+
 const exchangeTwitterOAuth1AccessToken = async (
   apiUrl: string,
   oauthToken: string,
@@ -149,28 +166,46 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
 
     const run = async () => {
       try {
-        const res = await fetch(`${apiUrl}/api/twitter/oauth1/request-token`, {
+        let requestTokenRes = await fetch(`${apiUrl}/api/twitter/oauth1/request-token`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ callbackUrl }),
         });
 
-        if (!res.ok) {
-          const text = await res.text().catch(() => '');
-          let errMsg = `Request token failed: ${res.status}`;
+        let requestTokenText = '';
+        if (!requestTokenRes.ok) {
+          requestTokenText = await requestTokenRes.text().catch(() => '');
+          const fallbackCallback = stripWwwHostname(callbackUrl);
+          if (fallbackCallback && isCallbackNotApprovedError(requestTokenRes.status, requestTokenText)) {
+            console.warn('[Twitter OAuth1] Callback not approved, retrying without www host:', {
+              original: callbackUrl,
+              fallback: fallbackCallback,
+            });
+            callbackUrl = fallbackCallback;
+            requestTokenRes = await fetch(`${apiUrl}/api/twitter/oauth1/request-token`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ callbackUrl }),
+            });
+            requestTokenText = requestTokenRes.ok ? '' : await requestTokenRes.text().catch(() => '');
+          }
+        }
+
+        if (!requestTokenRes.ok) {
+          let errMsg = `Request token failed: ${requestTokenRes.status}`;
           try {
-            const errJson = JSON.parse(text) as { error?: string; hint?: string };
+            const errJson = JSON.parse(requestTokenText) as { error?: string; hint?: string };
             if (errJson.error) errMsg = errJson.error;
             if (errJson.hint) errMsg += `. ${errJson.hint}`;
           } catch {
-            if (text) errMsg += `: ${text.slice(0, 100)}`;
+            if (requestTokenText) errMsg += `: ${requestTokenText.slice(0, 160)}`;
           }
           toast.error(errMsg);
           resolve(null);
           return;
         }
 
-        const data = (await res.json()) as { success?: boolean; oauthToken?: string };
+        const data = (await requestTokenRes.json()) as { success?: boolean; oauthToken?: string };
         if (!data.oauthToken) {
           toast.error('No oauth_token in response');
           resolve(null);
