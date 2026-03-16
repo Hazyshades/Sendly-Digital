@@ -232,6 +232,17 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
         let sawSameOriginWithoutOAuth = false;
         let fallbackExchangeInFlight = false;
         let fallbackExchangeAttemptKey: string | null = null;
+        let lastSeenOauthToken: string | null = null;
+        let lastSeenOauthVerifier: string | null = null;
+        let popupCloseRescueAttempted = false;
+
+        const readStoredOAuth1Tokens = (): TwitterOAuth1Tokens | null => {
+          const token = localStorage.getItem('twitter_oauth1_token');
+          const secret = localStorage.getItem('twitter_oauth1_secret');
+          const screenName = localStorage.getItem('twitter_oauth1_screen_name') ?? undefined;
+          if (!token || !secret) return null;
+          return { oauthToken: token, oauthTokenSecret: secret, screenName };
+        };
 
         const cleanup = () => {
           window.removeEventListener('message', messageHandler);
@@ -290,10 +301,9 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
         window.addEventListener('message', messageHandler);
 
         checkStorage = setInterval(() => {
-          const token = localStorage.getItem('twitter_oauth1_token');
-          const secret = localStorage.getItem('twitter_oauth1_secret');
-          if (token && secret) {
-            settle({ oauthToken: token, oauthTokenSecret: secret }, true);
+          const stored = readStoredOAuth1Tokens();
+          if (stored) {
+            settle(stored, true);
           }
         }, 500);
 
@@ -307,6 +317,11 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
             const oauthToken = popupUrl.searchParams.get('oauth_token');
             const oauthVerifier = popupUrl.searchParams.get('oauth_verifier');
             const isCallbackRoute = popupUrl.pathname === '/auth/twitter-oauth1/callback';
+
+            if (oauthToken && oauthVerifier) {
+              lastSeenOauthToken = oauthToken;
+              lastSeenOauthVerifier = oauthVerifier;
+            }
 
             if (oauthToken && oauthVerifier) {
               // When popup is already on callback route, that route performs exchange itself.
@@ -358,7 +373,36 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
         }, 700);
 
         checkPopup = setInterval(() => {
+          if (settled) return;
           if (popup?.closed) {
+            const stored = readStoredOAuth1Tokens();
+            if (stored) {
+              settle(stored);
+              return;
+            }
+
+            if (!popupCloseRescueAttempted && lastSeenOauthToken && lastSeenOauthVerifier) {
+              popupCloseRescueAttempted = true;
+              void exchangeTwitterOAuth1AccessToken(apiUrl, lastSeenOauthToken, lastSeenOauthVerifier)
+                .then((tokens) => {
+                  if (tokens) {
+                    localStorage.setItem('twitter_oauth1_token', tokens.oauthToken);
+                    localStorage.setItem('twitter_oauth1_secret', tokens.oauthTokenSecret);
+                    if (tokens.screenName) {
+                      localStorage.setItem('twitter_oauth1_screen_name', tokens.screenName);
+                    }
+                    settle(tokens);
+                    return;
+                  }
+                  settle(null);
+                })
+                .catch((error) => {
+                  console.error('[Twitter OAuth1] popup-close rescue exchange error:', error);
+                  settle(null);
+                });
+              return;
+            }
+
             settle(null);
           }
         }, 500);
