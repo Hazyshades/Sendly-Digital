@@ -19,6 +19,15 @@ interface TelegramWidgetUser {
   hash: string;
 }
 
+const getTelegramBotUsername = (): string => {
+  const candidate =
+    (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined) ||
+    (import.meta.env.VITE_TELEGRAM_BOT_NAME as string | undefined) ||
+    'sendly_arc_bot';
+
+  return candidate.replace(/^@/, '').trim();
+};
+
 export function TelegramAuthRoute() {
   const containerRef = useRef<HTMLDivElement>(null);
   const scriptLoadedRef = useRef(false);
@@ -83,8 +92,7 @@ export function TelegramAuthRoute() {
       };
 
     // Widget expects bot username WITHOUT @ (e.g. "MyBot", not "@MyBot")
-    const raw = (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string) || '';
-    const botUsername = raw.replace(/^@/, '').trim();
+    const botUsername = getTelegramBotUsername();
     if (!botUsername) {
       return;
     }
@@ -110,8 +118,7 @@ export function TelegramAuthRoute() {
     };
   }, []);
 
-  const raw = (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string) || '';
-  const botUsername = raw.replace(/^@/, '').trim();
+  const botUsername = getTelegramBotUsername();
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4">
@@ -125,7 +132,7 @@ export function TelegramAuthRoute() {
           </p>
         </>
       ) : (
-        <p className="text-red-600">VITE_TELEGRAM_BOT_USERNAME not configured</p>
+        <p className="text-red-600">Telegram bot username not configured (set VITE_TELEGRAM_BOT_USERNAME)</p>
       )}
     </div>
   );
