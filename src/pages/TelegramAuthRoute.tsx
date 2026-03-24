@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react';
 
 const getZkTlsApiUrl = (): string => {
-  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
   const envUrl =
     (import.meta.env.VITE_ZKTLS_SERVICE_URL as string | undefined) ||
     (import.meta.env.VITE_ZKTLS_API_URL as string | undefined);
-  if (envUrl) return envUrl;
+  if (envUrl?.trim()) return envUrl.trim();
+  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
   return 'http://localhost:3001';
 };
 
