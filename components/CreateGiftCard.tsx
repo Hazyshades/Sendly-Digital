@@ -51,6 +51,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import { DeveloperWalletService } from '../utils/circle/developerWalletService';
 import { apiCall } from '../utils/supabase/client';
 import { useChain } from '../utils/chain/chainContext';
+import { prepareTipPaid, resolveRecipientPaid } from '../utils/mpp/mppGateway';
 
 interface GiftCardData {
   recipientType: 'address' | 'twitter' | 'twitch' | 'telegram' | 'tiktok' | 'instagram';
@@ -266,6 +267,9 @@ export function CreateGiftCard() {
   const [createdCard, setCreatedCard] = useState<any>(null);
   const [error, setError] = useState('');
   const [errorTxHash, setErrorTxHash] = useState<string | null>(null);
+  const [isVerifyingTip, setIsVerifyingTip] = useState(false);
+  const [mppResolveCorrelationId, setMppResolveCorrelationId] = useState<string | null>(null);
+  const [mppTipPrepared, setMppTipPrepared] = useState(false);
   const [step, setStep] = useState<'form' | 'generating' | 'uploading' | 'creating' | 'success'>('form');
   const [isBridgeDialogOpen, setIsBridgeDialogOpen] = useState(false);
   const [highlightField, setHighlightField] = useState<'twitch' | 'twitter' | 'telegram' | 'tiktok' | 'instagram' | null>(null);
@@ -525,7 +529,77 @@ export function CreateGiftCard() {
     }
   }, [isConnected, connector]);
 
+  useEffect(() => {
+    setMppTipPrepared(false);
+    setMppResolveCorrelationId(null);
+  }, [formData.recipientType, formData.recipientUsername, formData.amount, formData.currency, formData.message]);
+
+  const requiresMppStep = isTempoNetwork && formData.recipientType === 'twitch';
+
+  const handleVerifyAndPrepareTip = async () => {
+    if (!requiresMppStep) {
+      toast.info('MPP verification is currently enabled for Twitch tips on Tempo.');
+      return;
+    }
+    const handle = formData.recipientUsername.toLowerCase().replace(/^@/, '').trim();
+    if (!handle) {
+      setError('Please enter a Twitch username first');
+      return;
+    }
+
+    setIsVerifyingTip(true);
+    setError('');
+    try {
+      const resolveResult = await resolveRecipientPaid({
+        platform: 'twitch',
+        handle,
+      });
+      if (!resolveResult.ok) {
+        if (resolveResult.paymentRequired) {
+          setMppTipPrepared(false);
+          setError('MPP payment required for verification. Pay the 402 challenge (Tempo/mppx) and retry.');
+          toast.error('Payment required (402) for Verify step');
+          return;
+        }
+        throw new Error(resolveResult.error || 'Failed to verify recipient');
+      }
+
+      setMppResolveCorrelationId(resolveResult.data.correlationId);
+
+      const prepareResult = await prepareTipPaid({
+        platform: 'twitch',
+        handle,
+        amount: formData.amount,
+        currency: formData.currency,
+        message: formData.message || '',
+        correlationId: resolveResult.data.correlationId,
+      });
+      if (!prepareResult.ok) {
+        if (prepareResult.paymentRequired) {
+          setMppTipPrepared(false);
+          setError('MPP payment required for tip preparation. Pay the 402 challenge (Tempo/mppx) and retry.');
+          toast.error('Payment required (402) for Prepare step');
+          return;
+        }
+        throw new Error(prepareResult.error || 'Failed to prepare tip package');
+      }
+
+      setMppTipPrepared(true);
+      toast.success('Recipient verified and tip package prepared via MPP');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to run MPP verification flow';
+      setMppTipPrepared(false);
+      setError(message);
+    } finally {
+      setIsVerifyingTip(false);
+    }
+  };
+
   const handleCreateCard = async () => {
+    if (requiresMppStep && !mppTipPrepared) {
+      setError('Run "Verify & Prepare Tip (MPP)" first to unlock Twitch payout flow on Tempo.');
+      return;
+    }
     // Check for a wallet (MetaMask or Internal wallet)
     if (!isConnected && !hasDeveloperWallet) {
       setError('Please connect your wallet first');
@@ -1774,6 +1848,26 @@ export function CreateGiftCard() {
 
           {/* Action Buttons */}
           <div className="space-y-2">
+            {requiresMppStep && (
+              <Button
+                variant={mppTipPrepared ? 'secondary' : 'outline'}
+                className="w-full"
+                size="sm"
+                onClick={handleVerifyAndPrepareTip}
+                disabled={isVerifyingTip || isCreating}
+              >
+                {isVerifyingTip
+                  ? 'Verifying via MPP...'
+                  : mppTipPrepared
+                    ? 'MPP Ready: Verified & Prepared'
+                    : 'Verify & Prepare Tip (MPP)'}
+              </Button>
+            )}
+            {requiresMppStep && mppResolveCorrelationId && (
+              <p className="text-xs text-gray-500">
+                MPP correlation: {mppResolveCorrelationId}
+              </p>
+            )}
             {!isTempoNetwork && (
               <>
                 <Button 
