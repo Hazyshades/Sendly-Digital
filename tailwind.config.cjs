@@ -52,12 +52,28 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Sendly Design System Colors
+        sendly: {
+          indigo: '#1e1b4b',
+          coral: '#f97316',
+          lavender: '#f3f0ff',
+          void: '#0a0a0f',
+        },
+      },
+      fontFamily: {
+        'jakarta': ['"Plus Jakarta Sans"', 'sans-serif'],
+        'outfit': ['"Outfit"', 'sans-serif'],
+        'cormorant': ['"Cormorant Garamond"', 'serif'],
+        'mono': ['"JetBrains Mono"', 'monospace'],
       },
       borderRadius: {
         lg: "16px",
         md: "12px",
         sm: "8px",
         xl: "20px",
+        '2xl': "2rem",
+        '3xl': "3rem",
+        '4xl': "4rem",
       },
       backgroundImage: {
         'circle-gradient': 'linear-gradient(135deg, #E0F7FF 0%, #D7CFFF 50%, #A8E6FF 100%)',
@@ -83,12 +99,32 @@ module.exports = {
           "0%": { transform: "translate(0%, 0%)", opacity: "1" },
           "100%": { transform: "translate(100%, 0%)", opacity: "0" },
         },
+        "badge-sent-pulse": {
+          "0%, 100%": { transform: "scale(1)", opacity: "1" },
+          "50%": { transform: "scale(1.06)", opacity: "0.92" },
+        },
+        "badge-redeemed-glow": {
+          "0%, 100%": { boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.25)" },
+          "50%": { boxShadow: "0 0 0 6px rgba(59, 130, 246, 0)" },
+        },
+        "cursor-blink": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0" },
+        },
+        "pulse-dot": {
+          "0%, 100%": { transform: "scale(1)", opacity: "1" },
+          "50%": { transform: "scale(1.2)", opacity: "0.8" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "star-movement-bottom": "star-movement-bottom linear infinite alternate",
         "star-movement-top": "star-movement-top linear infinite alternate",
+        "badge-sent-pulse": "badge-sent-pulse 2s ease-in-out infinite",
+        "badge-redeemed-glow": "badge-redeemed-glow 2s ease-in-out infinite",
+        "cursor-blink": "cursor-blink 1s step-end infinite",
+        "pulse-dot": "pulse-dot 2s ease-in-out infinite",
       },
     },
   },

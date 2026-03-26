@@ -1,5 +1,5 @@
-import type { ChainConfig } from '../../utils/bridge/chainRegistry';
-import type { TokenConfig } from '../../utils/bridge/tokenRegistry';
+import type { ChainConfig } from '@/lib/bridge/chainRegistry';
+import type { TokenConfig } from '@/lib/bridge/tokenRegistry';
 
 export type { ChainConfig, TokenConfig };
 

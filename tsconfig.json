@@ -5,6 +5,8 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": { "@/*": ["./src/*"] },
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -20,7 +22,7 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "components", "utils", "styles"],
-  "exclude": ["components/ui/calendar.tsx", "components/ui/chart.tsx"],
+  "include": ["src"],
+  "exclude": ["src/components/ui/calendar.tsx", "src/components/ui/chart.tsx"],
   "references": [{ "path": "./tsconfig.node.json" }]
 } 

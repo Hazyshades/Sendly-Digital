@@ -1,0 +1,465 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 14px;
+  --background: 0 0% 100%;
+  --foreground: 26 26% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 26 26% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 26 26% 10%;
+  --primary: 222.2 47.4% 11.2%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 26 26% 10%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 0 0% 42%;
+  --accent: 210 40% 96%;
+  --accent-foreground: 26 26% 10%;
+  --destructive: 0 69% 54%;
+  --destructive-foreground: 210 40% 98%;
+  --success: 142 76% 36%;
+  --success-foreground: 210 40% 98%;
+  --warning: 31 92% 50%;
+  --warning-foreground: 210 40% 98%;
+  --info: 207 90% 54%;
+  --info-foreground: 210 40% 98%;
+  --border: 0 0% 88%;
+  --input: 0 0% 88%;
+  --input-background: 0 0% 96%;
+  --switch-background: 220 13% 82%;
+  --font-weight-medium: 600;
+  --font-weight-normal: 400;
+  --ring: 26 26% 10%;
+  --chart-1: 12 76% 61%;
+  --chart-2: 173 58% 39%;
+  --chart-3: 197 37% 24%;
+  --chart-4: 43 74% 66%;
+  --chart-5: 27 87% 67%;
+  --radius: 1rem;
+  --sidebar: 0 0% 98%;
+  --sidebar-foreground: 26 26% 10%;
+  --sidebar-primary: 222.2 47.4% 11.2%;
+  --sidebar-primary-foreground: 210 40% 98%;
+  --sidebar-accent: 0 0% 97%;
+  --sidebar-accent-foreground: 0 0% 42%;
+  --sidebar-border: 0 0% 88%;
+  --sidebar-ring: 26 26% 10%;
+  
+  --circle-gradient-start: #E0F7FF;
+  --circle-gradient-mid: #D7CFFF;
+  --circle-gradient-end: #A8E6FF;
+  --circle-shape-pink: #FFD1D1;
+  --circle-shape-blue: #A5D8FF;
+  --circle-shape-purple: #D6BBFF;
+
+  /* Sendly brand colors */
+  --sendly-indigo: #6366f1;
+  --sendly-indigo-dark: #4f46e5;
+  --sendly-violet: #8b5cf6;
+  --sendly-background: #0f172a;
+  --sendly-card: #1e293b;
+  --sendly-border: #334155;
+  --sendly-text-primary: #f8fafc;
+  --sendly-text-secondary: #94a3b8;
+  --sendly-text-muted: #64748b;
+  --sendly-success: #10b981;
+  --sendly-warning: #f59e0b;
+  --sendly-error: #ef4444;
+}
+
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 210 40% 98%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 212.7 26.8% 83.9%;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --chart-1: 220 70% 50%;
+  --chart-2: 160 60% 45%;
+  --chart-3: 30 80% 55%;
+  --chart-4: 280 65% 60%;
+  --chart-5: 340 75% 55%;
+  --sidebar: 222.2 84% 4.9%;
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-primary: 210 40% 98%;
+  --sidebar-primary-foreground: 222.2 47.4% 11.2%;
+  --sidebar-accent: 217.2 32.6% 17.5%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-border: 217.2 32.6% 17.5%;
+  --sidebar-ring: 212.7 26.8% 83.9%;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+}
+
+/* Blog shell: shared layout for /blog and /blog/:slug */
+.blog-shell {
+  --blog-bg: #fafafa;
+}
+
+.blog-shell .blog-section {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 768px) {
+  .blog-shell .blog-section {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+/* Cohere-inspired blog post (privy_results) */
+.blog-post-cohere {
+  --blog-bg: #fafafa;
+  --blog-text-primary: #1a1a1a;
+  --blog-text-secondary: #6b7280;
+}
+
+.blog-post-cohere .hero-title {
+  font-size: clamp(2.5rem, 5vw, 4.5rem);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.blog-post-cohere .hero-subtitle {
+  font-size: 1.25rem;
+  color: var(--blog-text-secondary);
+  margin-top: 1.5rem;
+  text-align: center;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.blog-post-cohere .blog-section {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 768px) {
+  .blog-post-cohere .blog-section {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+.blog-post-cohere .blog-content {
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.7;
+}
+
+.blog-post-cohere .blog-content-section {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+@layer utilities {
+  .circle-gradient-bg {
+    background: linear-gradient(135deg, var(--circle-gradient-start) 0%, var(--circle-gradient-mid) 50%, var(--circle-gradient-end) 100%);
+    position: relative;
+    overflow: hidden;
+    min-height: 100vh;
+  }
+  
+  .circle-gradient-bg::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -10%;
+    width: 40%;
+    height: 200%;
+    background: radial-gradient(circle, var(--circle-shape-pink) 0%, transparent 70%);
+    opacity: 0.8;
+    border-radius: 50%;
+    animation: float 20s ease-in-out infinite;
+    z-index: 0;
+    filter: blur(60px);
+  }
+  
+  .circle-gradient-bg::after {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    right: -5%;
+    width: 35%;
+    height: 150%;
+    background: linear-gradient(135deg, var(--circle-shape-blue) 0%, transparent 80%);
+    opacity: 0.7;
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+    animation: float 25s ease-in-out infinite reverse;
+    z-index: 0;
+    filter: blur(60px);
+  }
+  
+  .circle-gradient-bg .abstract-shape {
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    background: var(--circle-shape-purple);
+    opacity: 0.6;
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+    top: 10%;
+    right: 5%;
+    animation: float 30s ease-in-out infinite;
+    z-index: 0;
+    filter: blur(80px);
+  }
+  
+  @keyframes float {
+    0%, 100% {
+      transform: translate(0, 0) rotate(0deg);
+    }
+    33% {
+      transform: translate(30px, -30px) rotate(120deg);
+    }
+    66% {
+      transform: translate(-20px, 20px) rotate(240deg);
+    }
+  }
+  
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .circle-card {
+    background: var(--card);
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    position: relative;
+    z-index: 1;
+  }
+}
+
+/**
+ * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
+ */
+@layer base {
+  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
+    h1 {
+      font-size: var(--text-2xl);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h2 {
+      font-size: var(--text-xl);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h3 {
+      font-size: var(--text-lg);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h4 {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    p {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.5;
+    }
+
+    label {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    button {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    input {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.5;
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+}
+
+/* Farcaster iframe compatibility */
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* Ensure proper rendering in iframe */
+#root {
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* Prevent layout issues in Farcaster */
+* {
+  box-sizing: border-box;
+}
+
+/* Privy UserPill base styles */
+html {
+  font-family: 'Inter', sans-serif;
+  line-height: 1.15;
+}
+
+button {
+  background-color: transparent;
+}
+
+/* Sendly Landing Page Styles */
+.font-jakarta {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.font-outfit {
+  font-family: 'Outfit', sans-serif;
+}
+
+.font-cormorant {
+  font-family: 'Cormorant Garamond', serif;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Custom scrollbar - Sendly indigo aesthetic */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.8);
+}
+
+/* Cursor blink for landing typing animation */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.cursor-blink {
+  animation: cursor-blink 1s ease-in-out infinite;
+}
+
+/* RainbowKit: remove shadow from the wallet button (rk-account-button) */
+[data-rk] [data-testid="rk-account-button"],
+[data-rk] .ju367vei {
+  box-shadow: none !important;
+}

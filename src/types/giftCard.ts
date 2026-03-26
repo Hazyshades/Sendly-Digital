@@ -1,6 +1,7 @@
 export interface GiftCardRecord {
   id?: number;
   token_id: string;
+  chain_id?: number | null;
   sender_address: string;
   recipient_address?: string | null;
   recipient_username?: string | null;
@@ -11,7 +12,6 @@ export interface GiftCardRecord {
   redeemed: boolean;
   tx_hash?: string | null;
   block_number?: number | null;
-  chain_id?: number; // Chain ID сети
   created_at?: string;
   updated_at?: string;
   last_synced_at?: string | null;
@@ -19,6 +19,7 @@ export interface GiftCardRecord {
 
 export interface GiftCardInsert {
   token_id: string;
+  chain_id?: number | null;
   sender_address: string;
   recipient_address?: string | null;
   recipient_username?: string | null;
@@ -29,7 +30,6 @@ export interface GiftCardInsert {
   redeemed?: boolean;
   tx_hash?: string | null;
   block_number?: number | null;
-  chain_id?: number; // Chain ID сети
 }
 
 export interface GiftCardInfo {
