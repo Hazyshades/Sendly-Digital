@@ -26,7 +26,7 @@ export function Layout({ children }: LayoutProps) {
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const zk = isZkHost();
   const zkLocal = isZkLocalhost();
-  const disablePaymentsInHeader = !zk && location.pathname === '/create';
+  const disablePaymentsInHeader = !zk;
 
   const navigationItems = zk
     ? [
