@@ -2,13 +2,13 @@ import { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const getZkTlsApiUrl = (): string => {
-  // In browser: use same origin so Vite proxy forwards /api to zktls-service (port 3001).
-  // Avoids mixed content (HTTPS page → HTTP API) and 404 when env points to localhost:3001.
-  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
   const envUrl =
     (import.meta.env.VITE_ZKTLS_SERVICE_URL as string | undefined) ||
     (import.meta.env.VITE_ZKTLS_API_URL as string | undefined);
   if (envUrl) return envUrl;
+  // Fallback to same-origin only when API URL is not configured
+  // (Vite dev server proxy can forward /api in local setup).
+  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
   return 'http://localhost:3001';
 };
 
