@@ -1685,7 +1685,7 @@ export class Web3Service {
     socialIdentityHash: `0x${string}`;
     platform: string;
     amount: string; // human units, 6 decimals assumed (stablecoins)
-    tokenType: 'USDC' | 'EURC';
+    tokenType: SupportedTokenSymbol;
   }): Promise<{ paymentId: string | null; txHash: string }> {
     if (!this.walletClient || !this.account) {
       throw new Error('Wallet not connected');
@@ -1771,7 +1771,7 @@ export class Web3Service {
   async sendDirectToAddress(input: {
     recipient: `0x${string}`;
     amount: string;
-    tokenType: 'USDC' | 'EURC';
+    tokenType: SupportedTokenSymbol;
   }): Promise<{ txHash: string }> {
     if (!this.walletClient || !this.account) {
       throw new Error('Wallet not connected');

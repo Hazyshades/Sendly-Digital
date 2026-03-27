@@ -121,6 +121,10 @@ export const TEMPO_EXPLORER_API_URL = import.meta.env.VITE_TEMPO_BLOCK_EXPLORER_
 
 export const TEMPO_GIFTCARD_CONTRACT_ADDRESS =
   import.meta.env.VITE_TEMPO_GIFTCARD_CONTRACT_ADDRESS || '';
+export const TEMPO_ZKSEND_CONTRACT_ADDRESS =
+  import.meta.env.VITE_TEMPO_ZKSEND_CONTRACT_ADDRESS || '';
+export const TEMPO_DIRECT_SEND_CONTRACT_ADDRESS =
+  import.meta.env.VITE_TEMPO_DIRECT_SEND_CONTRACT_ADDRESS || '';
 export const TEMPO_PATHUSD_ADDRESS =
   import.meta.env.VITE_TEMPO_PATHUSD_ADDRESS || '0x20c0000000000000000000000000000000000000';
 export const TEMPO_ALPHAUSD_ADDRESS =
@@ -184,7 +188,7 @@ export function getContractsForChain(chainId: number): ChainContracts {
     return {
       chainId: TEMPO_CHAIN_ID,
       contractAddress: TEMPO_GIFTCARD_CONTRACT_ADDRESS || CONTRACT_ADDRESS,
-      zksend: '',
+      zksend: TEMPO_ZKSEND_CONTRACT_ADDRESS,
       usdc: TEMPO_PATHUSD_ADDRESS,
       pathusd: TEMPO_PATHUSD_ADDRESS,
       alphausd: TEMPO_ALPHAUSD_ADDRESS,
@@ -196,7 +200,7 @@ export function getContractsForChain(chainId: number): ChainContracts {
       telegramVault: TEMPO_TELEGRAM_VAULT_ADDRESS || TELEGRAM_VAULT_CONTRACT_ADDRESS,
       tiktokVault: TEMPO_TIKTOK_VAULT_ADDRESS || TIKTOK_VAULT_CONTRACT_ADDRESS,
       instagramVault: TEMPO_INSTAGRAM_VAULT_ADDRESS || INSTAGRAM_VAULT_CONTRACT_ADDRESS,
-      directSend: undefined,
+      directSend: TEMPO_DIRECT_SEND_CONTRACT_ADDRESS || undefined,
       rpcUrls: [...TEMPO_RPC_URLS],
       explorerUrl: TEMPO_EXPLORER_URL,
       explorerApiUrl: TEMPO_EXPLORER_API_URL,

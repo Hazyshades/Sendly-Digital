@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { useAccount, useWalletClient, useBalance } from 'wagmi';
+import { useAccount, useWalletClient, useBalance, useChainId } from 'wagmi';
 import { toast } from 'sonner';
 import { Wallet } from 'lucide-react';
 import { createPublicClient, http, parseEventLogs } from 'viem';
@@ -18,7 +18,7 @@ import {
   ERC20ABI,
   ZkSendABI,
 } from '@/lib/web3/constants';
-import { arcTestnet } from '@/lib/web3/wagmiConfig';
+import { arcTestnet, tempoTestnet } from '@/lib/web3/wagmiConfig';
 import { DeveloperWalletService } from '@/lib/circle/developerWalletService';
 import { apiCall } from '@/lib/supabase/client';
 import { getCircleWalletPrivyUserIdForTx } from '@/hooks/useCircleWallet';
@@ -44,7 +44,7 @@ import type { DeveloperWallet } from '@/lib/circle/developerWalletService';
 
 export type SendPaymentPreviewValues = {
   amount: string;
-  token: 'USDC' | 'EURC';
+  token: SupportedSendToken;
   platform: SendRecipientType;
   username: string;
   balance?: string;
@@ -71,6 +71,7 @@ type Props = {
 const FEE_BPS = 10n;
 const BPS_DENOMINATOR = 10000n;
 const DECIMALS = 1_000_000;
+type SupportedSendToken = 'USDC' | 'EURC' | 'PATHUSD' | 'ALPHAUSD' | 'BETAUSD' | 'THETAUSD';
 
 function parseAmountToWei(amount: string): bigint {
   return BigInt(Math.floor(parseFloat(amount) * DECIMALS));
@@ -91,17 +92,28 @@ export function SendPaymentForm({
   hasDeveloperWallet = false,
 }: Props) {
   const { address, isConnected } = useAccount();
+  const connectedChainId = useChainId();
   const { data: walletClient } = useWalletClient();
   const { user: privyUser } = usePrivySafe();
-  const activeChainId = ARC_CHAIN_ID;
-  const contracts = getContractsForChain(ARC_CHAIN_ID);
-  const TOKEN_OPTIONS = [
-    { value: 'USDC' as const, label: 'USDC', address: contracts.usdc },
-    { value: 'EURC' as const, label: 'EURC', address: contracts.eurc ?? contracts.usdc },
-  ] as const;
+  const activeChainId = connectedChainId || ARC_CHAIN_ID;
+  const contracts = getContractsForChain(activeChainId);
+  const isTempoNetwork = activeChainId === tempoTestnet.id;
+  const TOKEN_OPTIONS = isTempoNetwork
+    ? ([
+        { value: 'PATHUSD' as const, label: 'pathUSD', address: contracts.pathusd ?? '0x20c0000000000000000000000000000000000000' },
+        { value: 'ALPHAUSD' as const, label: 'AlphaUSD', address: contracts.alphausd ?? '0x20c0000000000000000000000000000000000001' },
+        { value: 'BETAUSD' as const, label: 'BetaUSD', address: contracts.betausd ?? '0x20c0000000000000000000000000000000000002' },
+        { value: 'THETAUSD' as const, label: 'ThetaUSD', address: contracts.thetausd ?? '0x20c0000000000000000000000000000000000003' },
+      ] as const)
+    : ([
+        { value: 'USDC' as const, label: 'USDC', address: contracts.usdc },
+        { value: 'EURC' as const, label: 'EURC', address: contracts.eurc ?? contracts.usdc },
+      ] as const);
 
   const [amount, setAmount] = useState(preview && previewValues ? previewValues.amount : '');
-  const [tokenType, setTokenType] = useState<'USDC' | 'EURC'>(preview && previewValues ? previewValues.token : 'USDC');
+  const [tokenType, setTokenType] = useState<SupportedSendToken>(
+    preview && previewValues ? previewValues.token : TOKEN_OPTIONS[0].value
+  );
   const [loading, setLoading] = useState(false);
   const [circleBalance, setCircleBalance] = useState<string | null>(null);
 
@@ -115,6 +127,13 @@ export function SendPaymentForm({
     if (walletSource !== 'circle') return;
     if (!hasDeveloperWallet && onWalletSourceChange) onWalletSourceChange('external');
   }, [walletSource, hasDeveloperWallet, onWalletSourceChange]);
+
+  useEffect(() => {
+    if (preview) return;
+    if (!TOKEN_OPTIONS.some((t) => t.value === tokenType)) {
+      setTokenType(TOKEN_OPTIONS[0].value);
+    }
+  }, [preview, tokenType, TOKEN_OPTIONS]);
 
   useEffect(() => {
     if (preview || walletSource !== 'circle' || !developerWallet?.wallet_address) {
@@ -567,7 +586,7 @@ export function SendPaymentForm({
             ) : (
               <Select
                 value={tokenType}
-                onValueChange={(v) => setTokenType(v as 'USDC' | 'EURC')}
+                onValueChange={(v) => setTokenType(v as SupportedSendToken)}
               >
                 <SelectTrigger className="w-[120px] gap-2" aria-label="Token">
                   <SelectValue />

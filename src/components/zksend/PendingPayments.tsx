@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useAccount, useWalletClient } from 'wagmi';
+import { useAccount, useWalletClient, useChainId } from 'wagmi';
 import { toast } from 'sonner';
 
 import web3Service from '@/lib/web3/web3Service';
@@ -71,6 +71,22 @@ function shortenAddress(addr: string): string {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
 
+function toUserFacingErrorMessage(error: unknown, fallback: string): string {
+  const maybeObj = typeof error === 'object' && error !== null ? (error as { code?: unknown; message?: unknown }) : null;
+  const code = maybeObj?.code;
+  const message = typeof maybeObj?.message === 'string' ? maybeObj.message : '';
+
+  if (code === 4001 || /user rejected the request/i.test(message)) {
+    return 'User rejected the request';
+  }
+
+  if (message) {
+    return message;
+  }
+
+  return fallback;
+}
+
 export function PendingPayments({
   platform,
   username,
@@ -82,8 +98,9 @@ export function PendingPayments({
   developerWallet = null,
   hasDeveloperWallet = false,
 }: Props) {
-  const activeChainId = ARC_CHAIN_ID;
-  const contracts = getContractsForChain(ARC_CHAIN_ID);
+  const connectedChainId = useChainId();
+  const activeChainId = connectedChainId || ARC_CHAIN_ID;
+  const contracts = getContractsForChain(activeChainId);
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
   const { authenticated, getAccessToken, user: privyUser } = usePrivySafe();
@@ -324,6 +341,10 @@ export function PendingPayments({
   const [claimingAll, setClaimingAll] = useState(false);
   const [lastClaimedTxHash, setLastClaimedTxHash] = useState<string | null>(null);
   const lastAutoLoadKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    web3Service.setChainId(activeChainId);
+  }, [activeChainId]);
 
   useEffect(() => {
     if (rows.length > 0) setLastClaimedTxHash(null);
@@ -895,7 +916,7 @@ export function PendingPayments({
       });
       await loadPending();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to claim payment';
+      const msg = toUserFacingErrorMessage(e, 'Failed to claim payment');
       console.error('[zkSEND] claim error:', e);
       toast.error(msg);
       setClaimingId(null);
@@ -1018,9 +1039,8 @@ export function PendingPayments({
           )
         );
         setLastClaimedTxHash(txHash);
-        toast.success(
-          <span>
-            All payments claimed.{' '}
+        toast.success('All payments claimed.', {
+          description: (
             <a
               href={getExplorerTxUrl(activeChainId, txHash)}
               target="_blank"
@@ -1029,8 +1049,8 @@ export function PendingPayments({
             >
               TX: {txHash.slice(0, 10)}...
             </a>
-          </span>
-        );
+          ),
+        });
         await loadPending();
         return;
       }
@@ -1193,9 +1213,8 @@ export function PendingPayments({
       );
 
       setLastClaimedTxHash(txHash);
-      toast.success(
-        <span>
-          All payments claimed.{' '}
+      toast.success('All payments claimed.', {
+        description: (
           <a
             href={getExplorerTxUrl(activeChainId, txHash)}
             target="_blank"
@@ -1204,11 +1223,11 @@ export function PendingPayments({
           >
             TX: {txHash.slice(0, 10)}...
           </a>
-        </span>
-      );
+        ),
+      });
       await loadPending();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to claim all payments';
+      const msg = toUserFacingErrorMessage(e, 'Failed to claim all payments');
       console.error('[zkSEND] claimAll error:', e);
       toast.error(msg);
     } finally {
