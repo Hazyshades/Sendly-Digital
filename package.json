@@ -21,7 +21,9 @@
     "openspec:update": "openspec update",
     "openspec:list": "openspec list",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "backfill:zksend": "node scripts/backfill-zksend-from-subgraph.mjs"
+    "backfill:zksend": "node scripts/backfill-zksend-from-subgraph.mjs",
+    "test:directsend": "hardhat test test/DirectSendV2.test.cjs",
+    "compile:hardhat": "hardhat compile"
   },
   "dependencies": {
     "@circle-fin/adapter-viem-v2": "^1.0.1",

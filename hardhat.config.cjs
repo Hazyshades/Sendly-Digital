@@ -14,7 +14,8 @@ const config = {
     },
   },
   paths: {
-    sources: "contracts",
+    /** V2 escrow contracts only; rest of `contracts/` may contain broken legacy paths. */
+    sources: "contracts/hardhat",
     tests: "test",
     cache: "cache",
     artifacts: "artifacts",

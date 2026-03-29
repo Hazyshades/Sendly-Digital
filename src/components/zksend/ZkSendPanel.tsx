@@ -65,7 +65,7 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
 
         <TabsContent value="receive" className="mt-4 space-y-6">
           <IdentitySelector
-            platform={platform === 'address' ? 'twitter' : platform}
+            platform={platform}
             onPlatformChange={(p) => setPlatform(p)}
             username={username}
             onUsernameChange={setUsername}
@@ -75,10 +75,10 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
             previewProfileImageUrl={preview ? previewValues?.profileImageUrl : undefined}
           />
           <PendingPayments
-            platform={platform === 'address' ? 'twitter' : platform}
+            platform={platform}
             username={username}
             isActive={activeTab === 'receive'}
-            isIdentityValid={platform === 'address' ? false : isIdentityValid}
+            isIdentityValid={isIdentityValid}
             truncateAddresses={preview}
             walletSource={walletSource}
             onWalletSourceChange={setWalletSource}

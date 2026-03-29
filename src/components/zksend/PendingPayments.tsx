@@ -12,7 +12,14 @@ import { fetchReclaimProofRequestConfig, verifyReclaimProofs } from '@/lib/recla
 import { toOnchainReclaimProof } from '@/lib/reclaim/onchain';
 import type { ReclaimProof } from '@/lib/reclaim/types';
 import { markZkSendPaymentClaimed } from '@/lib/zksend/zksendPaymentsAPI';
-import { getExplorerTxUrl, getExplorerAddressUrl, getContractsForChain, ARC_CHAIN_ID } from '@/lib/web3/constants';
+import { markDirectDepositClaimed } from '@/lib/directsend/directSendPaymentsAPI';
+import {
+  getExplorerTxUrl,
+  getExplorerAddressUrl,
+  getContractsForChain,
+  ARC_CHAIN_ID,
+  isDirectSendEscrowActiveForChain,
+} from '@/lib/web3/constants';
 import { ReclaimProofRequest } from '@reclaimprotocol/js-sdk';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
 import { isZkLocalhost } from '@/lib/runtime/zkHost';
@@ -25,7 +32,7 @@ import { WalletSourceToggle, type WalletSource } from './WalletSourceToggle';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-import type { ZkSendPlatform } from './ZkSendPanel';
+import type { SendRecipientType } from './ZkSendPanel';
 import { connectTwitter } from './Oauth/twitter';
 import { connectTwitch } from './Oauth/twitch';
 import { connectGithub } from './Oauth/github';
@@ -54,8 +61,17 @@ type PaymentRow = {
   createdAt: number;
 };
 
+type DirectDepositRow = {
+  depositId: string;
+  sender: string;
+  amount: string;
+  token: string;
+  claimed: boolean;
+  createdAt: number;
+};
+
 type Props = {
-  platform: ZkSendPlatform;
+  platform: SendRecipientType;
   username: string;
   isActive?: boolean;
   isIdentityValid?: boolean;
@@ -330,13 +346,23 @@ export function PendingPayments({
   }, [authenticated, getAccessToken]);
 
   const identityHash = useMemo(() => {
+    if (platform === 'address') return null;
     const u = normalizeSocialUsername(username.replace(/^@/, ''));
     if (!u) return null;
     return generateSocialIdentityHash(platform, u);
   }, [platform, username]);
 
+  const addressModeRecipient = useMemo(() => {
+    if (platform !== 'address') return null;
+    const t = username.trim();
+    return /^0x[a-fA-F0-9]{40}$/.test(t) ? (t as `0x${string}`) : null;
+  }, [platform, username]);
+
+  const directEscrowEnabled = isDirectSendEscrowActiveForChain(activeChainId);
+
   const [loadingList, setLoadingList] = useState(false);
   const [rows, setRows] = useState<PaymentRow[]>([]);
+  const [directRows, setDirectRows] = useState<DirectDepositRow[]>([]);
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [claimingAll, setClaimingAll] = useState(false);
   const [lastClaimedTxHash, setLastClaimedTxHash] = useState<string | null>(null);
@@ -347,8 +373,8 @@ export function PendingPayments({
   }, [activeChainId]);
 
   useEffect(() => {
-    if (rows.length > 0) setLastClaimedTxHash(null);
-  }, [rows.length]);
+    if (rows.length > 0 || directRows.length > 0) setLastClaimedTxHash(null);
+  }, [rows.length, directRows.length]);
 
   const resolveCurrency = (tokenAddressOrSymbol: string) => {
     const normalized = tokenAddressOrSymbol.toLowerCase();
@@ -386,6 +412,7 @@ export function PendingPayments({
   };
 
   const startReclaimFlow = async () => {
+    if (platform === 'address') throw new Error('Select a social platform to generate a proof');
     const u = normalizeSocialUsername(username.replace(/^@/, ''));
     if (!u) throw new Error('Enter username');
     if (!effectiveRecipientAddress) throw new Error('Select a wallet to generate proof');
@@ -539,6 +566,29 @@ export function PendingPayments({
 
   const loadPending = async () => {
     try {
+      if (platform === 'address') {
+        if (!directEscrowEnabled) {
+          setDirectRows([]);
+          setRows([]);
+          return;
+        }
+        if (!addressModeRecipient) throw new Error('Enter your wallet address (0x...)');
+        setLoadingList(true);
+        const list = await web3Service.getPendingDirectDepositsForRecipient(addressModeRecipient);
+        setDirectRows(
+          list.map((d) => ({
+            depositId: d.depositId,
+            sender: d.sender,
+            amount: d.amount,
+            token: d.token,
+            claimed: d.claimed,
+            createdAt: d.createdAt,
+          }))
+        );
+        setRows([]);
+        return;
+      }
+
       if (!identityHash) throw new Error('Enter username');
       setLoadingList(true);
 
@@ -555,6 +605,7 @@ export function PendingPayments({
           createdAt: p.createdAt,
         }))
       );
+      setDirectRows([]);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to load pending payments';
       console.error('[zkSEND] loadPending error:', e);
@@ -566,6 +617,14 @@ export function PendingPayments({
 
   useEffect(() => {
     if (!isActive) return;
+    if (platform === 'address') {
+      if (!directEscrowEnabled || !addressModeRecipient) return;
+      const key = `address:${addressModeRecipient}`;
+      if (lastAutoLoadKeyRef.current === key) return;
+      lastAutoLoadKeyRef.current = key;
+      void loadPending();
+      return;
+    }
     if (!identityHash) return;
 
     const key = `${platform}:${identityHash}`;
@@ -574,7 +633,7 @@ export function PendingPayments({
 
     void loadPending();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive, identityHash, platform]);
+  }, [isActive, identityHash, platform, addressModeRecipient, directEscrowEnabled]);
 
   const claim = async (paymentId: string) => {
     try {
@@ -1235,6 +1294,83 @@ export function PendingPayments({
     }
   };
 
+  const claimDirectDeposit = async (depositId: string) => {
+    try {
+      if (!directEscrowEnabled || !contracts.directSendV2) {
+        throw new Error('DirectSend V2 is not configured');
+      }
+      if (!useCircle && (!isConnected || !address || !walletClient)) throw new Error('Connect wallet to claim');
+      if (useCircle && !developerWallet) throw new Error('Internal wallet not available');
+      if (!addressModeRecipient) throw new Error('Enter your wallet address');
+      if (address?.toLowerCase() !== addressModeRecipient.toLowerCase()) {
+        throw new Error('Connected wallet must match the address field above');
+      }
+
+      setClaimingId(`direct:${depositId}`);
+      if (!useCircle) {
+        await web3Service.initialize(walletClient!, address!, activeChainId);
+      }
+
+      const txHash = useCircle
+        ? await (async () => {
+            const privyUserIdForTx = getCircleWalletPrivyUserIdForTx(
+              developerWallet!,
+              address ?? undefined,
+              privyUser?.id
+            );
+            const res = await DeveloperWalletService.sendTransaction({
+              walletId: developerWallet!.circle_wallet_id,
+              walletAddress: developerWallet!.wallet_address,
+              contractAddress: contracts.directSendV2!,
+              functionName: 'claim',
+              args: [BigInt(depositId).toString()],
+              blockchain: 'ARC-TESTNET',
+              privyUserId: privyUserIdForTx,
+              socialPlatform: developerWallet!.social_platform ?? undefined,
+              socialUserId: developerWallet!.social_user_id ?? undefined,
+            });
+            if (!res.success) throw new Error(res.error ?? 'Claim failed');
+            if (res.txHash) return res.txHash;
+            if (res.transactionId) return await pollCircleTxHash(res.transactionId);
+            throw new Error('Missing transactionId');
+          })()
+        : await web3Service.claimDirectDeposit(depositId);
+
+      try {
+        await markDirectDepositClaimed({
+          depositId,
+          recipientWallet: addressModeRecipient,
+          claimTxHash: txHash,
+          chainId: activeChainId,
+          contractAddress: contracts.directSendV2,
+        });
+      } catch (dbError) {
+        console.warn('[DirectSend] Failed to update claim in DB:', dbError);
+      }
+
+      setLastClaimedTxHash(txHash);
+      toast.success('Deposit claimed.', {
+        description: (
+          <a
+            href={getExplorerTxUrl(activeChainId, txHash)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium"
+          >
+            TX: <span className="underline">{txHash.slice(0, 10)}...</span>
+          </a>
+        ),
+      });
+      await loadPending();
+    } catch (e) {
+      const msg = toUserFacingErrorMessage(e, 'Failed to claim deposit');
+      console.error('[DirectSend] claim error:', e);
+      toast.error(msg);
+    } finally {
+      setClaimingId(null);
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
@@ -1250,8 +1386,18 @@ export function PendingPayments({
       </CardHeader>
       <CardContent className="space-y-4">
 
-
-        {platform === 'twitter' ? (
+        {platform === 'address' && !directEscrowEnabled ? (
+          <p className="text-sm text-muted-foreground">
+            DirectSend escrow is disabled. Address sends use instant delivery (legacy). Set{' '}
+            <code className="text-xs">VITE_DIRECT_SEND_CLAIM_MODE=escrow_v2</code> and deploy DirectSend V2 to load
+            claimable deposits here.
+          </p>
+        ) : platform === 'address' && directEscrowEnabled ? (
+          <p className="text-sm text-muted-foreground">
+            Enter the <strong>recipient</strong> wallet address above, connect that wallet, then refresh to see pending
+            deposits.
+          </p>
+        ) : platform === 'twitter' ? (
           <div className="space-y-3">
             <Button
               type="button"
@@ -1368,84 +1514,153 @@ export function PendingPayments({
             type="button"
             variant="outline"
             onClick={loadPending}
-            disabled={loadingList || !isIdentityValid}
+            disabled={
+              loadingList ||
+              (platform === 'address'
+                ? !addressModeRecipient || !directEscrowEnabled
+                : !isIdentityValid)
+            }
             className="w-full sm:w-auto"
           >
             {loadingList ? 'Refreshing...' : 'Refresh'}
           </Button>
         </div>
 
-        {rows.length === 0 ? (
-          <div className="text-sm text-muted-foreground">
-            {lastClaimedTxHash ? (
-              <span className="font-semibold text-foreground">
-                Payment claimed. View transaction:{' '}
-                <a
-                  href={getExplorerTxUrl(activeChainId, lastClaimedTxHash)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:opacity-80"
+        {platform === 'address' && directEscrowEnabled ? (
+          directRows.length === 0 ? (
+            <div className="text-sm text-muted-foreground">
+              {lastClaimedTxHash ? (
+                <span className="font-semibold text-foreground">
+                  Deposit claimed. View transaction:{' '}
+                  <a
+                    href={getExplorerTxUrl(activeChainId, lastClaimedTxHash)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:opacity-80"
+                  >
+                    {lastClaimedTxHash.slice(0, 10)}...
+                  </a>
+                </span>
+              ) : (
+                'No pending deposits for this address.'
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {directRows.map((d) => (
+                <div
+                  key={d.depositId}
+                  className="flex flex-col gap-2 rounded-lg border p-3 md:flex-row md:items-center md:justify-between"
                 >
-                  {lastClaimedTxHash.slice(0, 10)}...
-                </a>
-              </span>
-            ) : null}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {rows.length > 1 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  onClick={claimAll}
-                  disabled={
-                    claimingAll ||
-                    !isConnected ||
-                    !address ||
-                    !isIdentityValid ||
-                    loadingList
-                  }
-                  className="w-full sm:w-auto"
-                >
-                  {claimingAll ? 'Claiming all...' : `Claim all (${rows.length} payments)`}
-                </Button>
-              </div>
-            )}
-            {rows.map((p) => (
-              <div
-                key={p.paymentId}
-                className="flex flex-col gap-2 rounded-lg border p-3 md:flex-row md:items-center md:justify-between"
-              >
-                <div className="space-y-1">
-                  <div className="text-sm font-medium">Payment</div>
-                  <div className="text-xs text-muted-foreground">
-                    from:{' '}
-                    <a
-                      href={getExplorerAddressUrl(activeChainId, p.sender)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline"
-                      title={p.sender}
-                    >
-                      {truncateAddresses ? shortenAddress(p.sender) : p.sender}
-                    </a>
-                    {' · amount: '}
-                    {p.amount}
-                    {' · token: '}
-                    {getTokenDisplay(p.token)}
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">Deposit #{d.depositId}</div>
+                    <div className="text-xs text-muted-foreground">
+                      from:{' '}
+                      <a
+                        href={getExplorerAddressUrl(activeChainId, d.sender)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                        title={d.sender}
+                      >
+                        {truncateAddresses ? shortenAddress(d.sender) : d.sender}
+                      </a>
+                      {' · amount: '}
+                      {d.amount}
+                      {' · token: '}
+                      {getTokenDisplay(d.token)}
+                    </div>
                   </div>
+                  <Button
+                    variant="secondary"
+                    onClick={() => claimDirectDeposit(d.depositId)}
+                    disabled={
+                      claimingId === `direct:${d.depositId}` ||
+                      claimingAll ||
+                      !isConnected ||
+                      !address ||
+                      address.toLowerCase() !== (addressModeRecipient ?? '').toLowerCase()
+                    }
+                  >
+                    {claimingId === `direct:${d.depositId}` ? 'Claiming...' : 'Claim'}
+                  </Button>
                 </div>
-                <Button
-                  variant="secondary"
-                  onClick={() => claim(p.paymentId)}
-                  disabled={claimingId === p.paymentId || claimingAll}
+              ))}
+            </div>
+          )
+        ) : platform !== 'address' ? (
+          rows.length === 0 ? (
+            <div className="text-sm text-muted-foreground">
+              {lastClaimedTxHash ? (
+                <span className="font-semibold text-foreground">
+                  Payment claimed. View transaction:{' '}
+                  <a
+                    href={getExplorerTxUrl(activeChainId, lastClaimedTxHash)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:opacity-80"
+                  >
+                    {lastClaimedTxHash.slice(0, 10)}...
+                  </a>
+                </span>
+              ) : null}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {rows.length > 1 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    onClick={claimAll}
+                    disabled={
+                      claimingAll ||
+                      !isConnected ||
+                      !address ||
+                      !isIdentityValid ||
+                      loadingList
+                    }
+                    className="w-full sm:w-auto"
+                  >
+                    {claimingAll ? 'Claiming all...' : `Claim all (${rows.length} payments)`}
+                  </Button>
+                </div>
+              )}
+              {rows.map((p) => (
+                <div
+                  key={p.paymentId}
+                  className="flex flex-col gap-2 rounded-lg border p-3 md:flex-row md:items-center md:justify-between"
                 >
-                  {claimingId === p.paymentId ? 'Claiming...' : 'Claim'}
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">Payment</div>
+                    <div className="text-xs text-muted-foreground">
+                      from:{' '}
+                      <a
+                        href={getExplorerAddressUrl(activeChainId, p.sender)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                        title={p.sender}
+                      >
+                        {truncateAddresses ? shortenAddress(p.sender) : p.sender}
+                      </a>
+                      {' · amount: '}
+                      {p.amount}
+                      {' · token: '}
+                      {getTokenDisplay(p.token)}
+                    </div>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    onClick={() => claim(p.paymentId)}
+                    disabled={claimingId === p.paymentId || claimingAll}
+                  >
+                    {claimingId === p.paymentId ? 'Claiming...' : 'Claim'}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )
+        ) : null}
       </CardContent>
     </Card>
   );

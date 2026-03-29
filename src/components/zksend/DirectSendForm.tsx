@@ -4,7 +4,13 @@ import { toast } from 'sonner';
 import { Wallet } from 'lucide-react';
 
 import web3Service from '@/lib/web3/web3Service';
-import { getExplorerTxUrl, getContractsForChain, ARC_CHAIN_ID } from '@/lib/web3/constants';
+import {
+  getExplorerTxUrl,
+  getContractsForChain,
+  ARC_CHAIN_ID,
+  isDirectSendEscrowActiveForChain,
+} from '@/lib/web3/constants';
+import { createDirectDepositRecord } from '@/lib/directsend/directSendPaymentsAPI';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -59,6 +65,51 @@ export function DirectSendForm() {
       setLoading(true);
       await web3Service.initialize(walletClient, address, activeChainId);
 
+      const useEscrow = isDirectSendEscrowActiveForChain(activeChainId);
+
+      if (useEscrow) {
+        const { txHash, depositId } = await web3Service.depositDirectToAddress({
+          recipient: recipientTrimmed as `0x${string}`,
+          amount,
+          tokenType,
+        });
+        if (depositId && txHash) {
+          try {
+            await createDirectDepositRecord({
+              depositId,
+              senderAddress: address,
+              recipientWallet: recipientTrimmed,
+              amount,
+              currency: tokenType,
+              txHash,
+              chainId: activeChainId,
+              contractAddress: contracts.directSendV2!,
+            });
+          } catch (dbError) {
+            console.warn('[DirectSend] Failed to store deposit in DB:', dbError);
+          }
+        }
+        toast.success('Deposit created. Recipient claims later.');
+        if (txHash) {
+          toast.success(
+            <span>
+              {depositId ? `Deposit #${depositId}. ` : ''}
+              <a
+                href={getExplorerTxUrl(activeChainId, txHash)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium"
+              >
+                TX: <span className="underline">{txHash.slice(0, 10)}...</span>
+              </a>
+            </span>
+          );
+        }
+        setAmount('');
+        setRecipientAddress('');
+        return;
+      }
+
       const { txHash } = await web3Service.sendDirectToAddress({
         recipient: recipientTrimmed as `0x${string}`,
         amount,
@@ -93,8 +144,10 @@ export function DirectSendForm() {
     }
   };
 
-  const isDirectSendConfigured =
-    contracts.directSend && contracts.directSend !== '0x0000000000000000000000000000000000000000';
+  const useEscrow = isDirectSendEscrowActiveForChain(activeChainId);
+  const isDirectSendConfigured = useEscrow
+    ? !!(contracts.directSendV2 && contracts.directSendV2 !== '0x0000000000000000000000000000000000000000')
+    : !!(contracts.directSend && contracts.directSend !== '0x0000000000000000000000000000000000000000');
   const canSubmit =
     isDirectSendConfigured &&
     isRecipientValid &&
@@ -109,7 +162,9 @@ export function DirectSendForm() {
       <CardContent className="pt-6 space-y-6">
         {!isDirectSendConfigured && (
           <p className="text-sm text-amber-600 dark:text-amber-500">
-            DirectSend is not configured. Set VITE_ARC_DIRECT_SEND_CONTRACT_ADDRESS and deploy the DirectSend contract.
+            {useEscrow
+              ? 'DirectSend V2 is not configured. Set VITE_ARC_DIRECT_SEND_V2_CONTRACT_ADDRESS and VITE_DIRECT_SEND_CLAIM_MODE=escrow_v2.'
+              : 'DirectSend is not configured. Set VITE_ARC_DIRECT_SEND_CONTRACT_ADDRESS and deploy the DirectSend contract.'}
           </p>
         )}
 
@@ -166,6 +221,7 @@ export function DirectSendForm() {
 
         <p className="text-xs text-muted-foreground">
           A 0.1% fee is charged; the recipient receives the amount you enter.
+          {useEscrow ? ' Funds stay in the contract until the recipient claims.' : null}
         </p>
 
         <Button
@@ -174,7 +230,7 @@ export function DirectSendForm() {
           size="lg"
           className="w-full sm:w-auto bg-emerald-600 text-white hover:bg-emerald-600/90 disabled:opacity-50"
         >
-          {loading ? 'Sending...' : 'Send to address'}
+          {loading ? 'Sending...' : useEscrow ? 'Deposit for address' : 'Send to address'}
         </Button>
       </CardContent>
     </Card>

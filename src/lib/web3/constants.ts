@@ -49,6 +49,33 @@ export const DIRECT_SEND_CONTRACT_ADDRESS =
   import.meta.env.VITE_ARC_DIRECT_SEND_CONTRACT_ADDRESS ||
   "0x0000000000000000000000000000000000000000";
 
+/** DirectSend V2 (escrow + claim). Deploy `contracts/hardhat/DirectSendV2.sol` / `DirectSendTempoV2.sol`. */
+export const ARC_DIRECT_SEND_V2_CONTRACT_ADDRESS =
+  import.meta.env.VITE_ARC_DIRECT_SEND_V2_CONTRACT_ADDRESS || '';
+export const TEMPO_DIRECT_SEND_V2_CONTRACT_ADDRESS =
+  import.meta.env.VITE_TEMPO_DIRECT_SEND_V2_CONTRACT_ADDRESS || '';
+export const BASE_SEPOLIA_DIRECT_SEND_V2_CONTRACT_ADDRESS =
+  import.meta.env.VITE_BASE_DIRECT_SEND_V2_CONTRACT_ADDRESS || '';
+
+/** `legacy` = instant send (DirectSend v1). `escrow_v2` = deposit + claim when V2 address is set. */
+export type DirectSendClaimMode = 'legacy' | 'escrow_v2';
+
+export function getDirectSendClaimMode(): DirectSendClaimMode {
+  const v = (import.meta.env.VITE_DIRECT_SEND_CLAIM_MODE || '').toLowerCase().trim();
+  return v === 'escrow_v2' ? 'escrow_v2' : 'legacy';
+}
+
+export function getDirectSendV2Eip712Name(chainId: number): 'DirectSendV2' | 'DirectSendTempoV2' {
+  return chainId === TEMPO_CHAIN_ID ? 'DirectSendTempoV2' : 'DirectSendV2';
+}
+
+/** True when app should use V2 escrow (mode + non-zero V2 contract address for chain). */
+export function isDirectSendEscrowActiveForChain(chainId: number): boolean {
+  if (getDirectSendClaimMode() !== 'escrow_v2') return false;
+  const a = getContractsForChain(chainId).directSendV2;
+  return !!a && a !== '0x0000000000000000000000000000000000000000';
+}
+
 export const RECLAIM_VERIFIER_CONTRACT_ADDRESS =
   import.meta.env.VITE_RECLAIM_VERIFIER_CONTRACT_ADDRESS ||
   import.meta.env.VITE_ARC_ZKTLS_VERIFIER_ADDRESS ||
@@ -107,6 +134,8 @@ export const BASE_SEPOLIA_USDT_ADDRESS =
   import.meta.env.VITE_BASE_USDT_ADDRESS || '';
 export const BASE_SEPOLIA_RECLAIM_VERIFIER_CONTRACT_ADDRESS =
   import.meta.env.VITE_BASE_RECLAIM_VERIFIER_ADDRESS || '';
+export const BASE_SEPOLIA_DIRECT_SEND_CONTRACT_ADDRESS =
+  import.meta.env.VITE_BASE_DIRECT_SEND_CONTRACT_ADDRESS || '';
 
 // Tempo Testnet (42431)
 export const TEMPO_CHAIN_ID = Number(import.meta.env.VITE_TEMPO_CHAIN_ID || 42431);
@@ -163,6 +192,8 @@ export interface ChainContracts {
   tiktokVault?: string;
   instagramVault?: string;
   directSend?: string;
+  /** Escrow + claim (EIP-712). See `contracts/hardhat/DirectSendV2.sol`. */
+  directSendV2?: string;
   rpcUrls: string[];
   explorerUrl: string;
   explorerApiUrl: string;
@@ -179,6 +210,8 @@ export function getContractsForChain(chainId: number): ChainContracts {
       usdc: BASE_SEPOLIA_USDC_ADDRESS,
       usdt: BASE_SEPOLIA_USDT_ADDRESS || undefined,
       reclaimVerifier: BASE_SEPOLIA_RECLAIM_VERIFIER_CONTRACT_ADDRESS,
+      directSend: BASE_SEPOLIA_DIRECT_SEND_CONTRACT_ADDRESS || undefined,
+      directSendV2: BASE_SEPOLIA_DIRECT_SEND_V2_CONTRACT_ADDRESS || undefined,
       rpcUrls: [...BASE_SEPOLIA_RPC_URLS],
       explorerUrl: BASE_SEPOLIA_EXPLORER_URL,
       explorerApiUrl: BASE_SEPOLIA_EXPLORER_API_URL,
@@ -201,6 +234,7 @@ export function getContractsForChain(chainId: number): ChainContracts {
       tiktokVault: TEMPO_TIKTOK_VAULT_ADDRESS || TIKTOK_VAULT_CONTRACT_ADDRESS,
       instagramVault: TEMPO_INSTAGRAM_VAULT_ADDRESS || INSTAGRAM_VAULT_CONTRACT_ADDRESS,
       directSend: TEMPO_DIRECT_SEND_CONTRACT_ADDRESS || undefined,
+      directSendV2: TEMPO_DIRECT_SEND_V2_CONTRACT_ADDRESS || undefined,
       rpcUrls: [...TEMPO_RPC_URLS],
       explorerUrl: TEMPO_EXPLORER_URL,
       explorerApiUrl: TEMPO_EXPLORER_API_URL,
@@ -222,6 +256,7 @@ export function getContractsForChain(chainId: number): ChainContracts {
     tiktokVault: TIKTOK_VAULT_CONTRACT_ADDRESS,
     instagramVault: INSTAGRAM_VAULT_CONTRACT_ADDRESS,
     directSend: DIRECT_SEND_CONTRACT_ADDRESS,
+    directSendV2: ARC_DIRECT_SEND_V2_CONTRACT_ADDRESS || undefined,
     rpcUrls: [...ARC_RPC_URLS],
     explorerUrl: import.meta.env.VITE_ARC_BLOCK_EXPLORER_URL || 'https://testnet.arcscan.app',
     explorerApiUrl: ARCSCAN_API_URL,
@@ -2522,6 +2557,96 @@ export const DirectSendABI = [
       { name: '_amount', type: 'uint256' },
     ],
     outputs: [],
+  },
+] as const;
+
+// DirectSendV2 ABI (contracts/hardhat/DirectSendV2.sol, DirectSendTempoV2.sol)
+export const DirectSendV2ABI = [
+  {
+    type: 'event',
+    name: 'DepositCreated',
+    inputs: [
+      { name: 'depositId', type: 'uint256', indexed: true },
+      { name: 'sender', type: 'address', indexed: true },
+      { name: 'recipient', type: 'address', indexed: true },
+      { name: 'amount', type: 'uint256', indexed: false },
+      { name: 'token', type: 'address', indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'DepositClaimed',
+    inputs: [
+      { name: 'depositId', type: 'uint256', indexed: true },
+      { name: 'recipient', type: 'address', indexed: true },
+      { name: 'amount', type: 'uint256', indexed: false },
+      { name: 'token', type: 'address', indexed: false },
+      { name: 'relayer', type: 'address', indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'FeePaid',
+    inputs: [
+      { name: 'sender', type: 'address', indexed: true },
+      { name: 'feeRecipient', type: 'address', indexed: true },
+      { name: 'feeAmount', type: 'uint256', indexed: false },
+      { name: 'token', type: 'address', indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'function',
+    name: 'depositFor',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: '_recipient', type: 'address' },
+      { name: '_amount', type: 'uint256' },
+      { name: '_token', type: 'address' },
+    ],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'claim',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'depositId', type: 'uint256' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'claimWithSig',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'depositId', type: 'uint256' },
+      { name: 'recipient', type: 'address' },
+      { name: 'deadline', type: 'uint256' },
+      { name: 'signature', type: 'bytes' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'deposits',
+    stateMutability: 'view',
+    inputs: [{ name: '', type: 'uint256' }],
+    outputs: [
+      { name: 'sender', type: 'address' },
+      { name: 'recipient', type: 'address' },
+      { name: 'token', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+      { name: 'claimed', type: 'bool' },
+      { name: 'createdAt', type: 'uint256' },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'nextDepositId',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
   },
 ] as const;
 

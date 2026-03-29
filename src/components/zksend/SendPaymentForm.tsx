@@ -17,7 +17,9 @@ import {
   ARC_CHAIN_ID,
   ERC20ABI,
   ZkSendABI,
+  isDirectSendEscrowActiveForChain,
 } from '@/lib/web3/constants';
+import { createDirectDepositRecord } from '@/lib/directsend/directSendPaymentsAPI';
 import { arcTestnet, tempoTestnet } from '@/lib/web3/wagmiConfig';
 import { DeveloperWalletService } from '@/lib/circle/developerWalletService';
 import { apiCall } from '@/lib/supabase/client';
@@ -236,13 +238,21 @@ export function SendPaymentForm({
         if (platform === 'address') {
           const recipientTrimmed = username.trim();
           if (!/^0x[a-fA-F0-9]{40}$/.test(recipientTrimmed)) throw new Error('Enter a valid recipient address (0x...)');
-          if (!contracts.directSend) throw new Error('DirectSend contract not configured');
+          const useEscrow = isDirectSendEscrowActiveForChain(activeChainId);
+          const directContract = useEscrow ? contracts.directSendV2 : contracts.directSend;
+          if (!directContract) {
+            throw new Error(
+              useEscrow
+                ? 'DirectSend V2 not configured (set VITE_*_DIRECT_SEND_V2_CONTRACT_ADDRESS)'
+                : 'DirectSend contract not configured'
+            );
+          }
           const approveRes = await DeveloperWalletService.sendTransaction({
             walletId: developerWallet.circle_wallet_id,
             walletAddress: developerWallet.wallet_address,
             contractAddress: tokenAddress,
             functionName: 'approve',
-            args: [contracts.directSend, totalWei],
+            args: [directContract, totalWei],
             blockchain: 'ARC-TESTNET',
             privyUserId: privyUserIdForTx,
             socialPlatform: developerWallet.social_platform ?? undefined,
@@ -253,9 +263,9 @@ export function SendPaymentForm({
           const sendRes = await DeveloperWalletService.sendTransaction({
             walletId: developerWallet.circle_wallet_id,
             walletAddress: developerWallet.wallet_address,
-            contractAddress: contracts.directSend,
-            functionName: 'sendToAddress',
-            args: [recipientTrimmed, amountWei, tokenAddress],
+            contractAddress: directContract,
+            functionName: useEscrow ? 'depositFor' : 'sendToAddress',
+            args: useEscrow ? [recipientTrimmed, amountWei, tokenAddress] : [recipientTrimmed, amountWei, tokenAddress],
             blockchain: 'ARC-TESTNET',
             privyUserId: privyUserIdForTx,
             socialPlatform: developerWallet.social_platform ?? undefined,
@@ -399,6 +409,49 @@ export function SendPaymentForm({
       if (platform === 'address') {
         const recipientTrimmed = username.trim();
         if (!/^0x[a-fA-F0-9]{40}$/.test(recipientTrimmed)) throw new Error('Enter a valid recipient address (0x...)');
+        const useEscrow = isDirectSendEscrowActiveForChain(activeChainId);
+
+        if (useEscrow) {
+          const { txHash, depositId } = await web3Service.depositDirectToAddress({
+            recipient: recipientTrimmed as `0x${string}`,
+            amount,
+            tokenType,
+          });
+          if (depositId && txHash) {
+            try {
+              await createDirectDepositRecord({
+                depositId,
+                senderAddress: address,
+                recipientWallet: recipientTrimmed,
+                amount,
+                currency: tokenType,
+                txHash,
+                chainId: activeChainId,
+                contractAddress: contracts.directSendV2!,
+              });
+            } catch (dbError) {
+              console.warn('[DirectSend] Failed to store deposit in DB:', dbError);
+            }
+          }
+          toast.success('Deposit sent. Recipient can claim from the Receive tab.');
+          if (txHash) {
+            toast.success(
+              <span>
+                {depositId ? `Deposit #${depositId}. ` : ''}
+                <a
+                  href={getExplorerTxUrl(activeChainId, txHash)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium"
+                >
+                  TX: <span className="underline">{txHash.slice(0, 10)}...{txHash.slice(-8)}</span>
+                </a>
+              </span>
+            );
+          }
+          return;
+        }
+
         const { txHash } = await web3Service.sendDirectToAddress({
           recipient: recipientTrimmed as `0x${string}`,
           amount,
