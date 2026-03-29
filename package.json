@@ -17,6 +17,9 @@
     "compile:tempo": "node compileTempo.mjs",
     "test:tempo": "node contracts/tempo_deploy/testTempoContracts.mjs",
     "typecheck": "tsc --noEmit",
+    "openspec": "openspec",
+    "openspec:update": "openspec update",
+    "openspec:list": "openspec list",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "backfill:zksend": "node scripts/backfill-zksend-from-subgraph.mjs"
   },
@@ -94,6 +97,7 @@
     "web3": "^4.16.0"
   },
   "devDependencies": {
+    "@fission-ai/openspec": "^1.2.0",
     "@nomicfoundation/hardhat-toolbox": "^6.1.0",
     "@playwright/mcp": "^0.0.45",
     "@playwright/test": "^1.56.1",

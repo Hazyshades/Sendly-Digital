@@ -84,6 +84,9 @@ tests/node_modules/
 /cursor/
 .cursorignore
 
+# OpenSpec
+openspec/**/*.md
+
 .cursor/
 /contracts_reclaim_protocol/
 
