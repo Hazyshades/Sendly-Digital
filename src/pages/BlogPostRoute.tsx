@@ -474,6 +474,11 @@ export function BlogPostRoute() {
   const post = slug ? blogPosts[slug] : null;
 
   useEffect(() => {
+    // Ensure each blog post opens from the top in SPA navigation.
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [slug]);
+
+  useEffect(() => {
     if (post?.slug !== 'zktls_payments_guide') return;
     fetchTwitterUserPreview(BLOG_PREVIEW_USERNAME)
       .then((result) => {

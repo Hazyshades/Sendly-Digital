@@ -260,6 +260,30 @@
   padding-bottom: 12px;
 }
 
+/* Blog listing typography (/blog) */
+.blog-shell .blog-index-typography h1 {
+  font-family: 'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  letter-spacing: -0.03em;
+}
+
+.blog-shell .blog-index-typography h2 {
+  font-family: 'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.blog-shell .blog-index-typography p,
+.blog-shell .blog-index-typography span,
+.blog-shell .blog-index-typography button,
+.blog-shell .blog-index-typography a {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.blog-shell .blog-index-typography .group p {
+  line-height: 1.55;
+}
+
 @layer utilities {
   .circle-gradient-bg {
     background: linear-gradient(135deg, var(--circle-gradient-start) 0%, var(--circle-gradient-mid) 50%, var(--circle-gradient-end) 100%);
