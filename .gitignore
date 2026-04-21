@@ -13,6 +13,9 @@ pnpm-debug.log*
 /test-results/
 /tests/
 /SolidityScan_ Best Smart Contract Scanner & Auditing Tool_files/
+/SolidityScan_ Best Smart Contract Scanner & Auditing Tool.html
+/scripts/compute_creator_blocklist_volume.py
+/scripts/creator_blocklist.json
 # Dependency directories
 node_modules/
 jspm_packages/
