@@ -60,7 +60,7 @@ const blogPosts: Record<string, BlogPost> = {
     slug: 'privy_results',
     title: 'Privy testnet results: metrics, methodology, and takeaways',
     description:
-      'Sendly testnet metrics: 11,000 addresses, 31,000 cards, $85,000 TVL and $310,000 total volume. How Privy + OAuth fit our stack, how we verified numbers in three layers, and what we learned running it.',
+      'Sendly testnet metrics: 11,000 addresses, 31,000 cards, $85,000 TVL and $310,000 total volume. How Privy fit our stack, how we verified numbers in three layers, and what we learned running it.',
     date: '2026-02-10',
     category: 'Technology',
     tags: ['Privy', 'OAuth', 'Testnet'],
