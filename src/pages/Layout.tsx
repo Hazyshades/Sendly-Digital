@@ -5,7 +5,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { NewsPanel } from '@/components/NewsPanel';
 import { FeedbackPanel } from '@/components/FeedbackPanel';
 import { useState, lazy, Suspense } from 'react';
-import { isZkHost, isZkLocalhost, toZkUrl } from '@/lib/runtime/zkHost';
+import { isZkHost, isZkLocalhost } from '@/lib/runtime/zkHost';
 
 // Lazy load Privy components only when not on zk.localhost to prevent SDK loading
 const PrivyAuthModal = isZkLocalhost() 
@@ -93,12 +93,14 @@ export function Layout({ children }: LayoutProps) {
               </button>
             ) : null}
             {!zk ? (
-              <a
-                href={toZkUrl(`${window.location.origin}/payments`)}
-                className="bg-white border border-gray-200 text-gray-900 hover:bg-gray-50 px-4 py-2 rounded-2xl transition-all duration-200 flex items-center gap-2 font-medium"
+              <button
+                type="button"
+                disabled
+                aria-disabled="true"
+                className="bg-white/70 border border-gray-200 text-gray-400 px-4 py-2 rounded-2xl transition-all duration-200 flex items-center gap-2 font-medium cursor-not-allowed"
               >
                 Payments
-              </a>
+              </button>
             ) : null}
             <ConnectButton />
           </div>
