@@ -2,8 +2,8 @@ import { toast } from 'sonner';
 import { createPopupWindow } from './utils';
 
 const getZkTlsApiUrl = (): string => {
-  // В проде используем явный API-хост (api.sendly.digital),
-  // чтобы не упираться в TLS-сертификат фронтенд-домена.
+  // In production we use an explicit API host (api.sendly.digital),
+  // to avoid hitting the TLS certificate of the frontend domain.
   const envUrl =
     (import.meta.env.VITE_ZKTLS_SERVICE_URL as string | undefined) ||
     (import.meta.env.VITE_ZKTLS_API_URL as string | undefined);

@@ -12,6 +12,7 @@ import { CreateGiftCardPreview } from '@/components/CreateGiftCardPreview';
 import { InternalWalletDashboardPreview } from '@/components/InternalWalletDashboardPreview';
 import { InternalWalletCreatePromptPreview } from '@/components/InternalWalletCreatePromptPreview';
 import { BlogLayout } from '@/components/BlogLayout';
+import { PUBLIC_BLOG_SLUGS } from '@/lib/blog/publicSlugs';
 import { fetchTwitterUserPreview } from '@/lib/twitter/userLookup';
 
 /** Fallback when cache/API has no data or request fails. */
@@ -58,13 +59,13 @@ interface BlogImage {
 const blogPosts: Record<string, BlogPost> = {
   privy_results: {
     slug: 'privy_results',
-    title: 'Privy testnet results: metrics, methodology, and takeaways',
+    title: 'Privy testnet: what the numbers said, how we checked them, and what we\'d do again',
     description:
-      'Sendly testnet metrics: 11,000 addresses, 31,000 cards, $85,000 TVL and $310,000 total volume. How Privy fit our stack, how we verified numbers in three layers, and what we learned running it.',
-    date: '2026-02-10',
+      'Roughly 12k wallets, 31k cards sent, ~$86k TVL, ~$310k total volume. Privy as our auth + embedded wallet layer, the checks we ran before trusting a chart, and the operational stuff that actually mattered.',
+    date: '2026-04-01',
     category: 'Technology',
     tags: ['Privy', 'OAuth', 'Testnet'],
-    readTime: '6 min',
+    readTime: '8 min',
     images: [
       {
         id: 'verification-flow',
@@ -84,14 +85,14 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'context',
         title: 'Testnet context',
         paragraphs: [
-          'During the Sendly testnet, Privy was our only identity and embedded-wallet provider. One login tied social accounts to a wallet. OAuth tokens stayed in-session for API checks only. Every provider call went through one service layer with retries and rate limits. We checked quality in three steps: Privy field schema, on-chain numbers against our records, and occasional live calls to providers.'
+          'Sendly\'s testnet leaned on Privy alone for identity and embedded wallets: one login, socials and wallet lined up. OAuth tokens lived in memory for the API calls we needed; nothing fancy beyond that. Provider traffic funneled through a single backend layer with retries and rate limits. When a metric looked off, we triangulated: Privy payloads against our schema, on-chain activity against our DB (indexer/subgraph when it helped), and spot calls to Twitter or Telegram on a random slice of users.'
         ]
       },
       {
         id: 'metrics',
         title: 'Metrics',
         paragraphs: [
-          'Numbers for the testnet period:'
+          'Counts and balances for the window we measured:'
         ],
         bullets: [
           'Addresses: 11,673. Cards sent: 31,700. Transactions: 38,747.',
@@ -104,17 +105,27 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'privy-oauth-method',
         title: 'Privy + OAuth pipeline',
         paragraphs: [
-          'Users sign in with Privy. Privy returns a JWT with linked accounts and an embedded wallet address. Our backend verifies the signature and checks those fields against our schema. The wallet key sits in Privy\'s MPC setup (split between Privy\'s servers and the user\'s device); we never hold the full private key. Signing transactions and linking social accounts use the same login.',
-          'OAuth tokens are short-lived and tightly scoped (for example read:user on Twitter, openid on Twitch). We call provider APIs only when we need them (profile, subscription status) and drop tokens when the session ends. All backend traffic goes through one gateway: validate the JWT, call the provider with retries (three tries, exponential backoff, handle 429/5xx), and log request id, status, and latency. Tokens and secrets never go in logs.'
+          'Users sign in with Privy. The session carries linked accounts and the embedded address. Keys stay in Privy\'s MPC split (their side + the device); we never assemble the full private key. Same login covers signing and social linking. JWT verification and how that identity must line up with Circle custodial calls are covered in Sendly on Privy today.',
+          'OAuth tokens are short-lived and narrow (read:user on Twitter, openid on Twitch, that kind of scope). We ping providers when we need profile or entitlement data, then drop them when the session ends. Outbound calls go through one gateway with three tries and exponential backoff on 429/5xx.'
         ],
         imageId: 'privy-oauth-flow'
+      },
+      {
+        id: 'sendly-privy-today',
+        title: 'Sendly on Privy today',
+        paragraphs: [
+          'Sendly still treats Privy as the main social-login layer for Gift Card flows. zkTLS-based payments, which are shipping soon, will use Sendly\'s own auth flow instead.',
+          'People can also plug in an external wallet through the usual EVM connector when a flow needs it. Money that moves through Circle Developer Wallets picks an internal wallet by a fixed order: connected address first, then provider ids off the Privy profile, then a normalized Privy user id our APIs already know how to digest.',
+          'We\'ll spell out request payloads, retries, and the full Privy and Circle user_id map in a later blog. The short version: whichever identity you establish in Privy is the hook our services use to authorize the right Circle wallet for sends, mints, and the rest.',
+          'Two different checks have to line up. First, the server verifies Privy JWTs (signature, issuer, expiry, the claims we care about) so we know whose session this is. Second, Circle Developer Wallet calls carry a user id that matches that answer: Privy-created wallets get the normalized Privy id Circle stored with them; purely external wallets go down the address path. If those don\'t match, you don\'t get to trigger custodial work for someone else\'s wallet.'
+        ]
       },
       {
         id: 'verification',
         title: 'Verification methodology',
         paragraphs: [
-          'We used three checks. (1) Privy payload: linked accounts and wallet fields match what we expect. (2) On-chain: card mints, transfers, and gas line up with our data and, when needed, the indexer or subgraph. (3) Spot checks: on a sample of users we hit provider APIs to confirm Twitter or Telegram links are still real, so cached state does not drift.',
-          'When something does not match, we log a request id only (no tokens or secrets). We track link errors, provider failures, and duplicates. If rates cross a threshold, someone reviews by hand.'
+          'Three layers. Privy payloads: linked accounts and wallet fields have to match what our schema allows. On-chain: mints, transfers, and gas need to agree with our tables, and we pull indexer/subgraph data when the chain view is easier there. Spot checks: sample users, hit Twitter or Telegram live, make sure cached links haven\'t rotted.',
+          'Mismatches get a request id in the log, never tokens or secrets. We watch link errors, provider failures, duplicates. If the error rate jumps past a line we drew in advance, a human actually reads the cases.'
         ],
         imageId: 'verification-flow'
       },
@@ -122,16 +133,16 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'security',
         title: 'Security considerations',
         paragraphs: [
-          'The embedded wallet key is MPC-split between Privy\'s servers and the user\'s device. The backend never sees the full key. Provider API tokens live in server memory for the session only; we do not write them to disk or a database.',
-          'The Privy SDK keeps the session token in localStorage, which XSS can read. We mitigate with a strict Content-Security-Policy, no inline scripts, and subresource integrity on third-party bundles. On shared devices, users should sign out to clear storage.',
-          'We log every provider call with request id, HTTP status, and latency. OAuth tokens, secrets, and PII are not in logs. We keep logs 240 days for incident response.'
+          'Embedded wallet keys stay split between Privy\'s servers and the device; our backend never sees a complete key. Provider tokens sit in RAM for the session and don\'t get written to disk or Postgres.',
+          'Privy\'s SDK parks session state in localStorage, so XSS remains the boring threat model. We lean on a tight CSP, ban inline script, and pin third-party bundles with SRI where we can. On a shared machine, logging out still matters.',
+          'Every provider call logs request id, HTTP status, latency: no OAuth material, no secrets, no PII in the line. Retention is 240 days, mostly so we have something useful when things go sideways.'
         ]
       },
       {
         id: 'learnings',
         title: 'Operational takeaways',
         paragraphs: [
-          'Gas averaged about $0.05 per transaction, which is fine for production. Roughly 80% of cards went through Twitter; Telegram was about 12% and Twitch about 8%. We still support those, but they are lower priority than Twitter.',
+          'Gas hovered near $0.05 a transaction. At that level the fee is basically flat whether someone moves ten dollars or ten thousand, which is a strong result for any ticket size. About four in five cards moved through Twitter; Telegram landed near 12%, Twitch near 8%. We keep the smaller channels on, but Twitter is where we spend attention first.',
         ]
       }
     ],
@@ -476,7 +487,8 @@ export function BlogPostRoute() {
   const [activeImage, setActiveImage] = useState<BlogImage | null>(null);
   const [paymentsPreviewValues, setPaymentsPreviewValues] = useState<SendPaymentPreviewValues | null>(null);
 
-  const post = slug ? blogPosts[slug] : null;
+  const post =
+    slug && PUBLIC_BLOG_SLUGS.has(slug) ? blogPosts[slug] ?? null : null;
 
   useEffect(() => {
     // Ensure each blog post opens from the top in SPA navigation.

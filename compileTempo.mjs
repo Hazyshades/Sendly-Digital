@@ -6,16 +6,16 @@ import { dirname, join } from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-console.log("Компиляция контрактов из contracts_tempo...\n");
+console.log("Compiling contracts from contracts_tempo...\n");
 
-// Путь к конфигу
+// Path to config
 const configPath = join(__dirname, "hardhat.config.cjs");
 const configContent = readFileSync(configPath, "utf-8");
 
-// Сохраняем оригинальный контент
+// Save original content
 const originalConfig = configContent;
 
-// Изменяем paths для компиляции contracts_tempo
+// Modify paths for contracts_tempo compilation
 const modifiedConfig = configContent.replace(
   /paths:\s*\{[^}]*sources:\s*"[^"]*"[^}]*\}/s,
   `paths: {
@@ -27,24 +27,24 @@ const modifiedConfig = configContent.replace(
 );
 
 try {
-  // Записываем измененный конфиг
+  // Write modified config
   writeFileSync(configPath, modifiedConfig, "utf-8");
-  console.log("✓ Временно изменен hardhat.config.cjs для компиляции contracts_tempo\n");
+  console.log("✓ Temporarily modified hardhat.config.cjs for contracts_tempo compilation\n");
 
-  // Компилируем
-  console.log("Запуск компиляции Hardhat...\n");
+  // Compile
+  console.log("Running Hardhat compilation...\n");
   execSync("npx hardhat compile", { 
     stdio: "inherit", 
     cwd: __dirname,
     env: { ...process.env }
   });
 
-  console.log("\n✅ Компиляция завершена успешно!");
+  console.log("\n✅ Compilation completed successfully!");
 } catch (error) {
-  console.error("\n❌ Ошибка при компиляции:", error.message);
+  console.error("\n❌ Error during compilation:", error.message);
   process.exit(1);
 } finally {
-  // Восстанавливаем оригинальный конфиг
+  // Restore original config
   writeFileSync(configPath, originalConfig, "utf-8");
-  console.log("\n✓ Восстановлен оригинальный hardhat.config.cjs");
+  console.log("\n✓ Restored original hardhat.config.cjs");
 }

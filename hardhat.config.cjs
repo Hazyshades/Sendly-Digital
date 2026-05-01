@@ -8,9 +8,9 @@ const config = {
     settings: {
       optimizer: { 
         enabled: true, 
-        runs: 1  // Минимальное значение для уменьшения размера контракта
+        runs: 1  // Minimum value to reduce contract size
       },
-      viaIR: true,  // Использовать новый IR оптимизатор для лучшей оптимизации размера
+      viaIR: true,  // Use new IR optimizer for better contract size optimization
     },
   },
   paths: {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, Calendar, ArrowRight, Tag, Clock } from 'lucide-react';
 import { BlogLayout } from '@/components/BlogLayout';
+import { PUBLIC_BLOG_SLUGS } from '@/lib/blog/publicSlugs';
 
 interface BlogPost {
   slug: string;
@@ -50,25 +51,27 @@ const blogPosts: BlogPost[] = [
   },
   {
     slug: 'privy_results',
-    title: 'Privy testnet results: metrics, methodology, and takeaways',
+    title: 'Privy testnet: what the numbers said, how we checked them, and what we\'d do again',
     description:
-      '11k+ addresses, 31k+ cards, about $85k TVL and $310k total volume. How Privy fit our stack, how we verified numbers in three layers, and what we learned running it.',
-    date: '2026-02-10',
+      'Roughly 12k wallets, 31k cards sent, ~$86k TVL, ~$310k total volume. Privy as our auth + embedded wallet layer, the checks we ran before trusting a chart, and the operational stuff that actually mattered.',
+    date: '2026-04-01',
     category: 'Technology',
     tags: ['Privy', 'OAuth', 'Testnet'],
-    readTime: '6 min',
+    readTime: '8 min',
     image: '/Sendly x Privy.png'
   }
 ];
 
 const categories = ['All', 'Announcements', 'Features', 'Technology', 'Tutorial', 'Security'];
 
+const visibleBlogPosts = blogPosts.filter((post) => PUBLIC_BLOG_SLUGS.has(post.slug));
+
 export function BlogRoute() {
   const [selectedCategory, setSelectedCategory] = useState('All');
 
   const filteredPosts = selectedCategory === 'All'
-    ? blogPosts
-    : blogPosts.filter(post => post.category === selectedCategory);
+    ? visibleBlogPosts
+    : visibleBlogPosts.filter(post => post.category === selectedCategory);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
