@@ -6,7 +6,7 @@ export interface GiftCardRecord {
   recipient_username?: string | null;
   recipient_type: 'address' | 'twitter' | 'twitch' | 'telegram' | 'tiktok' | 'instagram';
   amount: string;
-  currency: 'USDC' | 'EURC' | 'USYC';
+  currency: 'USDC' | 'EURC' | 'USYC' | 'PATHUSD' | 'ALPHAUSD' | 'BETAUSD' | 'THETAUSD';
   message: string;
   redeemed: boolean;
   tx_hash?: string | null;
@@ -46,7 +46,7 @@ export interface GiftCardInsert {
   recipient_username?: string | null;
   recipient_type: 'address' | 'twitter' | 'twitch' | 'telegram' | 'tiktok' | 'instagram';
   amount: string;
-  currency: 'USDC' | 'EURC' | 'USYC';
+  currency: 'USDC' | 'EURC' | 'USYC' | 'PATHUSD' | 'ALPHAUSD' | 'BETAUSD' | 'THETAUSD';
   message: string;
   redeemed?: boolean;
   tx_hash?: string | null;

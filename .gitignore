@@ -12,7 +12,10 @@ pnpm-debug.log*
 /playwright-report/
 /test-results/
 /tests/
-
+/SolidityScan_ Best Smart Contract Scanner & Auditing Tool_files/
+/SolidityScan_ Best Smart Contract Scanner & Auditing Tool.html
+/scripts/compute_creator_blocklist_volume.py
+/scripts/creator_blocklist.json
 # Dependency directories
 node_modules/
 jspm_packages/
@@ -83,6 +86,9 @@ tests/node_modules/
 
 /cursor/
 .cursorignore
+
+# OpenSpec
+openspec/**/*.md
 
 .cursor/
 /contracts_reclaim_protocol/

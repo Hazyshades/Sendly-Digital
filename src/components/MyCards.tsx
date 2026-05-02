@@ -22,7 +22,7 @@ import { DeveloperWalletService } from '@/lib/circle/developerWalletService';
 interface GiftCard {
   tokenId: string;
   amount: string;
-  currency: 'USDC' | 'EURC' | 'USYC';
+  currency: 'USDC' | 'EURC' | 'USYC' | 'PATHUSD' | 'ALPHAUSD' | 'BETAUSD' | 'THETAUSD';
   design: string;
   message: string;
   recipient: string;

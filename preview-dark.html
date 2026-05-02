@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sendly Design Preview (Dark)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0f172a;
+        --surface: #1e293b;
+        --surface-muted: #111827;
+        --text: #f8fafc;
+        --text-muted: #94a3b8;
+        --border: #334155;
+
+        --sendly-indigo: #6366f1;
+        --sendly-indigo-dark: #4f46e5;
+        --sendly-violet: #8b5cf6;
+        --sendly-success: #10b981;
+        --sendly-warning: #f59e0b;
+        --sendly-error: #ef4444;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: radial-gradient(1000px 400px at 85% -20%, rgba(99, 102, 241, 0.25), transparent), var(--bg);
+        color: var(--text);
+        font-family: "Plus Jakarta Sans", sans-serif;
+        line-height: 1.5;
+      }
+
+      .container {
+        width: min(1120px, calc(100% - 2rem));
+        margin: 2rem auto 4rem;
+      }
+
+      h1, h2, h3 {
+        margin: 0;
+        font-family: "Outfit", sans-serif;
+      }
+
+      h1 {
+        font-size: clamp(2rem, 4vw, 3rem);
+      }
+
+      p {
+        margin: 0;
+      }
+
+      .hero {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.16) 0%, rgba(139, 92, 246, 0.12) 45%, rgba(30, 41, 59, 0.8) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        border-radius: 20px;
+        padding: 1.75rem;
+        margin-bottom: 1.25rem;
+      }
+
+      .hero p {
+        color: var(--text-muted);
+        margin-top: 0.5rem;
+      }
+
+      .grid {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .grid-3 {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 1rem;
+      }
+
+      .swatch {
+        height: 64px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        margin-bottom: 0.625rem;
+      }
+
+      .token {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+      }
+
+      .section-title {
+        font-size: 1.25rem;
+        margin: 1.5rem 0 0.75rem;
+      }
+
+      .typography-item + .typography-item {
+        margin-top: 0.75rem;
+      }
+
+      .mono {
+        font-family: "JetBrains Mono", monospace;
+      }
+
+      .serif {
+        font-family: "Cormorant Garamond", serif;
+      }
+
+      .buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.625rem;
+      }
+
+      .btn {
+        border: 1px solid transparent;
+        border-radius: 12px;
+        padding: 0.625rem 1rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: default;
+      }
+
+      .btn-primary {
+        background: var(--sendly-indigo);
+        color: #fff;
+      }
+
+      .btn-secondary {
+        background: #0b1220;
+        border-color: var(--border);
+        color: var(--text);
+      }
+
+      .btn-danger {
+        background: rgba(239, 68, 68, 0.18);
+        color: #fecaca;
+        border-color: rgba(239, 68, 68, 0.45);
+      }
+
+      .input {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 0.625rem 0.75rem;
+        background: #0b1220;
+        color: var(--text);
+      }
+
+      .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: center;
+        padding: 0.625rem 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .row:last-child {
+        border-bottom: 0;
+      }
+
+      .badge {
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 0.2rem 0.55rem;
+      }
+
+      .b-success { background: rgba(16,185,129,0.2); color: #6ee7b7; }
+      .b-warning { background: rgba(245,158,11,0.2); color: #fcd34d; }
+      .b-error { background: rgba(239,68,68,0.2); color: #fca5a5; }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <section class="hero">
+        <h1>Sendly Design System Preview</h1>
+        <p>Dark catalog aligned with the product's primary operational theme.</p>
+      </section>
+
+      <h2 class="section-title">Dark Surface Tokens</h2>
+      <section class="grid grid-3">
+        <article class="card"><div class="swatch" style="background:#0F172A"></div><div>sendly-background</div><div class="token">#0F172A</div></article>
+        <article class="card"><div class="swatch" style="background:#1E293B"></div><div>sendly-card</div><div class="token">#1E293B</div></article>
+        <article class="card"><div class="swatch" style="background:#334155"></div><div>sendly-border</div><div class="token">#334155</div></article>
+        <article class="card"><div class="swatch" style="background:#6366F1"></div><div>sendly-indigo</div><div class="token">#6366F1</div></article>
+        <article class="card"><div class="swatch" style="background:#8B5CF6"></div><div>sendly-violet</div><div class="token">#8B5CF6</div></article>
+        <article class="card"><div class="swatch" style="background:#F8FAFC"></div><div>sendly-text-primary</div><div class="token">#F8FAFC</div></article>
+      </section>
+
+      <h2 class="section-title">Typography</h2>
+      <section class="card">
+        <div class="typography-item" style="font-size:2rem;font-family:'Outfit',sans-serif;">Heading / Outfit</div>
+        <div class="typography-item" style="font-size:1rem;">Body / Plus Jakarta Sans for wallet and payment flows.</div>
+        <div class="typography-item serif" style="font-size:1.6rem;">Editorial Accent / Cormorant Garamond</div>
+        <div class="typography-item mono" style="font-size:0.9rem;">Wallet ID / dcw_9A9D_14FF_19D2</div>
+      </section>
+
+      <h2 class="section-title">Components</h2>
+      <section class="grid grid-3">
+        <article class="card">
+          <h3 style="margin-bottom:0.75rem;">Buttons</h3>
+          <div class="buttons">
+            <button class="btn btn-primary">Send Funds</button>
+            <button class="btn btn-secondary">Secondary</button>
+            <button class="btn btn-danger">Cancel</button>
+          </div>
+        </article>
+        <article class="card">
+          <h3 style="margin-bottom:0.75rem;">Input</h3>
+          <input class="input" value="@instagram_handle" aria-label="username" />
+          <p class="token" style="margin-top:0.5rem;">Use indigo focus ring and clear helper messages in product screens.</p>
+        </article>
+        <article class="card">
+          <h3 style="margin-bottom:0.75rem;">Status Badges</h3>
+          <div class="buttons">
+            <span class="badge b-success">Redeemed</span>
+            <span class="badge b-warning">Pending</span>
+            <span class="badge b-error">Failed</span>
+          </div>
+        </article>
+      </section>
+
+      <h2 class="section-title">Transaction List Sample</h2>
+      <section class="card">
+        <div class="row"><span>To @sendly_friend</span><span class="mono">$75.00 USDC</span></div>
+        <div class="row"><span>To @x_handle</span><span class="mono">$120.00 USDC</span></div>
+        <div class="row"><span>To 0x01ab...7dc4</span><span class="mono">$19.00 EURC</span></div>
+      </section>
+    </main>
+  </body>
+</html>

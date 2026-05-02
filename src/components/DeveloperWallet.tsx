@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { useAccount, useWalletClient } from 'wagmi';
+import { useAccount, useWalletClient, useChainId } from 'wagmi';
 import { toast } from 'sonner';
 import { createWalletClient, custom, createPublicClient, http } from 'viem';
 import { arcTestnet } from '@/lib/web3/wagmiConfig';
-import { ARC_CHAIN_ID } from '@/lib/web3/constants';
+import { ARC_CHAIN_ID, TEMPO_CHAIN_ID } from '@/lib/web3/constants';
 import { DeveloperWalletService, DeveloperWallet } from '@/lib/circle/developerWalletService';
 import web3Service from '@/lib/web3/web3Service';
 import { USDC_ADDRESS, EURC_ADDRESS, ERC20ABI, getExplorerTxUrl, getExplorerAddressUrl, BASE_SEPOLIA_CHAIN_ID } from '@/lib/web3/constants';
@@ -25,12 +25,13 @@ interface DeveloperWalletProps {
 
 export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletCreated }: DeveloperWalletProps) {
   const { address, isConnected } = useAccount();
+  const connectedChainId = useChainId();
   const { data: walletClient } = useWalletClient();
   const activeChain = arcTestnet;
-  const activeChainId = ARC_CHAIN_ID;
+  const activeChainId = connectedChainId || ARC_CHAIN_ID;
   const { user: privyUser, authenticated } = usePrivySafe();
 
-  const INTERNAL_WALLET_DISABLED_CHAIN_IDS: number[] = [BASE_SEPOLIA_CHAIN_ID];
+  const INTERNAL_WALLET_DISABLED_CHAIN_IDS: number[] = [BASE_SEPOLIA_CHAIN_ID, TEMPO_CHAIN_ID];
   const isInternalWalletDisabled = INTERNAL_WALLET_DISABLED_CHAIN_IDS.includes(activeChainId);
   const [wallet, setWallet] = useState<DeveloperWallet | null>(null);
   const [loading, setLoading] = useState(false);
@@ -1031,8 +1032,8 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
   const shouldShowConnectMessage = !isConnected && (!authenticated || !privyUser);
 
   return (
-    <Card className="bg-white/90 backdrop-blur-sm border border-gray-200 shadow-circle-card">
-  <CardHeader className="pb-6"> {/* add bottom margin, so the description does not stick to the content below */}
+    <Card className="bg-white/90 backdrop-blur-sm border border-gray-200 shadow-circle-card gap-2">
+  <CardHeader className="pb-0">
     <div className="grid grid-rows-2 items-start gap-3">
       {/* Title with icon - left */}
       <CardTitle className="flex items-center gap-2">
@@ -1044,7 +1045,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
       <CardDescription className="text-left text-sm text-gray-600 -mt-1">
         {shouldShowConnectMessage
           ? 'Please connect your wallet or social account to use platform functionality.'
-          : 'To use Circle functionality, please create an internal wallet.'}
+          : 'Create an Internal Wallet to use the platform seamlessly.'}
       </CardDescription>
     </div>
   </CardHeader>

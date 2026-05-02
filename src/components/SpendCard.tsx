@@ -26,7 +26,7 @@ import { DeveloperWalletService } from '@/lib/circle/developerWalletService';
 interface RedeemableCard {
   tokenId: string;
   amount: string;
-  currency: 'USDC' | 'EURC' | 'USYC';
+  currency: 'USDC' | 'EURC' | 'USYC' | 'PATHUSD' | 'ALPHAUSD' | 'BETAUSD' | 'THETAUSD';
   design: string;
   message: string;
   secretMessage?: string;
@@ -47,6 +47,9 @@ const TECH_GIANT_SERVICES = ['airbnb', 'amazon', 'apple'] as const;
 const USD_WITHDRAW_SERVICES = ['visa', 'circle'] as const;
 type TechGiantService = (typeof TECH_GIANT_SERVICES)[number];
 type UsdWithdrawService = (typeof USD_WITHDRAW_SERVICES)[number];
+
+const ARC_TESTNET_CHAIN_ID = 5042002;
+const BASE_SEPOLIA_CHAIN_ID = 84532;
 
 const SERVICE_DISPLAY_NAMES: Record<string, string> = {
   amazon: 'Amazon',
@@ -1187,6 +1190,13 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
           toast.success('Bridge completed! You can now proceed to Stripe checkout.');
         }}
         initialAmount={bridgeAmount}
+        fromChainId={ARC_TESTNET_CHAIN_ID}
+        toChainId={BASE_SEPOLIA_CHAIN_ID}
+        tokenSymbol={
+          currentCard?.currency === 'EURC' || currentCard?.currency === 'USYC' || currentCard?.currency === 'USDC'
+            ? currentCard.currency
+            : 'USDC'
+        }
       />
     </div>
   );

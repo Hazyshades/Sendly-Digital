@@ -1,4 +1,4 @@
-import { createPublicClient, http, parseEventLogs } from 'viem';
+import { createPublicClient, http, parseAbiItem, parseEventLogs, type Log } from 'viem';
 import { chains } from './wagmiConfig';
 import {
   getContractsForChain,
@@ -10,8 +10,19 @@ import {
   InstagramCardVaultABI,
   ZkSendABI,
   DirectSendABI,
+  DirectSendV2ABI,
   ERC20ABI,
+  getDirectSendV2Eip712Name,
+  getDirectSendV2EffectiveFromBlock,
+  getDirectSendV2LogChunkBlocks,
+  getDirectSendV2MaxLogChunks,
+  getDirectSendV2PendingSource,
+  isDirectSendEscrowActiveForChain,
 } from './constants';
+import {
+  fetchDirectDepositsPendingForRecipient,
+  type DirectDepositRecord,
+} from '@/lib/directsend/directSendPaymentsAPI';
 
 const ARC_CHAIN_ID = Number(import.meta.env.VITE_ARC_CHAIN_ID || 5042002);
 
@@ -19,7 +30,7 @@ import type { GiftCardInfo, BlockchainGiftCardInfo } from '@/types/web3';
 
 export type { GiftCardInfo, BlockchainGiftCardInfo };
 
-type SupportedTokenSymbol = 'USDC' | 'EURC' | 'USYC';
+type SupportedTokenSymbol = 'USDC' | 'EURC' | 'USYC' | 'PATHUSD' | 'ALPHAUSD' | 'BETAUSD' | 'THETAUSD';
 
 export class Web3Service {
   private walletClient: any = null;
@@ -63,6 +74,10 @@ export class Web3Service {
     if (normalizedAddress === c.usdc.toLowerCase()) return 'USDC';
     if (c.eurc && normalizedAddress === c.eurc.toLowerCase()) return 'EURC';
     if (c.usyc && normalizedAddress === c.usyc.toLowerCase()) return 'USYC';
+    if (c.pathusd && normalizedAddress === c.pathusd.toLowerCase()) return 'PATHUSD';
+    if (c.alphausd && normalizedAddress === c.alphausd.toLowerCase()) return 'ALPHAUSD';
+    if (c.betausd && normalizedAddress === c.betausd.toLowerCase()) return 'BETAUSD';
+    if (c.thetausd && normalizedAddress === c.thetausd.toLowerCase()) return 'THETAUSD';
     if (c.usdt && normalizedAddress === c.usdt.toLowerCase()) return 'USDC'; // treat USDT as USDC for display
     return 'USDC';
   }
@@ -76,6 +91,14 @@ export class Web3Service {
         return c.eurc ?? c.usdc;
       case 'USYC':
         return c.usyc ?? c.usdc;
+      case 'PATHUSD':
+        return c.pathusd ?? c.usdc;
+      case 'ALPHAUSD':
+        return c.alphausd ?? c.usdc;
+      case 'BETAUSD':
+        return c.betausd ?? c.usdc;
+      case 'THETAUSD':
+        return c.thetausd ?? c.usdc;
       default:
         return c.usdc;
     }
@@ -1673,7 +1696,7 @@ export class Web3Service {
     socialIdentityHash: `0x${string}`;
     platform: string;
     amount: string; // human units, 6 decimals assumed (stablecoins)
-    tokenType: 'USDC' | 'EURC';
+    tokenType: SupportedTokenSymbol;
   }): Promise<{ paymentId: string | null; txHash: string }> {
     if (!this.walletClient || !this.account) {
       throw new Error('Wallet not connected');
@@ -1759,7 +1782,7 @@ export class Web3Service {
   async sendDirectToAddress(input: {
     recipient: `0x${string}`;
     amount: string;
-    tokenType: 'USDC' | 'EURC';
+    tokenType: SupportedTokenSymbol;
   }): Promise<{ txHash: string }> {
     if (!this.walletClient || !this.account) {
       throw new Error('Wallet not connected');
@@ -1814,6 +1837,479 @@ export class Web3Service {
     }
 
     return { txHash: hash };
+  }
+
+  /** V2 escrow + claim is active for the current chain (env + contract address). */
+  usesDirectSendEscrow(): boolean {
+    return isDirectSendEscrowActiveForChain(this.chainId);
+  }
+
+  /**
+   * Escrow deposit: tokens stay on contract until recipient claims.
+   */
+  async depositDirectToAddress(input: {
+    recipient: `0x${string}`;
+    amount: string;
+    tokenType: SupportedTokenSymbol;
+  }): Promise<{ txHash: string; depositId: string | null }> {
+    if (!this.walletClient || !this.account) {
+      throw new Error('Wallet not connected');
+    }
+
+    await this.ensureCorrectChain();
+
+    const v2 = this.contracts.directSendV2;
+    if (!v2 || v2 === '0x0000000000000000000000000000000000000000') {
+      throw new Error(
+        'DirectSend V2 is not configured. Deploy DirectSendV2 and set VITE_*_DIRECT_SEND_V2_CONTRACT_ADDRESS and VITE_DIRECT_SEND_CLAIM_MODE=escrow_v2.'
+      );
+    }
+
+    const tokenAddress = this.getTokenAddressFromSymbol(input.tokenType);
+    if (!tokenAddress || tokenAddress === '0x0000000000000000000000000000000000000000') {
+      throw new Error(`${input.tokenType} address is not configured`);
+    }
+
+    const amountWei = BigInt(this.parseAmount(input.amount));
+    const FEE_BPS = 10n;
+    const BPS_DENOMINATOR = 10000n;
+    const feeWei = (amountWei * FEE_BPS) / BPS_DENOMINATOR;
+    const totalFromSenderWei = amountWei + feeWei;
+
+    const balance = await this.safeRequest(async () => {
+      return await this.publicClient.readContract({
+        address: tokenAddress as `0x${string}`,
+        abi: ERC20ABI,
+        functionName: 'balanceOf',
+        args: [this.account as `0x${string}`],
+      });
+    });
+    if (BigInt(balance) < totalFromSenderWei) {
+      const totalRequired = this.formatAmount(totalFromSenderWei);
+      throw new Error(
+        `Insufficient ${input.tokenType} balance. Required: ${totalRequired} (${input.amount} + ${this.formatAmount(feeWei)} fee), Available: ${this.formatAmount(BigInt(balance))}`
+      );
+    }
+
+    await this.approveTokenForSpender(tokenAddress, v2, totalFromSenderWei.toString(), true);
+
+    const hash = await this.walletClient.writeContract({
+      chain: this.chain,
+      address: v2 as `0x${string}`,
+      abi: DirectSendV2ABI,
+      functionName: 'depositFor',
+      args: [input.recipient, BigInt(amountWei), tokenAddress as `0x${string}`],
+      account: this.account as `0x${string}`,
+    });
+
+    const receipt = await this.safeRequest(async () => {
+      return await this.publicClient.waitForTransactionReceipt({ hash });
+    });
+
+    if (receipt.status === 'reverted' || (typeof receipt.status === 'number' && receipt.status === 0)) {
+      throw new Error(`Transaction failed. Tx hash: ${hash}`);
+    }
+
+    let depositId: string | null = null;
+    try {
+      const parsed = parseEventLogs({
+        abi: DirectSendV2ABI,
+        logs: receipt.logs,
+        eventName: 'DepositCreated',
+      });
+      const ev = parsed?.[0] as { args?: { depositId?: bigint } } | undefined;
+      if (ev?.args?.depositId != null) {
+        depositId = ev.args.depositId.toString();
+      }
+    } catch (_) {
+      // ignore
+    }
+
+    return { txHash: hash, depositId };
+  }
+
+  async getDirectDepositState(depositId: string | number): Promise<{
+    sender: string;
+    recipient: string;
+    token: string;
+    amountWei: string;
+    amount: string;
+    claimed: boolean;
+    createdAt: number;
+  } | null> {
+    const v2 = this.contracts.directSendV2;
+    if (!v2 || v2 === '0x0000000000000000000000000000000000000000') {
+      return null;
+    }
+
+    const row = await this.safeRequest(async () => {
+      return await this.publicClient.readContract({
+        address: v2 as `0x${string}`,
+        abi: DirectSendV2ABI,
+        functionName: 'deposits',
+        args: [BigInt(depositId)],
+      });
+    });
+
+    let sender: `0x${string}`;
+    let recipient: `0x${string}`;
+    let token: `0x${string}`;
+    let amount: bigint;
+    let claimed: boolean;
+    let createdAt: bigint;
+
+    if (Array.isArray(row)) {
+      [sender, recipient, token, amount, claimed, createdAt] = row as [
+        `0x${string}`,
+        `0x${string}`,
+        `0x${string}`,
+        bigint,
+        boolean,
+        bigint,
+      ];
+    } else {
+      const r = row as {
+        sender: `0x${string}`;
+        recipient: `0x${string}`;
+        token: `0x${string}`;
+        amount: bigint;
+        claimed: boolean;
+        createdAt: bigint;
+      };
+      sender = r.sender;
+      recipient = r.recipient;
+      token = r.token;
+      amount = r.amount;
+      claimed = r.claimed;
+      createdAt = r.createdAt;
+    }
+
+    if (amount === 0n) return null;
+
+    const amountWei = amount.toString();
+    return {
+      sender,
+      recipient,
+      token,
+      amountWei,
+      amount: this.formatAmount(amount),
+      claimed,
+      createdAt: Number(createdAt),
+    };
+  }
+
+  /**
+   * DepositCreated logs for a recipient, split into chunks to satisfy `eth_getLogs` block-range limits per RPC.
+   */
+  private async getDirectSendDepositCreatedLogsChunked(
+    v2: `0x${string}`,
+    recipient: `0x${string}`,
+    depositCreatedEvent: ReturnType<typeof parseAbiItem>,
+    fromBlock: bigint
+  ): Promise<Log[]> {
+    const latest = await this.safeRequest(async () => {
+      return await this.publicClient.getBlockNumber();
+    });
+    if (fromBlock > latest) {
+      return [];
+    }
+
+    const chunk = getDirectSendV2LogChunkBlocks(this.chainId);
+    const maxChunks = getDirectSendV2MaxLogChunks();
+    const all: Log[] = [];
+
+    let start = fromBlock;
+    let chunkCount = 0;
+    while (start <= latest && chunkCount < maxChunks) {
+      const end = start + chunk - 1n <= latest ? start + chunk - 1n : latest;
+      const batch = await this.safeRequest(async () => {
+        return await this.publicClient.getLogs({
+          address: v2,
+          event: depositCreatedEvent,
+          args: { recipient },
+          fromBlock: start,
+          toBlock: end,
+        });
+      });
+      all.push(...batch);
+      start = end + 1n;
+      chunkCount += 1;
+    }
+
+    if (start <= latest && chunkCount >= maxChunks) {
+      console.warn(
+        '[DirectSend V2] eth_getLogs scan stopped at max chunk count; set VITE_DIRECT_SEND_V2_FROM_BLOCK, adjust lookback, or VITE_DIRECT_SEND_V2_MAX_LOG_CHUNKS.'
+      );
+    }
+
+    return all;
+  }
+
+  /** Reconcile index rows with on-chain deposit state (cheap readContract per id). */
+  private async mapDirectDepositRecordsToPending(
+    records: DirectDepositRecord[]
+  ): Promise<
+    Array<{
+      depositId: string;
+      sender: string;
+      amount: string;
+      amountWei: string;
+      token: string;
+      claimed: boolean;
+      createdAt: number;
+    }>
+  > {
+    const out: Array<{
+      depositId: string;
+      sender: string;
+      amount: string;
+      amountWei: string;
+      token: string;
+      claimed: boolean;
+      createdAt: number;
+    }> = [];
+    const seen = new Set<string>();
+    for (const r of records) {
+      const id = String(r.deposit_id ?? '').trim();
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      const state = await this.getDirectDepositState(id);
+      if (!state || state.claimed) continue;
+      out.push({
+        depositId: id,
+        sender: state.sender,
+        amount: state.amount,
+        amountWei: state.amountWei,
+        token: state.token,
+        claimed: state.claimed,
+        createdAt: state.createdAt,
+      });
+    }
+    return out;
+  }
+
+  /**
+   * Pending deposits for an address: optional Supabase index, else RPC log scan (bounded lookback by default).
+   */
+  async getPendingDirectDepositsForRecipient(recipient: `0x${string}`): Promise<
+    Array<{
+      depositId: string;
+      sender: string;
+      amount: string;
+      amountWei: string;
+      token: string;
+      claimed: boolean;
+      createdAt: number;
+    }>
+  > {
+    const v2 = this.contracts.directSendV2;
+    if (!v2 || v2 === '0x0000000000000000000000000000000000000000') {
+      return [];
+    }
+
+    const source = getDirectSendV2PendingSource();
+
+    if (source === 'subgraph') {
+      if (import.meta.env.DEV) {
+        console.info(
+          '[DirectSend V2] VITE_DIRECT_SEND_V2_PENDING_SOURCE=subgraph: no subgraph client; returning [].'
+        );
+      }
+      return [];
+    }
+
+    if (source === 'supabase' || source === 'auto') {
+      try {
+        const rows = await fetchDirectDepositsPendingForRecipient({
+          recipientWallet: recipient,
+          chainId: this.chainId,
+          contractAddress: v2,
+        });
+        if (rows != null && rows.length > 0) {
+          return await this.mapDirectDepositRecordsToPending(rows);
+        }
+        if (source === 'supabase') {
+          return [];
+        }
+      } catch (e) {
+        console.warn('[DirectSend V2] Supabase index:', e);
+        if (source === 'supabase') {
+          return [];
+        }
+      }
+    }
+
+    if (source !== 'rpc' && source !== 'auto') {
+      return [];
+    }
+
+    const latest = await this.safeRequest(async () => {
+      return await this.publicClient.getBlockNumber();
+    });
+    const fromBlock = getDirectSendV2EffectiveFromBlock(latest, this.chainId);
+
+    const depositCreatedEvent = parseAbiItem(
+      'event DepositCreated(uint256 indexed depositId, address indexed sender, address indexed recipient, uint256 amount, address token)'
+    );
+
+    const logs = await this.getDirectSendDepositCreatedLogsChunked(
+      v2 as `0x${string}`,
+      recipient,
+      depositCreatedEvent,
+      fromBlock
+    );
+
+    const out: Array<{
+      depositId: string;
+      sender: string;
+      amount: string;
+      amountWei: string;
+      token: string;
+      claimed: boolean;
+      createdAt: number;
+    }> = [];
+
+    for (const log of logs) {
+      const args = (log as { args?: { depositId?: bigint; sender?: `0x${string}`; amount?: bigint; token?: `0x${string}` } })
+        .args;
+      if (!args || args.depositId == null || args.amount == null || !args.token) continue;
+      const depositId = args.depositId.toString();
+      const state = await this.getDirectDepositState(depositId);
+      if (!state || state.claimed) continue;
+      out.push({
+        depositId,
+        sender: state.sender,
+        amount: state.amount,
+        amountWei: state.amountWei,
+        token: state.token,
+        claimed: state.claimed,
+        createdAt: state.createdAt,
+      });
+    }
+
+    return out;
+  }
+
+  async claimDirectDeposit(depositId: string | number): Promise<string> {
+    if (!this.walletClient || !this.account) {
+      throw new Error('Wallet not connected');
+    }
+    await this.ensureCorrectChain();
+
+    const v2 = this.contracts.directSendV2;
+    if (!v2 || v2 === '0x0000000000000000000000000000000000000000') {
+      throw new Error('DirectSend V2 is not configured');
+    }
+
+    const hash = await this.walletClient.writeContract({
+      chain: this.chain,
+      address: v2 as `0x${string}`,
+      abi: DirectSendV2ABI,
+      functionName: 'claim',
+      args: [BigInt(depositId)],
+      account: this.account as `0x${string}`,
+    });
+
+    const receipt = await this.safeRequest(async () => {
+      return await this.publicClient.waitForTransactionReceipt({ hash });
+    });
+
+    if (receipt.status === 'reverted' || (typeof receipt.status === 'number' && receipt.status === 0)) {
+      throw new Error(`Transaction failed. Tx hash: ${hash}`);
+    }
+
+    return hash;
+  }
+
+  /**
+   * EIP-712 signature for claimWithSig (recipient must match connected account).
+   */
+  async signDirectDepositClaimEip712(input: {
+    depositId: string | number;
+    recipient: `0x${string}`;
+    deadline: bigint;
+  }): Promise<`0x${string}`> {
+    if (!this.walletClient || !this.account) {
+      throw new Error('Wallet not connected');
+    }
+    await this.ensureCorrectChain();
+
+    const v2 = this.contracts.directSendV2;
+    if (!v2 || v2 === '0x0000000000000000000000000000000000000000') {
+      throw new Error('DirectSend V2 is not configured');
+    }
+
+    if (this.account.toLowerCase() !== input.recipient.toLowerCase()) {
+      throw new Error('Recipient must match connected wallet for signing');
+    }
+
+    const domain = {
+      name: getDirectSendV2Eip712Name(this.chainId),
+      version: '1',
+      chainId: BigInt(this.chainId),
+      verifyingContract: v2 as `0x${string}`,
+    } as const;
+
+    const types = {
+      Claim: [
+        { name: 'depositId', type: 'uint256' },
+        { name: 'recipient', type: 'address' },
+        { name: 'deadline', type: 'uint256' },
+      ],
+    } as const;
+
+    const message = {
+      depositId: BigInt(input.depositId),
+      recipient: input.recipient,
+      deadline: input.deadline,
+    };
+
+    const sig = await this.walletClient.signTypedData({
+      domain,
+      types,
+      primaryType: 'Claim',
+      message,
+      account: this.account as `0x${string}`,
+    });
+
+    return sig as `0x${string}`;
+  }
+
+  /** Submit claimWithSig (e.g. relayer or recipient). */
+  async claimDirectDepositWithSig(input: {
+    depositId: string | number;
+    recipient: `0x${string}`;
+    deadline: bigint;
+    signature: `0x${string}`;
+  }): Promise<string> {
+    if (!this.walletClient || !this.account) {
+      throw new Error('Wallet not connected');
+    }
+    await this.ensureCorrectChain();
+
+    const v2 = this.contracts.directSendV2;
+    if (!v2 || v2 === '0x0000000000000000000000000000000000000000') {
+      throw new Error('DirectSend V2 is not configured');
+    }
+
+    const hash = await this.walletClient.writeContract({
+      chain: this.chain,
+      address: v2 as `0x${string}`,
+      abi: DirectSendV2ABI,
+      functionName: 'claimWithSig',
+      args: [BigInt(input.depositId), input.recipient, input.deadline, input.signature],
+      account: this.account as `0x${string}`,
+    });
+
+    const receipt = await this.safeRequest(async () => {
+      return await this.publicClient.waitForTransactionReceipt({ hash });
+    });
+
+    if (receipt.status === 'reverted' || (typeof receipt.status === 'number' && receipt.status === 0)) {
+      throw new Error(`Transaction failed. Tx hash: ${hash}`);
+    }
+
+    return hash;
   }
 
   async getZkSendPendingPayments(socialIdentityHash: `0x${string}`): Promise<string[]> {

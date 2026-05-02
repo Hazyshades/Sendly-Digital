@@ -49,6 +49,98 @@ export const DIRECT_SEND_CONTRACT_ADDRESS =
   import.meta.env.VITE_ARC_DIRECT_SEND_CONTRACT_ADDRESS ||
   "0x0000000000000000000000000000000000000000";
 
+/** DirectSend V2 (escrow + claim). Deploy `contracts/hardhat/DirectSendV2.sol` / `DirectSendTempoV2.sol`. */
+export const ARC_DIRECT_SEND_V2_CONTRACT_ADDRESS =
+  import.meta.env.VITE_ARC_DIRECT_SEND_V2_CONTRACT_ADDRESS ||
+  '0x55c1AaE779c774c5bB622045CC30278F64E90AAf';
+export const TEMPO_DIRECT_SEND_V2_CONTRACT_ADDRESS =
+  import.meta.env.VITE_TEMPO_DIRECT_SEND_V2_CONTRACT_ADDRESS ||
+  '0x7B46C6f4dcDF763608F2FA2652754E819d3c6E14';
+/** Base Sepolia V2 (`VITE_BASE_CHAIN_ID` defaults to 84532). */
+export const BASE_SEPOLIA_DIRECT_SEND_V2_CONTRACT_ADDRESS =
+  import.meta.env.VITE_BASE_DIRECT_SEND_V2_CONTRACT_ADDRESS ||
+  '0x85a8A0cb107b03bc7a25DD54fF76cA2719B6F0be';
+
+/** `legacy` = instant send (DirectSend v1). `escrow_v2` = deposit + claim when V2 address is set. */
+export type DirectSendClaimMode = 'legacy' | 'escrow_v2';
+
+export function getDirectSendClaimMode(): DirectSendClaimMode {
+  const v = (import.meta.env.VITE_DIRECT_SEND_CLAIM_MODE || '').toLowerCase().trim();
+  return v === 'escrow_v2' ? 'escrow_v2' : 'legacy';
+}
+
+export function getDirectSendV2Eip712Name(chainId: number): 'DirectSendV2' | 'DirectSendTempoV2' {
+  return chainId === TEMPO_CHAIN_ID ? 'DirectSendTempoV2' : 'DirectSendV2';
+}
+
+/** True when app should use V2 escrow (mode + non-zero V2 contract address for chain). */
+export function isDirectSendEscrowActiveForChain(chainId: number): boolean {
+  if (getDirectSendClaimMode() !== 'escrow_v2') return false;
+  const a = getContractsForChain(chainId).directSendV2;
+  return !!a && a !== '0x0000000000000000000000000000000000000000';
+}
+
+/**
+ * Max block range per `eth_getLogs` when scanning DirectSend V2 `DepositCreated` (RPC limits vary).
+ * Override with `VITE_DIRECT_SEND_V2_LOG_CHUNK` if your provider differs.
+ */
+export function getDirectSendV2LogChunkBlocks(chainId: number): bigint {
+  const raw = import.meta.env.VITE_DIRECT_SEND_V2_LOG_CHUNK;
+  if (raw != null && String(raw).trim() !== '') {
+    const n = BigInt(String(raw).trim());
+    if (n > 0n) return n;
+  }
+  if (chainId === 5042002) return 10_000n; // Arc testnet: 10k max range
+  if (chainId === 42431) return 100_000n; // Tempo: 100k max range
+  if (chainId === 84532) return 10_000n; // Base Sepolia (typical public RPC)
+  return 10_000n;
+}
+
+/**
+ * Blocks to scan backward from `latest` when `VITE_DIRECT_SEND_V2_FROM_BLOCK` is unset.
+ * Avoids scanning from genesis (thousands of eth_getLogs). Override via env or set FROM_BLOCK explicitly.
+ */
+export function getDirectSendV2LookbackBlocks(chainId: number): bigint {
+  const raw = import.meta.env.VITE_DIRECT_SEND_V2_LOOKBACK_BLOCKS;
+  if (raw != null && String(raw).trim() !== '') {
+    const n = BigInt(String(raw).trim());
+    if (n > 0n) return n;
+  }
+  if (chainId === 42431) return 500_000n; // Tempo: chunk 100k → ~5 RPC calls
+  if (chainId === 5042002) return 100_000n; // Arc: chunk 10k → ~10 RPC calls
+  if (chainId === 84532) return 100_000n;
+  return 100_000n;
+}
+
+/** Lower bound for log scan: explicit FROM_BLOCK, or (latest − lookback). */
+export function getDirectSendV2EffectiveFromBlock(latest: bigint, chainId: number): bigint {
+  const explicit = import.meta.env.VITE_DIRECT_SEND_V2_FROM_BLOCK;
+  if (explicit !== undefined && String(explicit).trim() !== '') {
+    return BigInt(String(explicit).trim());
+  }
+  const lookback = getDirectSendV2LookbackBlocks(chainId);
+  return latest > lookback ? latest - lookback : 0n;
+}
+
+/** Where to load pending deposits: rpc-only, Supabase index, subgraph (stub), or try index then RPC. */
+export type DirectSendV2PendingSource = 'rpc' | 'supabase' | 'subgraph' | 'auto';
+
+export function getDirectSendV2PendingSource(): DirectSendV2PendingSource {
+  const v = (import.meta.env.VITE_DIRECT_SEND_V2_PENDING_SOURCE || 'auto').toLowerCase().trim();
+  if (v === 'rpc' || v === 'supabase' || v === 'subgraph') return v;
+  return 'auto';
+}
+
+/** Safety cap on eth_getChunks batches when scanning a wide from..latest range (e.g. FROM_BLOCK=0). */
+export function getDirectSendV2MaxLogChunks(): number {
+  const raw = import.meta.env.VITE_DIRECT_SEND_V2_MAX_LOG_CHUNKS;
+  if (raw != null && String(raw).trim() !== '') {
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) return Math.min(Math.floor(n), 1_000_000);
+  }
+  return 500;
+}
+
 export const RECLAIM_VERIFIER_CONTRACT_ADDRESS =
   import.meta.env.VITE_RECLAIM_VERIFIER_CONTRACT_ADDRESS ||
   import.meta.env.VITE_ARC_ZKTLS_VERIFIER_ADDRESS ||
@@ -107,6 +199,44 @@ export const BASE_SEPOLIA_USDT_ADDRESS =
   import.meta.env.VITE_BASE_USDT_ADDRESS || '';
 export const BASE_SEPOLIA_RECLAIM_VERIFIER_CONTRACT_ADDRESS =
   import.meta.env.VITE_BASE_RECLAIM_VERIFIER_ADDRESS || '';
+export const BASE_SEPOLIA_DIRECT_SEND_CONTRACT_ADDRESS =
+  import.meta.env.VITE_BASE_DIRECT_SEND_CONTRACT_ADDRESS || '';
+
+// Tempo Testnet (42431)
+export const TEMPO_CHAIN_ID = Number(import.meta.env.VITE_TEMPO_CHAIN_ID || 42431);
+export const TEMPO_RPC_URLS = (
+  import.meta.env.VITE_TEMPO_RPC_URLS?.split(',').map((s: string) => s.trim()).filter(Boolean)
+  || []
+).concat([
+  import.meta.env.VITE_TEMPO_RPC_URL || 'https://rpc.moderato.tempo.xyz',
+]).filter(Boolean);
+export const TEMPO_EXPLORER_URL = import.meta.env.VITE_TEMPO_BLOCK_EXPLORER_URL || 'https://explore.tempo.xyz';
+export const TEMPO_EXPLORER_API_URL = import.meta.env.VITE_TEMPO_BLOCK_EXPLORER_API_URL || 'https://explore.tempo.xyz/api';
+
+export const TEMPO_GIFTCARD_CONTRACT_ADDRESS =
+  import.meta.env.VITE_TEMPO_GIFTCARD_CONTRACT_ADDRESS || '';
+export const TEMPO_ZKSEND_CONTRACT_ADDRESS =
+  import.meta.env.VITE_TEMPO_ZKSEND_CONTRACT_ADDRESS || '';
+export const TEMPO_DIRECT_SEND_CONTRACT_ADDRESS =
+  import.meta.env.VITE_TEMPO_DIRECT_SEND_CONTRACT_ADDRESS || '';
+export const TEMPO_PATHUSD_ADDRESS =
+  import.meta.env.VITE_TEMPO_PATHUSD_ADDRESS || '0x20c0000000000000000000000000000000000000';
+export const TEMPO_ALPHAUSD_ADDRESS =
+  import.meta.env.VITE_TEMPO_ALPHAUSD_ADDRESS || '0x20c0000000000000000000000000000000000001';
+export const TEMPO_BETAUSD_ADDRESS =
+  import.meta.env.VITE_TEMPO_BETAUSD_ADDRESS || '0x20c0000000000000000000000000000000000002';
+export const TEMPO_THETAUSD_ADDRESS =
+  import.meta.env.VITE_TEMPO_THETAUSD_ADDRESS || '0x20c0000000000000000000000000000000000003';
+export const TEMPO_TWITTER_VAULT_ADDRESS =
+  import.meta.env.VITE_TEMPO_TWITTER_VAULT_ADDRESS || import.meta.env.VITE_TEMPO_TWITTER_VAULT_CONTRACT_ADDRESS || '';
+export const TEMPO_TWITCH_VAULT_ADDRESS =
+  import.meta.env.VITE_TEMPO_TWITCH_VAULT_ADDRESS || import.meta.env.VITE_TEMPO_TWITCH_VAULT_CONTRACT_ADDRESS || '';
+export const TEMPO_TELEGRAM_VAULT_ADDRESS =
+  import.meta.env.VITE_TEMPO_TELEGRAM_VAULT_ADDRESS || import.meta.env.VITE_TEMPO_TELEGRAM_VAULT_CONTRACT_ADDRESS || '';
+export const TEMPO_TIKTOK_VAULT_ADDRESS =
+  import.meta.env.VITE_TEMPO_TIKTOK_VAULT_ADDRESS || import.meta.env.VITE_TEMPO_TIKTOK_VAULT_CONTRACT_ADDRESS || '';
+export const TEMPO_INSTAGRAM_VAULT_ADDRESS =
+  import.meta.env.VITE_TEMPO_INSTAGRAM_VAULT_ADDRESS || import.meta.env.VITE_TEMPO_INSTAGRAM_VAULT_CONTRACT_ADDRESS || '';
 
 export interface ChainContracts {
   chainId: number;
@@ -116,6 +246,10 @@ export interface ChainContracts {
   usdt?: string;
   eurc?: string;
   usyc?: string;
+  pathusd?: string;
+  alphausd?: string;
+  betausd?: string;
+  thetausd?: string;
   reclaimVerifier: string;
   vaultContract?: string;
   twitchVault?: string;
@@ -123,6 +257,8 @@ export interface ChainContracts {
   tiktokVault?: string;
   instagramVault?: string;
   directSend?: string;
+  /** Escrow + claim (EIP-712). See `contracts/hardhat/DirectSendV2.sol`. */
+  directSendV2?: string;
   rpcUrls: string[];
   explorerUrl: string;
   explorerApiUrl: string;
@@ -139,9 +275,34 @@ export function getContractsForChain(chainId: number): ChainContracts {
       usdc: BASE_SEPOLIA_USDC_ADDRESS,
       usdt: BASE_SEPOLIA_USDT_ADDRESS || undefined,
       reclaimVerifier: BASE_SEPOLIA_RECLAIM_VERIFIER_CONTRACT_ADDRESS,
+      directSend: BASE_SEPOLIA_DIRECT_SEND_CONTRACT_ADDRESS || undefined,
+      directSendV2: BASE_SEPOLIA_DIRECT_SEND_V2_CONTRACT_ADDRESS || undefined,
       rpcUrls: [...BASE_SEPOLIA_RPC_URLS],
       explorerUrl: BASE_SEPOLIA_EXPLORER_URL,
       explorerApiUrl: BASE_SEPOLIA_EXPLORER_API_URL,
+    };
+  }
+  if (chainId === TEMPO_CHAIN_ID) {
+    return {
+      chainId: TEMPO_CHAIN_ID,
+      contractAddress: TEMPO_GIFTCARD_CONTRACT_ADDRESS || CONTRACT_ADDRESS,
+      zksend: TEMPO_ZKSEND_CONTRACT_ADDRESS,
+      usdc: TEMPO_PATHUSD_ADDRESS,
+      pathusd: TEMPO_PATHUSD_ADDRESS,
+      alphausd: TEMPO_ALPHAUSD_ADDRESS,
+      betausd: TEMPO_BETAUSD_ADDRESS,
+      thetausd: TEMPO_THETAUSD_ADDRESS,
+      reclaimVerifier: RECLAIM_VERIFIER_CONTRACT_ADDRESS,
+      vaultContract: TEMPO_TWITTER_VAULT_ADDRESS || VAULT_CONTRACT_ADDRESS,
+      twitchVault: TEMPO_TWITCH_VAULT_ADDRESS || TWITCH_VAULT_CONTRACT_ADDRESS,
+      telegramVault: TEMPO_TELEGRAM_VAULT_ADDRESS || TELEGRAM_VAULT_CONTRACT_ADDRESS,
+      tiktokVault: TEMPO_TIKTOK_VAULT_ADDRESS || TIKTOK_VAULT_CONTRACT_ADDRESS,
+      instagramVault: TEMPO_INSTAGRAM_VAULT_ADDRESS || INSTAGRAM_VAULT_CONTRACT_ADDRESS,
+      directSend: TEMPO_DIRECT_SEND_CONTRACT_ADDRESS || undefined,
+      directSendV2: TEMPO_DIRECT_SEND_V2_CONTRACT_ADDRESS || undefined,
+      rpcUrls: [...TEMPO_RPC_URLS],
+      explorerUrl: TEMPO_EXPLORER_URL,
+      explorerApiUrl: TEMPO_EXPLORER_API_URL,
     };
   }
   // Default: Arc Testnet
@@ -160,6 +321,7 @@ export function getContractsForChain(chainId: number): ChainContracts {
     tiktokVault: TIKTOK_VAULT_CONTRACT_ADDRESS,
     instagramVault: INSTAGRAM_VAULT_CONTRACT_ADDRESS,
     directSend: DIRECT_SEND_CONTRACT_ADDRESS,
+    directSendV2: ARC_DIRECT_SEND_V2_CONTRACT_ADDRESS || undefined,
     rpcUrls: [...ARC_RPC_URLS],
     explorerUrl: import.meta.env.VITE_ARC_BLOCK_EXPLORER_URL || 'https://testnet.arcscan.app',
     explorerApiUrl: ARCSCAN_API_URL,
@@ -2460,6 +2622,96 @@ export const DirectSendABI = [
       { name: '_amount', type: 'uint256' },
     ],
     outputs: [],
+  },
+] as const;
+
+// DirectSendV2 ABI (contracts/hardhat/DirectSendV2.sol, DirectSendTempoV2.sol)
+export const DirectSendV2ABI = [
+  {
+    type: 'event',
+    name: 'DepositCreated',
+    inputs: [
+      { name: 'depositId', type: 'uint256', indexed: true },
+      { name: 'sender', type: 'address', indexed: true },
+      { name: 'recipient', type: 'address', indexed: true },
+      { name: 'amount', type: 'uint256', indexed: false },
+      { name: 'token', type: 'address', indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'DepositClaimed',
+    inputs: [
+      { name: 'depositId', type: 'uint256', indexed: true },
+      { name: 'recipient', type: 'address', indexed: true },
+      { name: 'amount', type: 'uint256', indexed: false },
+      { name: 'token', type: 'address', indexed: false },
+      { name: 'relayer', type: 'address', indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'FeePaid',
+    inputs: [
+      { name: 'sender', type: 'address', indexed: true },
+      { name: 'feeRecipient', type: 'address', indexed: true },
+      { name: 'feeAmount', type: 'uint256', indexed: false },
+      { name: 'token', type: 'address', indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'function',
+    name: 'depositFor',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: '_recipient', type: 'address' },
+      { name: '_amount', type: 'uint256' },
+      { name: '_token', type: 'address' },
+    ],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'claim',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'depositId', type: 'uint256' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'claimWithSig',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'depositId', type: 'uint256' },
+      { name: 'recipient', type: 'address' },
+      { name: 'deadline', type: 'uint256' },
+      { name: 'signature', type: 'bytes' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'deposits',
+    stateMutability: 'view',
+    inputs: [{ name: '', type: 'uint256' }],
+    outputs: [
+      { name: 'sender', type: 'address' },
+      { name: 'recipient', type: 'address' },
+      { name: 'token', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+      { name: 'claimed', type: 'bool' },
+      { name: 'createdAt', type: 'uint256' },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'nextDepositId',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
   },
 ] as const;
 

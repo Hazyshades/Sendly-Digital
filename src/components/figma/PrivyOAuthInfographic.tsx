@@ -67,6 +67,7 @@ function CurvedArrow({
   color,
   label,
   curveOffset = 0,
+  labelOffsetY = -8,
 }: {
   fromX: number;
   fromY: number;
@@ -75,6 +76,7 @@ function CurvedArrow({
   color: string;
   label?: string;
   curveOffset?: number;
+  labelOffsetY?: number;
 }) {
   const midX = (fromX + toX) / 2;
   const midY = (fromY + toY) / 2 + curveOffset;
@@ -105,7 +107,7 @@ function CurvedArrow({
       {label && (
         <text
           x={midX}
-          y={midY - 8}
+          y={midY + labelOffsetY}
           fill={color}
           fontSize="11"
           fontFamily="monospace"
@@ -190,17 +192,23 @@ export function PrivyOAuthInfographic({
   compact = false,
   embedded = false,
 }: PrivyOAuthInfographicProps) {
+  const baseWidth = 900;
+  const baseHeight = 600;
+  const compactScale = 0.3;
+  const compactPreviewWidth = Math.round(baseWidth * compactScale);
+  const compactPreviewHeight = Math.round(baseHeight * compactScale);
+
   const containerClass = compact
-    ? 'flex flex-col items-center justify-center px-2 py-4 rounded-xl overflow-hidden'
+    ? 'flex w-full flex-col items-center justify-center py-3 rounded-xl overflow-hidden'
     : embedded
-      ? 'flex w-full flex-col items-center justify-center px-8 py-12'
+      ? 'flex flex-col items-center justify-center px-8 py-12'
       : 'flex min-h-screen w-full flex-col items-center justify-center px-8 py-16';
 
   const contentStyle = compact
     ? {
-        width: 800,
-        minWidth: 800,
-        transform: 'scale(0.4)',
+        width: baseWidth,
+        minWidth: baseWidth,
+        transform: `scale(${compactScale})`,
         transformOrigin: 'center top',
       }
     : undefined;
@@ -209,30 +217,21 @@ export function PrivyOAuthInfographic({
     : 'mb-12 text-3xl font-semibold';
 
   // SVG dimensions for positioning
-  const svgWidth = compact ? 800 : 900;
-  const svgHeight = compact ? 380 : 600;
+  const svgWidth = baseWidth;
+  const svgHeight = baseHeight;
 
   // Node positions (centers)
   // Row 0 (top): MPC Key (only non-compact, centered above Privy)
   // Row 1 (middle): User -> Privy -> Backend
   // Row 2 (bottom): OAuth Gateway -> Provider APIs
-  const positions = compact
-    ? {
-        user:      { x: 130, y: 100 },
-        privy:     { x: 400, y: 100 },
-        backend:   { x: 670, y: 100 },
-        mpc:       { x: 400, y: 10 },
-        gateway:   { x: 270, y: 280 },
-        providers: { x: 530, y: 280 },
-      }
-    : {
-        user:      { x: 150, y: 230 },
-        privy:     { x: 450, y: 230 },
-        backend:   { x: 750, y: 230 },
-        mpc:       { x: 450, y: 60 },
-        gateway:   { x: 300, y: 470 },
-        providers: { x: 600, y: 470 },
-      };
+  const positions = {
+    user:      { x: 150, y: 230 },
+    privy:     { x: 450, y: 230 },
+    backend:   { x: 750, y: 230 },
+    mpc:       { x: 450, y: 60 },
+    gateway:   { x: 300, y: 470 },
+    providers: { x: 600, y: 470 },
+  };
 
   return (
     <div
@@ -251,13 +250,14 @@ export function PrivyOAuthInfographic({
         style={
           compact
             ? {
-                width: 320,
-                height: 160,
+                width: '100%',
+                maxWidth: compactPreviewWidth,
+                height: compactPreviewHeight,
                 overflow: 'hidden',
               }
             : {
-                width: '100%',
-                maxWidth: 900,
+                width: baseWidth,
+                maxWidth: '100%',
               }
         }
       >
@@ -292,17 +292,15 @@ export function PrivyOAuthInfographic({
             />
 
             {/* Row 2: Privy -> MPC (vertical, curved) */}
-            {!compact && (
-              <CurvedArrow
-                fromX={positions.privy.x}
-                fromY={positions.privy.y - 60}
-                toX={positions.mpc.x}
-                toY={positions.mpc.y + 60}
-                color="#f59e0b"
-                label="MPC Split"
-                curveOffset={-20}
-              />
-            )}
+            <CurvedArrow
+              fromX={positions.privy.x}
+              fromY={positions.privy.y - 60}
+              toX={positions.mpc.x}
+              toY={positions.mpc.y + 60}
+              color="#f59e0b"
+              label="MPC Split"
+              curveOffset={-20}
+            />
 
             {/* Row 1 -> Row 3: Backend -> Gateway (vertical down, then horizontal) */}
             <CurvedArrow
@@ -312,7 +310,7 @@ export function PrivyOAuthInfographic({
               toY={positions.gateway.y - 60}
               color="#14b8a6"
               label="Validated"
-              curveOffset={compact ? 60 : 80}
+              curveOffset={65}
             />
 
             {/* Row 3: Gateway -> Providers */}
@@ -327,17 +325,16 @@ export function PrivyOAuthInfographic({
             />
 
             {/* Gateway -> Backend (feedback loop, curved) */}
-            {!compact && (
-              <CurvedArrow
-                fromX={positions.gateway.x}
-                fromY={positions.gateway.y - 30}
-                toX={positions.backend.x}
-                toY={positions.backend.y + 30}
-                color="#ec4899"
-                label="Retry & Log"
-                curveOffset={-100}
-              />
-            )}
+            <CurvedArrow
+              fromX={positions.gateway.x}
+              fromY={positions.gateway.y - 30}
+              toX={positions.backend.x}
+              toY={positions.backend.y + 30}
+              color="#ec4899"
+              label="Retry & Log"
+              curveOffset={-80}
+              labelOffsetY={68}
+            />
           </svg>
 
           {/* Node cards */}
@@ -367,18 +364,16 @@ export function PrivyOAuthInfographic({
             </div>
 
             {/* MPC Key (above Privy) */}
-            {!compact && (
-              <div
-                className="absolute"
-                style={{
-                  left: positions.mpc.x - 80,
-                  top: positions.mpc.y - 60,
-                  width: 160,
-                }}
-              >
-                <NodeCard data={nodes[3]} />
-              </div>
-            )}
+            <div
+              className="absolute"
+              style={{
+                left: positions.mpc.x - 80,
+                top: positions.mpc.y - 60,
+                width: 160,
+              }}
+            >
+              <NodeCard data={nodes[3]} />
+            </div>
 
             {/* Backend */}
             <div

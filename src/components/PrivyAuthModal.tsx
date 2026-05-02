@@ -6,7 +6,12 @@ import { Button } from './ui/button';
 import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
 import { AlertCircle, LogOut } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { cn } from '@/lib/utils';
+import { getPrivyAuthMode, setPrivyAuthMode, type PrivyAuthMode } from '@/lib/privy/authMode';
+import { getPrivyAppIdByMode } from '@/lib/privy';
+
+/** When false, the New users / Existing users toggle is not shown; mode stays whatever is already in storage (default `new`). */
+const PRIVY_LOGIN_PROFILE_SWITCH_ENABLED = false;
 
 interface PrivyAuthModalProps {
   isOpen: boolean;
@@ -22,11 +27,23 @@ export function PrivyAuthModal({ isOpen, onClose }: PrivyAuthModalProps) {
   const { login: loginWithTelegram, state: telegramState } = useLoginWithTelegram();
   const [loading, setLoading] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const currentAuthMode = getPrivyAuthMode();
+  const isLegacyMode = currentAuthMode === 'legacy';
+  const activePrivyAppId = getPrivyAppIdByMode(currentAuthMode);
+
+  const logAuthAttempt = (step: string, extra?: Record<string, unknown>) => {
+    console.info('[PrivyDebug] Auth attempt', {
+      step,
+      mode: currentAuthMode,
+      appId: activePrivyAppId,
+      authenticated,
+      userId: user?.id ?? null,
+      ...extra,
+    });
+  };
 
   const hasTwitter = user?.twitter;
   const hasTwitch = user?.twitch;
-  const hasInstagram = (user as any)?.instagram || (user as any)?.facebook;
-  const hasTikTok = (user as any)?.tiktok;
   const hasTelegram = user?.telegram;
   const linkedAccountsCount = user?.linkedAccounts?.length || 0;
   const canUnlink = linkedAccountsCount > 1;
@@ -38,13 +55,16 @@ export function PrivyAuthModal({ isOpen, onClose }: PrivyAuthModalProps) {
       
       if (authenticated && user) {
         if (provider === 'twitter') {
+          logAuthAttempt('link-twitter');
           await linkTwitter();
           onClose();
         } else if (provider === 'twitch') {
+          logAuthAttempt('link-twitch');
           await linkTwitch();
           onClose();
         }
       } else {
+        logAuthAttempt('login-default-from-handleLogin', { provider });
         await login();
         onClose();
       }
@@ -136,6 +156,7 @@ export function PrivyAuthModal({ isOpen, onClose }: PrivyAuthModalProps) {
           setLoading(null);
         }
       } else {
+        logAuthAttempt('login-telegram');
         await loginWithTelegram();
         onClose();
       }
@@ -220,109 +241,6 @@ export function PrivyAuthModal({ isOpen, onClose }: PrivyAuthModalProps) {
     }
   };
 
-  const handleInstagramLogin = async () => {
-    try {
-      setLoading('instagram');
-      setErrorMessage(null);
-
-      if (authenticated && user) {
-        const privyAny = privy as any;
-        // Try linkInstagram first, then linkOAuth, then generic link
-        if (privyAny.linkInstagram) {
-          await privyAny.linkInstagram();
-          onClose();
-        } else if (privyAny.linkOAuth) {
-          await privyAny.linkOAuth({ provider: 'instagram' });
-          onClose();
-        } else if (privyAny.link) {
-          await privyAny.link({ provider: 'instagram' });
-          onClose();
-        } else {
-          toast.error('Linking Instagram is not available. Please configure Instagram in Privy Dashboard first.');
-          setLoading(null);
-        }
-      } else {
-        // For login, use the standard login method which will show Instagram as an option
-        await login();
-        onClose();
-      }
-    } catch (error: any) {
-      console.error(`Failed to ${authenticated && user ? 'link' : 'login'} with Instagram:`, error);
-
-      const errorMessage = (error?.message || error?.toString() || '').toLowerCase();
-      const errorCode = error?.code || '';
-
-      const isAccountLinkedError = 
-        errorMessage.includes('already been linked') || 
-        errorMessage.includes('already linked') ||
-        errorMessage.includes('authentication failed') ||
-        errorMessage.includes('linked to another user') ||
-        errorCode.includes('account_already_linked') ||
-        errorCode.includes('user_exists');
-
-      if (isAccountLinkedError) {
-        setErrorMessage('This Instagram account is already linked to another Privy user. To use a different Instagram account, please log out of your current session first.');
-        toast.error('This account is already linked to another user', {
-          description: 'Log out of your current session and log in again with the desired account',
-          duration: 5000,
-        });
-      } else {
-        toast.error(`Failed to ${authenticated && user ? 'link' : 'login'}`, {
-          description: errorMessage || 'Please try again',
-        });
-      }
-      setLoading(null);
-    }
-  };
-
-  const handleInstagramUnlink = async () => {
-    try {
-      setLoading('unlink-instagram');
-
-      if (!user) {
-        toast.error('User not found');
-        setLoading(null);
-        return;
-      }
-
-      if (!hasInstagram) {
-        toast.error('Instagram account not connected');
-        setLoading(null);
-        return;
-      }
-
-      if (linkedAccountsCount <= 1) {
-        toast.error('Cannot unlink the last account');
-        setLoading(null);
-        return;
-      }
-
-      onClose();
-
-      const privyAny = privy as any;
-      const instagramAccount = (user as any).instagram || (user as any).facebook;
-      
-      if (instagramAccount?.subject) {
-        if (privyAny.unlinkInstagram) {
-          await privyAny.unlinkInstagram(instagramAccount.subject);
-          toast.success('Instagram account unlinked successfully');
-        } else if (privyAny.unlinkOAuth) {
-          await privyAny.unlinkOAuth({ provider: 'instagram', subject: instagramAccount.subject });
-          toast.success('Instagram account unlinked successfully');
-        } else {
-          toast.error('Instagram unlinking is not available in this Privy SDK version');
-        }
-      } else {
-        toast.error('Instagram account information not found');
-      }
-    } catch (error) {
-      console.error('Failed to unlink Instagram:', error);
-      toast.error('Failed to unlink Instagram account');
-    } finally {
-      setLoading(null);
-    }
-  };
-
   const getTwitterUsername = () => {
     return user?.twitter?.username || 'Twitter';
   };
@@ -330,127 +248,6 @@ export function PrivyAuthModal({ isOpen, onClose }: PrivyAuthModalProps) {
   const getTwitchUsername = () => {
     if (!user?.twitch) return 'Twitch';
     return (user.twitch as any).username || (user.twitch as any).email || 'Twitch';
-  };
-
-  const getInstagramUsername = () => {
-    if (!hasInstagram) return 'Instagram';
-    return (user as any)?.instagram?.username || (user as any)?.instagram?.email || 'Instagram';
-  };
-
-  const handleTikTokLogin = async () => {
-    try {
-      setLoading('tiktok');
-      setErrorMessage(null);
-
-      if (authenticated && user) {
-        const privyAny = privy as any;
-        if (privyAny.linkTiktok) {
-          await privyAny.linkTiktok();
-          onClose();
-        } else if (privyAny.linkOAuth) {
-          await privyAny.linkOAuth({ provider: 'tiktok' });
-          onClose();
-        } else if (privyAny.link) {
-          await privyAny.link({ provider: 'tiktok' });
-          onClose();
-        } else {
-          toast.error('Linking TikTok is not available. Please configure TikTok in Privy Dashboard first.');
-          setLoading(null);
-        }
-      } else {
-        await login();
-        onClose();
-      }
-    } catch (error: any) {
-      console.error(`Failed to ${authenticated && user ? 'link' : 'login'} with TikTok:`, error);
-
-      const errorMessage = (error?.message || error?.toString() || '').toLowerCase();
-      const errorCode = error?.code || '';
-
-      const isAccountLinkedError =
-        errorMessage.includes('already been linked') ||
-        errorMessage.includes('already linked') ||
-        errorMessage.includes('authentication failed') ||
-        errorMessage.includes('linked to another user') ||
-        errorCode.includes('account_already_linked') ||
-        errorCode.includes('user_exists');
-
-      if (isAccountLinkedError) {
-        setErrorMessage('This TikTok account is already linked to another Privy user. Log out of your current session and try again with the desired account.');
-        toast.error('This account is already linked to another user', {
-          description: 'Log out of your current session and log in again with the desired account',
-          duration: 5000,
-        });
-      } else {
-        toast.error(`Failed to ${authenticated && user ? 'link' : 'login'}`, {
-          description: errorMessage || 'Please try again',
-        });
-      }
-      setLoading(null);
-    }
-  };
-
-  const handleTikTokUnlink = async () => {
-    try {
-      setLoading('unlink-tiktok');
-
-      if (!user) {
-        toast.error('User not found');
-        setLoading(null);
-        return;
-      }
-
-      if (!hasTikTok) {
-        toast.error('TikTok account not connected');
-        setLoading(null);
-        return;
-      }
-
-      if (linkedAccountsCount <= 1) {
-        toast.error('Cannot unlink the last account');
-        setLoading(null);
-        return;
-      }
-
-      onClose();
-
-      const privyAny = privy as any;
-      const tiktokAccount = (user as any).tiktok;
-
-      if (tiktokAccount?.subject) {
-        if (privyAny.unlinkTiktok) {
-          await privyAny.unlinkTiktok(tiktokAccount.subject);
-          toast.success('TikTok account unlinked successfully');
-        } else if (privyAny.unlinkOAuth) {
-          await privyAny.unlinkOAuth({ provider: 'tiktok', subject: tiktokAccount.subject });
-          toast.success('TikTok account unlinked successfully');
-        } else {
-          toast.error('TikTok unlinking is not available in this Privy SDK version');
-        }
-      } else {
-        toast.error('TikTok account information not found');
-      }
-    } catch (error) {
-      console.error('Failed to unlink TikTok:', error);
-      toast.error('Failed to unlink TikTok account');
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const getTikTokUsername = () => {
-    if (!hasTikTok) return 'TikTok';
-    const tiktokAccount = (user as any).tiktok;
-    const username =
-      tiktokAccount?.username ||
-      tiktokAccount?.handle ||
-      tiktokAccount?.display_name ||
-      tiktokAccount?.email ||
-      '';
-    if (!username) {
-      return 'TikTok';
-    }
-    return username.startsWith('@') ? username : `@${username}`;
   };
 
   const getTelegramDisplayName = () => {
@@ -483,6 +280,22 @@ export function PrivyAuthModal({ isOpen, onClose }: PrivyAuthModalProps) {
     onClose();
   };
 
+  const handleSwitchAuthMode = (mode: PrivyAuthMode) => {
+    if (mode === currentAuthMode) {
+      return;
+    }
+
+    console.info('[PrivyDebug] Mode switch requested', {
+      from: currentAuthMode,
+      to: mode,
+      fromAppId: activePrivyAppId,
+      toAppId: getPrivyAppIdByMode(mode),
+    });
+    setPrivyAuthMode(mode);
+    // PrivyProvider often keeps the first mounted appId; full reload guarantees the new env app loads.
+    window.location.reload();
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
@@ -493,6 +306,53 @@ export function PrivyAuthModal({ isOpen, onClose }: PrivyAuthModalProps) {
         </DialogHeader>
 
         <div className="space-y-4">
+          {PRIVY_LOGIN_PROFILE_SWITCH_ENABLED && (
+            <div className="rounded-xl border border-border/70 bg-gradient-to-b from-muted/40 via-muted/25 to-background/80 p-4 shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.06]">
+              <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Login profile
+              </p>
+              <div
+                className="flex w-full gap-1 rounded-lg border border-border/60 bg-muted/60 p-1 shadow-inner"
+                role="radiogroup"
+                aria-label="Choose Privy login: new or existing Sendly users"
+              >
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={!isLegacyMode}
+                  disabled={loading !== null}
+                  onClick={() => handleSwitchAuthMode('new')}
+                  className={cn(
+                    'relative flex-1 rounded-md px-3 py-2.5 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                    !isLegacyMode
+                      ? 'bg-background text-foreground shadow-sm ring-1 ring-border/80 dark:bg-background/95'
+                      : 'text-muted-foreground hover:bg-background/50 hover:text-foreground',
+                  )}
+                >
+                  New users
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={isLegacyMode}
+                  disabled={loading !== null}
+                  onClick={() => handleSwitchAuthMode('legacy')}
+                  className={cn(
+                    'relative flex-1 rounded-md px-3 py-2.5 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                    isLegacyMode
+                      ? 'bg-background text-foreground shadow-sm ring-1 ring-border/80 dark:bg-background/95'
+                      : 'text-muted-foreground hover:bg-background/50 hover:text-foreground',
+                  )}
+                >
+                  Existing users
+                </button>
+              </div>
+              <p className="mt-3 text-center text-xs leading-relaxed text-muted-foreground">
+                Use <span className="font-medium text-foreground">Existing users</span> if you signed up on Sendly before the new login rollout.
+              </p>
+            </div>
+          )}
+
           {errorMessage && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
@@ -643,6 +503,7 @@ export function PrivyAuthModal({ isOpen, onClose }: PrivyAuthModalProps) {
               )}
             </div>
 
+            {/* Instagram / Threads — temporarily hidden
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 rounded-lg flex items-center justify-center overflow-hidden">
@@ -750,6 +611,7 @@ export function PrivyAuthModal({ isOpen, onClose }: PrivyAuthModalProps) {
                 </Tooltip>
               )}
             </div>
+            */}
           </div>
 
           <Separator />
@@ -768,8 +630,10 @@ export function PrivyAuthModal({ isOpen, onClose }: PrivyAuthModalProps) {
             </div>
           )}
 
+          {/* Only users who have logged in to Sendly with Privy can receive or send a gift card via social accounts.
           <div className="text-sm text-muted-foreground text-center">
 Only users who have logged in to Sendly with Privy can receive or send a gift card via social accounts.          </div>
+          */}
         </div>
       </DialogContent>
     </Dialog>

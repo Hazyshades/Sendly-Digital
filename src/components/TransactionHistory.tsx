@@ -9,9 +9,9 @@ import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/
 import { Spinner } from '@/components/ui/spinner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { useAccount } from 'wagmi';
+import { useAccount, useChainId } from 'wagmi';
 import { createWalletClient, custom } from 'viem';
-import { arcTestnet } from '@/lib/web3/wagmiConfig';
+import { arcTestnet, chains } from '@/lib/web3/wagmiConfig';
 import { getExplorerTxUrl, getContractsForChain, ARC_CHAIN_ID } from '@/lib/web3/constants';
 import web3Service from '@/lib/web3/web3Service';
 import { GiftCardsService } from '@/lib/supabase/giftCards';
@@ -29,7 +29,7 @@ interface Transaction {
   id: string;
   type: 'sent' | 'received' | 'redeemed';
   amount: string;
-  currency: 'USDC' | 'EURC' | 'USYC';
+  currency: 'USDC' | 'EURC' | 'USYC' | 'PATHUSD' | 'ALPHAUSD' | 'BETAUSD' | 'THETAUSD';
   counterpart: string;
   message: string;
   status: 'completed' | 'pending' | 'redeemed';
@@ -39,6 +39,8 @@ interface Transaction {
   platform?: SocialPlatform;
 }
 
+type TransactionCurrency = Transaction['currency'];
+
 interface Analytics {
   totalSent: string;
   totalReceived: string;
@@ -46,7 +48,7 @@ interface Analytics {
   cardsSent: number;
   cardsReceived: number;
   averageAmount: string;
-  topCurrency: 'USDC' | 'EURC' | 'USYC';
+  topCurrency: TransactionCurrency;
 }
 
 function normalizeTxHash(h: string | null | undefined): string {
@@ -64,7 +66,11 @@ function normalizePlatform(p?: string | null): SocialPlatform {
 function toTransactionFromSent(row: ZkSendPaymentRow): Transaction {
   const counterpart =
     row.recipient_username ?? row.recipient_username_raw ?? row.recipient_identity_hash ?? '-';
-  const currency = (row.currency === 'EURC' ? 'EURC' : row.currency === 'USYC' ? 'USYC' : 'USDC') as 'USDC' | 'EURC' | 'USYC';
+  const currency = (
+    ['USDC', 'EURC', 'USYC', 'PATHUSD', 'ALPHAUSD', 'BETAUSD', 'THETAUSD'].includes((row.currency ?? '').toUpperCase())
+      ? (row.currency ?? '').toUpperCase()
+      : 'USDC'
+  ) as Transaction['currency'];
   return {
     id: `zksend_sent_${row.chain_id}_${row.contract_address}_${row.payment_id}`,
     type: 'sent',
@@ -95,7 +101,11 @@ function formatRelative(date: Date): string {
 
 function toTransactionFromReceived(row: ZkSendPaymentRow): Transaction {
   const counterpart = row.sender_address ?? '-';
-  const currency = (row.currency === 'EURC' ? 'EURC' : row.currency === 'USYC' ? 'USYC' : 'USDC') as 'USDC' | 'EURC' | 'USYC';
+  const currency = (
+    ['USDC', 'EURC', 'USYC', 'PATHUSD', 'ALPHAUSD', 'BETAUSD', 'THETAUSD'].includes((row.currency ?? '').toUpperCase())
+      ? (row.currency ?? '').toUpperCase()
+      : 'USDC'
+  ) as Transaction['currency'];
   const timestamp = row.claimed_at ?? row.created_at ?? new Date().toISOString();
   const txHash = normalizeTxHash(row.claim_tx_hash ?? row.tx_hash);
   return {
@@ -115,8 +125,12 @@ function toTransactionFromReceived(row: ZkSendPaymentRow): Transaction {
 
 export function TransactionHistory() {
   const { address, isConnected } = useAccount();
-  const activeChain = arcTestnet;
-  const activeChainId = ARC_CHAIN_ID;
+  const connectedChainId = useChainId();
+  const activeChainId = connectedChainId || ARC_CHAIN_ID;
+  const activeChain = useMemo(
+    () => chains.find((chain) => chain.id === activeChainId) ?? arcTestnet,
+    [activeChainId]
+  );
   const [dateFilter, setDateFilter] = useState('all');
   const [currencyFilter, setCurrencyFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -139,15 +153,18 @@ export function TransactionHistory() {
   const isFetchingRef = useRef(false);
   const lastAddressRef = useRef<string | null>(null);
   const lastConnectionStateRef = useRef<boolean | null>(null);
+  const lastChainIdRef = useRef<number | null>(null);
   
   // Add data cache (increased cache time to 5 minutes)
   const dataCacheRef = useRef<{
     address: string | null;
+    chainId: number | null;
     analytics: Analytics | null;
     transactions: Transaction[] | null;
     timestamp: number;
   }>({
     address: null,
+    chainId: null,
     analytics: null,
     transactions: null,
     timestamp: 0
@@ -157,10 +174,12 @@ export function TransactionHistory() {
     // Check if important parameters have actually changed
     const addressChanged = lastAddressRef.current !== address;
     const connectionChanged = lastConnectionStateRef.current !== isConnected;
+    const chainChanged = lastChainIdRef.current !== activeChainId;
     
     // Update refs
     lastAddressRef.current = address || null;
     lastConnectionStateRef.current = isConnected;
+    lastChainIdRef.current = activeChainId;
     
     // If already loading data, don't make duplicate request
     if (isFetchingRef.current) {
@@ -168,7 +187,7 @@ export function TransactionHistory() {
     }
     
     // If parameters haven't changed, don't make request
-    if (!addressChanged && !connectionChanged) {
+    if (!addressChanged && !connectionChanged && !chainChanged) {
       return;
     }
     
@@ -188,7 +207,7 @@ export function TransactionHistory() {
       });
       setTransactions([]);
     }
-  }, [isConnected, address]);
+  }, [isConnected, address, activeChainId]);
 
   const zkSendFilter = useMemo(() => ({
     chainId: String(activeChainId),
@@ -197,6 +216,20 @@ export function TransactionHistory() {
 
   const fetchZkSendData = async () => {
     if (!address || isFetchingRef.current) return;
+    if (!zkSendFilter.contractAddress) {
+      setAnalytics({
+        totalSent: '0',
+        totalReceived: '0',
+        totalRedeemed: '0',
+        cardsSent: 0,
+        cardsReceived: 0,
+        averageAmount: '0',
+        topCurrency: 'USDC',
+      });
+      setTransactions([]);
+      setLoading(false);
+      return;
+    }
     try {
       isFetchingRef.current = true;
       setLoading(true);
@@ -218,15 +251,19 @@ export function TransactionHistory() {
       let totalRedeemed = 0;
       let cardsSent = 0;
       let cardsReceived = 0;
-      const currencyCounts: Record<'USDC' | 'EURC' | 'USYC', number> = {
+      const currencyCounts: Record<TransactionCurrency, number> = {
         USDC: 0,
         EURC: 0,
         USYC: 0,
+        PATHUSD: 0,
+        ALPHAUSD: 0,
+        BETAUSD: 0,
+        THETAUSD: 0,
       };
       allTxs.forEach((tx) => {
         const amount = parseFloat(tx.amount);
         const sym = tx.currency;
-        if (sym === 'USDC' || sym === 'EURC' || sym === 'USYC') currencyCounts[sym]++;
+        if (currencyCounts[sym] !== undefined) currencyCounts[sym]++;
         if (tx.type === 'sent') {
           totalSent += amount;
           cardsSent++;
@@ -240,7 +277,7 @@ export function TransactionHistory() {
         cardsSent + cardsReceived > 0
           ? ((totalSent + totalReceived) / (cardsSent + cardsReceived)).toFixed(2)
           : '0';
-      const currencyOrder: Array<keyof typeof currencyCounts> = ['USDC', 'EURC', 'USYC'];
+      const currencyOrder: Array<keyof typeof currencyCounts> = ['USDC', 'EURC', 'USYC', 'PATHUSD', 'ALPHAUSD', 'BETAUSD', 'THETAUSD'];
       const topCurrency = currencyOrder.reduce(
         (prev, curr) => (currencyCounts[curr] > currencyCounts[prev] ? curr : prev),
         currencyOrder[0]
@@ -258,6 +295,7 @@ export function TransactionHistory() {
       setTransactions(allTxs);
       dataCacheRef.current = {
         address: address ?? null,
+        chainId: activeChainId,
         analytics: newAnalytics,
         transactions: allTxs,
         timestamp: Date.now(),
@@ -293,6 +331,7 @@ export function TransactionHistory() {
       const cacheValid =
         cacheAge < 300000 &&
         dataCacheRef.current.address === address &&
+        dataCacheRef.current.chainId === activeChainId &&
         cachedAnalytics != null &&
         cachedTransactions != null;
       if (cacheValid) {
@@ -307,7 +346,10 @@ export function TransactionHistory() {
 
     // Check cache (increased cache time to 5 minutes)
     const cacheAge = Date.now() - dataCacheRef.current.timestamp;
-    const cacheValid = cacheAge < 300000 && dataCacheRef.current.address === address; // 5 minutes
+    const cacheValid =
+      cacheAge < 300000 &&
+      dataCacheRef.current.address === address &&
+      dataCacheRef.current.chainId === activeChainId; // 5 minutes
     
     const cachedAnalytics = dataCacheRef.current.analytics;
     const cachedTransactions = dataCacheRef.current.transactions;
@@ -385,18 +427,20 @@ export function TransactionHistory() {
       let cardsSent = 0;
       let cardsReceived = 0;
       let cardsRedeemed = 0;
-      const currencyCounts: Record<'USDC' | 'EURC' | 'USYC', number> = {
+      const currencyCounts: Record<TransactionCurrency, number> = {
         USDC: 0,
         EURC: 0,
         USYC: 0,
+        PATHUSD: 0,
+        ALPHAUSD: 0,
+        BETAUSD: 0,
+        THETAUSD: 0,
       };
 
       allCards.forEach((card: any) => {
         const amount = parseFloat(card.amount);
-        const symbol = card.token as 'USDC' | 'EURC' | 'USYC';
-        if (symbol === 'USDC' || symbol === 'EURC' || symbol === 'USYC') {
-          currencyCounts[symbol]++;
-        }
+        const symbol = String(card.token || '').toUpperCase() as keyof typeof currencyCounts;
+        if (currencyCounts[symbol] !== undefined) currencyCounts[symbol]++;
 
         if (card.type === 'sent') {
           totalSent += amount;
@@ -414,7 +458,7 @@ export function TransactionHistory() {
 
       const averageAmount = (cardsSent + cardsReceived) > 0 ? 
         ((totalSent + totalReceived) / (cardsSent + cardsReceived)).toFixed(2) : '0';
-      const currencyOrder: Array<keyof typeof currencyCounts> = ['USDC', 'EURC', 'USYC'];
+      const currencyOrder: Array<keyof typeof currencyCounts> = ['USDC', 'EURC', 'USYC', 'PATHUSD', 'ALPHAUSD', 'BETAUSD', 'THETAUSD'];
       const topCurrency = currencyOrder.reduce((prev, curr) => {
         return currencyCounts[curr] > currencyCounts[prev] ? curr : prev;
       }, currencyOrder[0]);
@@ -469,6 +513,7 @@ export function TransactionHistory() {
       // Save data to cache
       dataCacheRef.current = {
         address: address || null,
+        chainId: activeChainId,
         analytics: newAnalytics,
         transactions: blockchainTransactions,
         timestamp: Date.now()
@@ -650,6 +695,7 @@ export function TransactionHistory() {
   const handleRefresh = () => {
       dataCacheRef.current = {
         address: null,
+        chainId: null,
         analytics: null,
         transactions: null,
         timestamp: 0,

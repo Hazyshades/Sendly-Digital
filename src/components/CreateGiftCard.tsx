@@ -20,7 +20,7 @@ import { toast } from 'sonner';
 import { useAccount, useWalletClient } from 'wagmi';
 import { createWalletClient, custom, createPublicClient, http } from 'viem';
 import web3Service from '@/lib/web3/web3Service';
-import { arcTestnet } from '@/lib/web3/wagmiConfig';
+import { arcTestnet, tempoTestnet } from '@/lib/web3/wagmiConfig';
 import { ERC20ABI, getExplorerTxUrl, getContractsForChain, ARC_CHAIN_ID } from '@/lib/web3/constants';
 import { generateNewIpfsUri } from '@/lib/newIpfsUri';
 // import { insertFakeUri } from '@/lib/supabase/uriService';
@@ -42,7 +42,7 @@ interface GiftCardData {
   recipientAddress: string;
   recipientUsername: string;
   amount: string;
-  currency: 'USDC' | 'EURC';
+  currency: 'USDC' | 'EURC' | 'PATHUSD' | 'ALPHAUSD' | 'BETAUSD' | 'THETAUSD';
   design: 'pink' | 'blue' | 'green' | 'custom';
   message: string;
   secretMessage: string;
@@ -196,9 +196,14 @@ function getWalletName(): string {
 export function CreateGiftCard() {
   const { address, isConnected, connector } = useAccount();
   const { data: walletClient } = useWalletClient();
-  const activeChain = arcTestnet;
-  const activeChainId = ARC_CHAIN_ID;
-  const contracts = getContractsForChain(ARC_CHAIN_ID);
+  const connectedChainId = walletClient?.chain?.id ?? ARC_CHAIN_ID;
+  const isTempoNetwork = connectedChainId === tempoTestnet.id;
+  const activeChain = isTempoNetwork ? tempoTestnet : arcTestnet;
+  const activeChainId = connectedChainId;
+  const contracts = getContractsForChain(activeChainId);
+  const availableCurrencies = isTempoNetwork
+    ? (['PATHUSD', 'ALPHAUSD', 'BETAUSD', 'THETAUSD'] as const)
+    : (['USDC', 'EURC'] as const);
   const { authenticated, user: privyUser } = usePrivySafe();
   const [walletName, setWalletName] = useState<string>('Web3 Wallet');
   const navigate = useNavigate();
@@ -313,6 +318,18 @@ export function CreateGiftCard() {
   const updateFormData = (field: keyof GiftCardData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  useEffect(() => {
+    const allowed: GiftCardData['currency'][] = isTempoNetwork
+      ? ['PATHUSD', 'ALPHAUSD', 'BETAUSD', 'THETAUSD']
+      : ['USDC', 'EURC'];
+    setFormData((prev) => {
+      if (allowed.includes(prev.currency)) {
+        return prev;
+      }
+      return { ...prev, currency: isTempoNetwork ? 'PATHUSD' : 'USDC' };
+    });
+  }, [isTempoNetwork]);
 
 
   // Checking for the presence of a Internal wallet for social networks
@@ -556,7 +573,18 @@ export function CreateGiftCard() {
       const metadataUri = generateNewIpfsUri();
 
       // Step 2: Check token balance and prepare for creation
-      const tokenAddress = formData.currency === 'USDC' ? contracts.usdc : (contracts.eurc ?? contracts.usdc);
+      const tokenAddress =
+        formData.currency === 'USDC'
+          ? contracts.usdc
+          : formData.currency === 'EURC'
+            ? (contracts.eurc ?? contracts.usdc)
+            : formData.currency === 'PATHUSD'
+              ? (contracts.pathusd ?? contracts.usdc)
+              : formData.currency === 'ALPHAUSD'
+                ? (contracts.alphausd ?? contracts.usdc)
+                : formData.currency === 'BETAUSD'
+                  ? (contracts.betausd ?? contracts.usdc)
+                  : (contracts.thetausd ?? contracts.usdc);
       
       const amountWei = (parseFloat(formData.amount) * 1000000).toString(); // 6 decimals for USDC/EURC
       
@@ -1100,7 +1128,7 @@ export function CreateGiftCard() {
       };
 
       setCreatedCard(createdCardData);
-      toast.success(`Gift card created successfully! Token ID: ${result.tokenId}`);
+      toast.success('Gift card created successfully!');
       toast.success(`Gift card created successfully! TX: ${result.txHash.slice(0, 10)}...${result.txHash.slice(-8)}`);
       
       // Save to Supabase for caching
@@ -1501,8 +1529,6 @@ export function CreateGiftCard() {
              {/* <p className="text-xs text-gray-500 mt-1">
                 The recipient will need to login via Privy with Twitter to claim the card.
               </p> */}
-                  <p className="text-xs text-gray-500 mt-1">
-If recipient never log in on Sendly with this social, please, DONT'T SEND the funds. Privy testnet is over.              </p> 
             </div>
           ) : formData.recipientType === 'twitch' ? (
             <div>
@@ -1638,14 +1664,17 @@ If recipient never log in on Sendly with this social, please, DONT'T SEND the fu
               <Label>Currency</Label>
               <Select
                 value={formData.currency}
-                onValueChange={(value: 'USDC' | 'EURC') => updateFormData('currency', value)}
+                onValueChange={(value: 'USDC' | 'EURC' | 'PATHUSD' | 'ALPHAUSD' | 'BETAUSD' | 'THETAUSD') => updateFormData('currency', value)}
               >
                 <SelectTrigger className="mt-2">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="USDC">USDC</SelectItem>
-                  <SelectItem value="EURC">EURC</SelectItem>
+                  {availableCurrencies.map((currency) => (
+                    <SelectItem key={currency} value={currency}>
+                      {currency}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -1703,27 +1732,32 @@ If recipient never log in on Sendly with this social, please, DONT'T SEND the fu
 
           {/* Action Buttons */}
           <div className="space-y-2">
-            <Button 
-              variant="outline"
-              className="w-full"
-              size="sm"
-              onClick={openCircleBridge}
-            >
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Top up {formData.currency} on Arc (Circle Bridge)
-            </Button>
-            <Button 
-              variant="outline"
-              className="w-full"
-              size="sm"
-              onClick={() => {
-                const bridgeUrl = generateBridgeUrlFromArc('base-sepolia', formData.currency);
-                navigate(bridgeUrl);
-              }}
-            >
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Bridge {formData.currency} to Base Sepolia
-            </Button>
+            {!isTempoNetwork && (
+              <>
+                <Button 
+                  variant="outline"
+                  className="w-full"
+                  size="sm"
+                  onClick={openCircleBridge}
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Top up {formData.currency} on Arc (Circle Bridge)
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="w-full"
+                  size="sm"
+                  onClick={() => {
+                    const bridgeCurrency = formData.currency === 'EURC' ? 'EURC' : 'USDC';
+                    const bridgeUrl = generateBridgeUrlFromArc('base-sepolia', bridgeCurrency);
+                    navigate(bridgeUrl);
+                  }}
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Bridge {formData.currency} to Base Sepolia
+                </Button>
+              </>
+            )}
             <Button 
               className="w-full" 
               size="lg" 
@@ -1814,7 +1848,7 @@ If recipient never log in on Sendly with this social, please, DONT'T SEND the fu
             <Alert>
               <CheckCircle className="h-4 w-4" />
               <AlertDescription className="space-y-2">
-                <div>Gift card created successfully! Token ID: {createdCard.id}</div>
+                <div>Gift card created successfully!</div>
                 <div className="text-sm">
                   TX: 
                   <button
@@ -1863,7 +1897,7 @@ If recipient never log in on Sendly with this social, please, DONT'T SEND the fu
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Sorry, this feature is temporarily unavailable</p>
+              <p>This feature is temporarily unavailable</p>
             </TooltipContent>
           </Tooltip>
         </div>

@@ -9,7 +9,10 @@ import { PrivyOAuthInfographic } from '@/components/figma/PrivyOAuthInfographic'
 import { ZkSendPanel } from '@/components/zksend/ZkSendPanel';
 import type { SendPaymentPreviewValues } from '@/components/zksend/SendPaymentForm';
 import { CreateGiftCardPreview } from '@/components/CreateGiftCardPreview';
+import { InternalWalletDashboardPreview } from '@/components/InternalWalletDashboardPreview';
+import { InternalWalletCreatePromptPreview } from '@/components/InternalWalletCreatePromptPreview';
 import { BlogLayout } from '@/components/BlogLayout';
+import { PUBLIC_BLOG_SLUGS } from '@/lib/blog/publicSlugs';
 import { fetchTwitterUserPreview } from '@/lib/twitter/userLookup';
 
 /** Fallback when cache/API has no data or request fails. */
@@ -48,7 +51,7 @@ interface BlogSection {
 interface BlogImage {
   id: string;
   src?: string;
-  componentId?: 'verification-infographic' | 'zktls-infographic' | 'zktls-architecture-infographic' | 'privy-oauth-infographic' | 'payments-send-embed' | 'payments-receive-embed' | 'gift-card-create-embed';
+  componentId?: 'verification-infographic' | 'zktls-infographic' | 'zktls-architecture-infographic' | 'privy-oauth-infographic' | 'payments-send-embed' | 'payments-receive-embed' | 'gift-card-create-embed' | 'internal-wallet-dashboard-embed' | 'internal-wallet-create-embed';
   alt: string;
   caption: string;
 }
@@ -56,24 +59,24 @@ interface BlogImage {
 const blogPosts: Record<string, BlogPost> = {
   privy_results: {
     slug: 'privy_results',
-    title: 'Privy testnet results: metrics, methodology, and takeaways',
+    title: 'Privy testnet: what the numbers said, how we checked them, and what we\'d do again',
     description:
-      'Privy testnet: 10k+ addresses, 17k+ cards, ~$2.26M USDC total volume, ~$0.05/tx gas cost. How the Privy + OAuth identity pipeline worked, three-level verification methodology, and operational takeaways.',
-    date: '2026-02-10',
+      'Roughly 12k wallets, 31k cards sent, ~$86k TVL, ~$310k total volume. Privy as our auth + embedded wallet layer, the checks we ran before trusting a chart, and the operational stuff that actually mattered.',
+    date: '2026-04-01',
     category: 'Technology',
     tags: ['Privy', 'OAuth', 'Testnet'],
-    readTime: '6 min',
+    readTime: '8 min',
     images: [
       {
         id: 'verification-flow',
         componentId: 'verification-infographic',
-        alt: 'Verification methodology flow: Privy consistency, on-chain reconciliation, OAuth checks, logging and metrics',
+        alt: 'Verification flow: Privy fields, on-chain checks against our data, OAuth spot checks, logging',
         caption: ''
       },
       {
         id: 'privy-oauth-flow',
         componentId: 'privy-oauth-infographic',
-        alt: 'Privy + OAuth pipeline: User authentication, JWT validation, MPC key management, OAuth gateway, provider API calls',
+        alt: 'Privy + OAuth: sign-in, JWT checks, MPC wallet keys, gateway to providers',
         caption: ''
       }
     ],
@@ -82,39 +85,47 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'context',
         title: 'Testnet context',
         paragraphs: [
-          'In the Sendly testnet Privy served as the single identity and embedded-wallet provider: social accounts were bound to a wallet in one login, OAuth tokens were used only within the session for API checks, and all provider calls went through a shared layer with error handling and rate-limiting. Quality was assessed via three-level verification: Privy schema \u2192 on-chain reconciliation \u2192 spot-checks via providers.'
+          'Sendly\'s testnet leaned on Privy alone for identity and embedded wallets: one login, socials and wallet lined up. OAuth tokens lived in memory for the API calls we needed; nothing fancy beyond that. Provider traffic funneled through a single backend layer with retries and rate limits. When a metric looked off, we triangulated: Privy payloads against our schema, on-chain activity against our DB (indexer/subgraph when it helped), and spot calls to Twitter or Telegram on a random slice of users.'
         ]
       },
       {
         id: 'metrics',
-        title: 'Aggregate metrics',
+        title: 'Metrics',
         paragraphs: [
-          'Totals and derived values for the testnet period:'
+          'Counts and balances for the window we measured:'
         ],
         bullets: [
-          'Addresses: 10,697. Cards sent: 17,667. Transactions: 22,636.',
-          'Gas spent: 1,131.80 USDC \u2192 cost per tx \u2248 $0.05.',
-          'TVL: $37,843.03 USDC \u2192 TVL per user \u2248 $3.54.',
-          'Total volume (all cards issued, including redeemed): \u2248 $2.26M USDC and \u2248 $14k EURC.',
-          'Channel breakdown (cards / addresses / share of cards): Twitter \u2014 810 / 483 / 80.1%, Telegram \u2014 124 / 73 / 12.3%, Twitch \u2014 77 / 34 / 7.6%.',
-          'Twitter dominates by volume; Telegram and Twitch contribute a smaller but measurable share worth keeping in product and analytics.'
+          'Addresses: 11,673. Cards sent: 31,700. Transactions: 38,747.',
+          'Gas spent: \u2248 770 USDC',
+          'TVL: 82,100 USDC + 2,900 EURC (\u2248 85,000 total)',
+          'Total volume: \u2248 310,000 USDC and \u2248 5,000 EURC.',
         ]
       },
       {
         id: 'privy-oauth-method',
         title: 'Privy + OAuth pipeline',
         paragraphs: [
-          'Flow: user authenticates via Privy; Privy returns a JWT with linked accounts and an embedded wallet address; our backend validates the JWT signature and checks the linked-accounts schema. The embedded wallet key is managed by Privy (MPC split between Privy infrastructure and the user\'s device); our app never holds the full private key. Transaction signing and social-account linking share one login flow.',
-          'OAuth tokens: session-scoped, minimal scopes (e.g. read:user for Twitter, openid for Twitch). Tokens are used only for provider API calls that need them (profile check, subscription status) and discarded at session end. Backend calls go through a single gateway: JWT validation, provider call with retry (3x exponential backoff, 429/5xx handling), structured logging (request ID, status, latency; no tokens or secrets in logs).'
+          'Users sign in with Privy. The session carries linked accounts and the embedded address. Keys stay in Privy\'s MPC split (their side + the device); we never assemble the full private key. Same login covers signing and social linking. JWT verification and how that identity must line up with Circle custodial calls are covered in Sendly on Privy today.',
+          'OAuth tokens are short-lived and narrow (read:user on Twitter, openid on Twitch, that kind of scope). We ping providers when we need profile or entitlement data, then drop them when the session ends. Outbound calls go through one gateway with three tries and exponential backoff on 429/5xx.'
         ],
         imageId: 'privy-oauth-flow'
+      },
+      {
+        id: 'sendly-privy-today',
+        title: 'Sendly on Privy today',
+        paragraphs: [
+          'Sendly still treats Privy as the main social-login layer for Gift Card flows. zkTLS-based payments, which are shipping soon, will use Sendly\'s own auth flow instead.',
+          'People can also plug in an external wallet through the usual EVM connector when a flow needs it. Money that moves through Circle Developer Wallets picks an internal wallet by a fixed order: connected address first, then provider ids off the Privy profile, then a normalized Privy user id our APIs already know how to digest.',
+          'We\'ll spell out request payloads, retries, and the full Privy and Circle user_id map in a later blog. The short version: whichever identity you establish in Privy is the hook our services use to authorize the right Circle wallet for sends, mints, and the rest.',
+          'Two different checks have to line up. First, the server verifies Privy JWTs (signature, issuer, expiry, the claims we care about) so we know whose session this is. Second, Circle Developer Wallet calls carry a user id that matches that answer: Privy-created wallets get the normalized Privy id Circle stored with them; purely external wallets go down the address path. If those don\'t match, you don\'t get to trigger custodial work for someone else\'s wallet.'
+        ]
       },
       {
         id: 'verification',
         title: 'Verification methodology',
         paragraphs: [
-          'Three levels: (1) Privy consistency \u2014 returned fields (linked accounts, wallet) are validated against expected schema. (2) On-chain reconciliation \u2014 card creation, transfers, gas usage matched against internal records and, when needed, indexer/subgraph data. (3) Spot checks \u2014 for a subset of requests we call provider APIs (e.g. confirm Twitter/Telegram linkage is still valid) to prevent cache drift.',
-          'Discrepancies are logged with request IDs only (no tokens or secrets). Quality metrics computed: link errors, provider failures, duplicates. Manual review triggered when thresholds are exceeded.'
+          'Three layers. Privy payloads: linked accounts and wallet fields have to match what our schema allows. On-chain: mints, transfers, and gas need to agree with our tables, and we pull indexer/subgraph data when the chain view is easier there. Spot checks: sample users, hit Twitter or Telegram live, make sure cached links haven\'t rotted.',
+          'Mismatches get a request id in the log, never tokens or secrets. We watch link errors, provider failures, duplicates. If the error rate jumps past a line we drew in advance, a human actually reads the cases.'
         ],
         imageId: 'verification-flow'
       },
@@ -122,17 +133,16 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'security',
         title: 'Security considerations',
         paragraphs: [
-          'Key custody: the embedded wallet private key is MPC-split between Privy infrastructure and the user\'s device. Our backend never has access to the full key. Provider API tokens are held only in server memory during the session and are never persisted to disk or database.',
-          'Client-side storage: Privy SDK stores the user session token in localStorage. This is vulnerable to XSS. Mitigations: strict Content-Security-Policy, no inline scripts, subresource integrity on third-party bundles. On shared/public devices users should sign out explicitly to clear storage.',
-          'Audit logging: all provider calls are logged with request ID, HTTP status, and latency. No OAuth tokens, secrets, or PII appear in logs. Logs are retained for 30 days for incident response.'
+          'Embedded wallet keys stay split between Privy\'s servers and the device; our backend never sees a complete key. Provider tokens sit in RAM for the session and don\'t get written to disk or Postgres.',
+          'Privy\'s SDK parks session state in localStorage, so XSS remains the boring threat model. We lean on a tight CSP, ban inline script, and pin third-party bundles with SRI where we can. On a shared machine, logging out still matters.',
+          'Every provider call logs request id, HTTP status, latency: no OAuth material, no secrets, no PII in the line. Retention is 240 days, mostly so we have something useful when things go sideways.'
         ]
       },
       {
         id: 'learnings',
         title: 'Operational takeaways',
         paragraphs: [
-          'At ~$0.05/tx the gas cost is viable for production. Twitter accounts for 80% of cards \u2014 Telegram (12%) and Twitch (8%) are worth supporting but secondary in priority.',
-          'Provider SLA: implement retries with exponential backoff (3x, cap 30s) and circuit-breaker per provider. Keep OAuth token TTL minimal (session-only) and request only the scopes actually used. Run on-chain \u2194 analytics reconciliation daily; alert on >1% discrepancy.'
+          'Gas hovered near $0.05 a transaction. At that level the fee is basically flat whether someone moves ten dollars or ten thousand, which is a strong result for any ticket size. About four in five cards moved through Twitter; Telegram landed near 12%, Twitch near 8%. We keep the smaller channels on, but Twitter is where we spend attention first.',
         ]
       }
     ],
@@ -142,7 +152,7 @@ const blogPosts: Record<string, BlogPost> = {
     slug: 'zktls_payments_guide',
     title: 'User Guide: Payments (zkTLS and zkSend)',
     description:
-      'With Sendly you can send money to platform:username \u2014 the recipient proves control of the account via a secure process (zkTLS), after which the contract transfers funds to their wallet.',
+      'Send money to platform:username. The recipient proves they control that account (zkTLS), then the contract sends funds to their wallet.',
     date: '2026-02-11',
     category: 'Tutorial',
     tags: ['zkTLS', 'zkSend', 'Payments'],
@@ -151,26 +161,26 @@ const blogPosts: Record<string, BlogPost> = {
       {
         id: 'zktls-flow',
         componentId: 'zktls-infographic',
-        alt: 'zkTLS Protocol Flow: Connect account, TLS encryption, Create claim, Cryptographic proof',
+        alt: 'zkTLS flow: connect account, TLS, create claim, cryptographic proof',
         caption: ''
       },
       {
         id: 'zktls-architecture',
         componentId: 'zktls-architecture-infographic',
-        alt: 'zkTLS Architecture Overview: User Device, Attestor, Social Platform, Smart Contract, Blockchain',
+        alt: 'zkTLS architecture: device, attestor, platform, contract, chain',
         caption: ''
       },
   
       {
         id: 'send-tab',
         componentId: 'payments-send-embed',
-        alt: 'Payments -  Send tab (live)',
+        alt: 'Payments: Send tab (preview)',
         caption: ''
       },
       {
         id: 'receive-tab',
         componentId: 'payments-receive-embed',
-        alt: 'Payments -  Receive tab (live)',
+        alt: 'Payments: Receive tab (preview)',
         caption: ''
       }
     ],
@@ -179,14 +189,14 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'what-is-zktls',
         title: 'What is zkTLS',
         paragraphs: [
-          'TLS (Transport Layer Security) encrypts and authenticates your connection to websites\u2014the \u201cs\u201d in HTTPS\u2014but it does not make that data verifiable elsewhere. zkTLS (zero-knowledge TLS) bridges Web2 and Web3: it lets you prove a fact about your Web2 session (e.g. that you control a social account) without revealing credentials, session keys, or response payloads. The proof can be verified on-chain so smart contracts can trust real-world claims while preserving privacy.',
-          'Sendly uses the proxy (witness) model: an attestor acts as an opaque proxy between your device and the social platform. It relays encrypted TLS traffic and attests that a successful session occurred; it does not terminate TLS or hold your client keys. Your device keeps the client-side TLS session; the attestor only observes metadata and signs a claim. It cannot decrypt or access your data. This approach is fast and works with standard HTTPS; in Sendly we use Reclaim Protocol for attestation.',
-          'In Sendly Payments, zkTLS proofs verify control of platform:username (e.g. twitter:alice). The claim structure includes claimId, identifier (platform:username), timestamp, requestUrl, and the attestor\u2019s signature. The smart contract verifies the signature before releasing funds to your wallet.'
+          'TLS encrypts traffic to websites (the "s" in HTTPS). It does not by itself let anyone else verify what happened in that session. zkTLS adds a zero-knowledge layer: you can prove something about your Web2 session (for example that you control a social account) without handing over credentials, session keys, or raw responses. A verifier can check that proof on-chain.',
+          'Sendly uses a proxy (witness) model. An attestor sits between your device and the social site, relays encrypted TLS traffic, and signs that a real session happened. It does not terminate TLS or hold your client keys. Your device keeps the TLS session; the attestor sees metadata and signs a claim. It cannot read your traffic. We use Reclaim Protocol for this in production.',
+          'In Payments, zkTLS proofs back platform:username (e.g. twitter:alice). A claim includes claimId, identifier (platform:username), timestamp, requestUrl, and the attestor signature. The contract checks the signature before it pays out.'
         ],
         bullets: [
-          'Signed claim format: claimId, identifier (platform:username), timestamp, requestUrl, and attestor signature.',
-          'The attestor does not terminate TLS; it validates the client\u2013server session. Client TLS keys stay on your device.',
-          'Smart contract verifies the attestor\u2019s signature on the claim before executing the payout.'
+          'Claim fields: claimId, identifier (platform:username), timestamp, requestUrl, attestor signature.',
+          'The attestor does not terminate TLS; it checks that the client-server session is valid. TLS keys stay on your device.',
+          'The contract verifies the attestor signature before paying out.'
         ],
         imageId: 'zktls-flow'
       },
@@ -194,7 +204,7 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'architecture',
         title: 'Architecture',
         paragraphs: [
-          'Flow: User Device \u2192 Attestor (opaque relay and signer) \u2192 Social Platform. The attestor validates the TLS session and signs the claim; the claim is submitted to the smart contract on-chain, which verifies the signature and releases funds to the recipient\u2019s wallet.'
+          'Path: your device to the attestor (relay and signer) to the social platform. The attestor validates the TLS session and signs the claim. You submit the claim on-chain; the contract checks the signature and sends funds to the recipient wallet.'
         ],
         imageId: 'zktls-architecture'
       },
@@ -202,18 +212,18 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'how-it-works',
         title: 'How it works',
         paragraphs: [
-          'Sender creates a payment on the smart contract, specifying the recipient as platform:username (e.g., twitter:alice), not a wallet address. Funds are locked in the contract and wait for the recipient.',
-          'Recipient opens the Payments section, proves ownership of the social account (zkTLS-proof), and clicks Claim. The contract verifies the proof and sends the funds to the recipient\'s wallet.',
-          'Important: the recipient receives money to their own wallet, but the sender doesn\'t need to know their address - just the username.'
+          'The sender sets the recipient as platform:username (e.g. twitter:alice), not a wallet address. Funds sit in the contract until the recipient claims.',
+          'The recipient opens Payments, proves they own the account (zkTLS proof), and clicks Claim. The contract checks the proof and pays their wallet.',
+          'The sender never needs the recipient\'s address; the username is enough.'
         ],
         imageId: 'payments-fees'
       },
       {
         id: 'platform-username',
-        title: 'Important rules for platform:username',
+        title: 'platform:username rules',
         paragraphs: [
-          'Normalization: platform is lowercased and trimmed; alias x \u2192 twitter. Username is trimmed and lowercased; @ is stripped. Examples: Twitter + @Alice \u2192 twitter:alice, x + Bob \u2192 twitter:bob.',
-          'Validation: username max length 64 characters; allowed characters: letters, digits, underscores, hyphens. Invalid or overlong usernames are rejected by the UI and contract.'
+          'Normalize platform: lowercase and trim; map x to twitter. Normalize username: trim, lowercase, strip @. Example: Twitter + @Alice becomes twitter:alice; x + Bob becomes twitter:bob.',
+          'Usernames max 64 characters; letters, digits, underscores, hyphens. The UI and contract reject invalid or too-long values.'
         ]
       },
       {
@@ -223,12 +233,12 @@ const blogPosts: Record<string, BlogPost> = {
           'Steps:',
           <>(1) Open <a href="https://www.zk.sendly.digital/payments" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">zk.sendly.digital → Payments</a> → Send tab.</>,
           '(2) Connect your wallet.',
-          '(3) Enter amount, select token (USDC or EURC), select platform, enter recipient username.',
-          '(4) Click Send and confirm in wallet. The contract creates a payment with a paymentId; it becomes visible in Receive tab for the same platform:username.'
+          '(3) Enter amount, pick USDC or EURC, pick platform, enter the recipient username.',
+          '(4) Click Send and confirm in your wallet. The contract stores a paymentId; it shows up on Receive for that same platform:username.'
         ],
         bullets: [
-          'Send button inactive: ensure wallet is connected, amount > 0, username valid.',
-          'Platform unavailable: some platforms may be temporarily disabled in the UI.'
+          'Send stays gray: connect wallet, amount above zero, valid username.',
+          'Platform missing: it may be turned off in the UI for now.'
         ],
         imageId: 'send-tab'
       },
@@ -239,8 +249,8 @@ const blogPosts: Record<string, BlogPost> = {
           'Steps:',
           <>(1) Open <a href="https://www.zk.sendly.digital/payments" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Payments</a> → Receive tab, connect wallet.</>,
           '(2) Enter username and select platform.',
-          '(3) Wait for pending payments (or click Refresh).',
-          '(4) To prove ownership: click Connect Twitter/X, Connect Twitch, Connect GitHub, Connect Telegram, or Connect LinkedIn; complete OAuth; return and Refresh.'
+          '(3) Wait for pending items or hit Refresh.',
+          '(4) To prove ownership, use Connect Twitter/X, Twitch, GitHub, Telegram, or LinkedIn; finish OAuth, come back, then Refresh.'
         ],
         imageId: 'receive-tab'
       },
@@ -248,31 +258,31 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'claim',
         title: 'Claim: how to collect your funds',
         paragraphs: [
-          'Cards show paymentId, sender address, amount, token. Single: click Claim \u2192 confirm in wallet. Multiple: click Claim all \u2192 confirm once. Funds go to the connected wallet.'
+          'Each row shows paymentId, sender, amount, token. One payment: Claim, then confirm in your wallet. Several: Claim all, one confirmation. Payout goes to the wallet you connected.'
         ]
       },
       {
         id: 'troubleshooting',
         title: 'Troubleshooting',
         paragraphs: [
-          'Common errors and fixes:'
+          'Quick fixes:'
         ],
         bullets: [
-          'Unsupported platform \u2192 Select a different platform.',
-          'Connect \u2026 to generate proof \u2192 Receive tab: select platform, enter username, click Connect, complete OAuth, Refresh.',
-          'Proof username mismatch \u2192 Check platform and username; reconnect social account if wrong.',
-          'Reclaim proof signatures incomplete \u2192 Regenerate proof; wait 1\u20135 min and retry if it repeats.',
-          'Reclaim proof verification failed / zkFetch proof failed \u2192 Refresh; reconnect account; regenerate proof.',
-          'No pending payments \u2192 Same platform and username; Refresh; ensure you are on .../payments (zk domain).'
+          'Wrong platform: pick another one from the list.',
+          'Need a proof: on Receive, set platform and username, Connect, finish OAuth, Refresh.',
+          'Username on proof does not match: fix platform or spelling, reconnect if needed.',
+          'Incomplete Reclaim signatures: build the proof again; if it happens twice, wait a few minutes and retry.',
+          'Proof failed or zkFetch failed: Refresh, reconnect the account, try a new proof.',
+          'Nothing pending: same platform and username as the sender, Refresh, and use the zk payments URL.'
         ]
       },
       {
         id: 'security',
         title: 'Security considerations',
         paragraphs: [
-          'Connection tokens are stored in your browser (localStorage) to obtain zkTLS proofs. We do not store them on our servers. Risk: XSS can read localStorage. Mitigations: use a browser without malicious extensions; avoid public/shared devices.',
-          'Token lifetime: connection tokens are session-scoped and should be refreshed or disconnected when no longer needed. On shared devices, use Disconnect (if available) or clear site data after use.',
-          'Wallet: never share access or confirm unclear transactions. Proofs only attest platform:username ownership; no credentials or sensitive data are exposed on-chain.'
+          'Connection tokens live in your browser (localStorage) so zkTLS proofs can run. We do not store them on our servers. XSS can read localStorage; use a clean browser, skip sketchy extensions, and avoid shared machines when you can.',
+          'Tokens are session-scoped. Disconnect or refresh when you are done. On a shared device, use Disconnect if the UI offers it, or clear site data after.',
+          'Do not share wallet access or sign transactions you do not understand. Proofs only show you control platform:username; credentials do not go on-chain.'
         ]
       }
     ],
@@ -280,9 +290,9 @@ const blogPosts: Record<string, BlogPost> = {
   },
   nft_gift_cards_guide: {
     slug: 'nft_gift_cards_guide',
-    title: 'NFT Gift Cards -  User Guide',
+    title: 'NFT Gift Cards - User Guide',
     description:
-      'An NFT gift card is a digital card minted on-chain. You choose the amount, add a message, and send it either to a wallet address or to someone\'s social username.',
+      'Mint a gift card on-chain. Pick an amount, add a message, and send it to a wallet or to someone\'s social username.',
     date: '2026-02-11',
     category: 'Tutorial',
     tags: ['NFT', 'Gift Cards', 'Tutorial'],
@@ -300,8 +310,8 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'intro',
         title: 'Overview',
         paragraphs: [
-          'An NFT gift card is a digital card minted on-chain. You choose the amount, add a message, and send it either to a wallet address or to someone\'s social username.',
-          'Once claimed, the card lives in the recipient\'s wallet as an ERC-721 NFT.'
+          'A gift card here is an on-chain NFT. Set the amount, optional message, and send to a wallet address or a social username.',
+          'After it is claimed, it shows up in the recipient\'s wallet as an ERC-721.'
         ],
         imageId: 'nft-flow'
       },
@@ -309,24 +319,24 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'how-it-works',
         title: 'How it works',
         paragraphs: [
-          'You create a card on the Create page. Choose how to send it: directly to a wallet address, or to a social username (Twitter, Twitch, Telegram, TikTok, Instagram). Enter the amount (USDC or EURC). Add a message (optional password protection available). Confirm the transaction in your wallet.',
-          'The smart contract mints an ERC-721 NFT. Metadata and image are stored on IPFS (via Pinata). If you send it to a username, the card is held in a platform vault until the owner proves control of that account.'
+          'On the Create page, pick wallet or username, set USDC or EURC, add an optional message (you can password-protect it), then confirm in your wallet.',
+          'The contract mints an ERC-721. Metadata and art sit on IPFS (Pinata). If you send by username, the card stays in a vault until the recipient proves they own that account.'
         ]
       },
       {
         id: 'recipient',
         title: 'What the recipient does',
         paragraphs: [
-          'If sent to a wallet address: The NFT appears in that wallet after minting.',
-          'If sent to a username: The recipient logs in with that platform. After authentication, they can claim the card. If they don\'t yet have a wallet, one is created automatically through Circle.'
+          'Wallet: the NFT lands in that wallet after mint.',
+          'Username: the recipient logs in with that platform, then claims. If they have no wallet yet, Circle can create one.'
         ]
       },
       {
         id: 'after-claiming',
         title: 'After claiming',
         paragraphs: [
-          'The NFT gift card is now in the recipient\'s wallet. They can use it in apps that support NFT gift cards.',
-          'The value is stored in USDC or EURC and is redeemed according to the app\'s logic.'
+          'After claim, the card is in the recipient\'s wallet. Any app that supports these NFTs can use it.',
+          'Value is in USDC or EURC; redemption depends on the app.'
         ]
       },
       {
@@ -344,18 +354,126 @@ const blogPosts: Record<string, BlogPost> = {
         title: 'Common issues',
         paragraphs: [],
         bullets: [
-          'No card visible → Make sure you logged in with the correct platform account.',
-          'Claim fails → Check you are on ARC Testnet and have enough gas.',
-          'Wrong recipient → Blockchain transactions cannot be reversed. Double-check before sending.',
-          'Password lost → Only the sender knows it.'
+          'No card: log in with the account that should receive it.',
+          'Claim errors: stay on ARC Testnet and keep a little gas for fees.',
+          'Wrong person: on-chain sends cannot be undone. Check the address or username before you confirm.',
+          'Lost password: only whoever set it can help; we do not have it.'
         ]
       },
       {
         id: 'security',
         title: 'Security notes',
         paragraphs: [
-          'Cards are managed by smart contracts on ARC Testnet. Private keys are never stored by the platform.',
-          'If you use a Circle wallet, key management is handled by Circle. Never approve transactions you don\'t understand.'
+          'Smart contracts on ARC Testnet hold the rules. We do not store private keys.',
+          'With Circle, Circle manages keys. Do not sign transactions you do not understand.'
+        ]
+      }
+    ],
+    content: ''
+  },
+  circle_sdk_wallet_playbook: {
+    slug: 'circle_sdk_wallet_playbook',
+    title: 'Circle SDK in Sendly: Internal Wallet, Asset Flow, and NFT Cards',
+    description:
+      'How Sendly uses Circle Developer Wallet: internal-wallet payments, funding and transfers, and minting NFT gift cards.',
+    date: '2026-04-14',
+    category: 'Technology',
+    tags: ['Circle', 'Developer Wallets', 'NFT'],
+    readTime: '9 min',
+    images: [
+      {
+        id: 'circle-create-wallet',
+        componentId: 'internal-wallet-create-embed',
+        alt: 'Create internal wallet prompt in Sendly',
+        caption: ''
+      },
+      {
+        id: 'circle-cover',
+        componentId: 'internal-wallet-dashboard-embed',
+        alt: 'Circle wallet flow in Sendly',
+        caption: ''
+      }
+    ],
+    sections: [
+      {
+        id: 'overview',
+        title: 'What is the Internal Wallet?',
+        paragraphs: [
+          'Sendly\'s internal wallet is Circle Developer Wallet (Circle SDK). If someone signs in with a social account and does not bring their own crypto wallet, they can still get an on-chain address and keep using the app.',
+          'This post describes what we ship: dashboard setup, balances and transfers, and NFT gift cards. The browser calls our API; the backend runs the wallet work.'
+        ],
+        bullets: [
+          'Find or create an internal Circle wallet for the logged-in user.',
+          'Read balances and fund the wallet (top-up or deposit-style flows).',
+          'Mint and claim NFT gift cards to a wallet address or a social handle.'
+        ],
+        imageId: 'circle-create-wallet'
+      },
+      
+      {
+        id: 'dashboard-wallet',
+        title: 'Internal Wallet Flow',
+        paragraphs: [
+          'Opening the wallet screen, the app looks for an existing internal wallet first: address, then linked social account, then Privy-related ids.',
+          'If nothing matches, we create a wallet through the backend. On some social claim paths the wallet is created automatically, then the claim tx runs.',
+          'Scenario 1: Social login, no web3 wallet yet. They create an internal wallet and can receive a payment to it. Some flows create the wallet right before claim.',
+          'Scenario 2: They already use a web3 wallet. They can still add an internal wallet and tie it to socials or to an external address, depending on how you wire identity.'
+        ],
+      
+      },
+      {
+        id: 'asset-flow',
+        title: 'Asset flow: balances, top-up, and transfer',
+        paragraphs: [
+          'When people say "pull asset" here, they usually mean one of three things: read balances, send funds into the internal wallet, or move value between supported networks or addresses.',
+          'The internal wallet screen reads ERC-20 balances and allows top-up from an external wallet. Gateway flows use approve and deposit, then burn intent, attestation, and mint.'
+        ],
+        bullets: [
+          'Gateway client/service modules hold the balance and transfer plumbing.',
+          'Internal wallet UI includes top-up and test-token requests.',
+          'Transactions are not always synchronous: the UI polls by `transactionId` until it gets a hash or a final state.'
+        ],
+        imageId: 'circle-cover'
+      },
+      {
+        id: 'nft-cards',
+        title: 'Create an NFT card from Circle internal wallet',
+        paragraphs: [
+          'Gift cards are minted through `CreateGiftCard`. The app checks balance and allowance, prepares metadata, then calls the contract on whichever path you picked.',
+          'Internal wallet mode routes the transaction through the backend. External wallet mode asks the user to confirm in their browser wallet.'
+        ],
+        bullets: [
+          'After mint, we read `tokenId` from the ERC-721 `Transfer` event.',
+          'Twitter, Twitch, Telegram, and similar recipients use separate create/claim paths.',
+          'After claim, the NFT is a normal ERC-721 in the recipient\'s context.'
+        ]
+      },
+      {
+        id: 'internal-wallet-stats',
+        title: 'Statistics',
+        paragraphs: [
+          'Counts and amounts below are gift cards minted through Circle Developer Wallet (internal wallet). Balances use 6 decimals; raw is the integer in smallest units.',
+          'Our testnet writeup put total volume around $310k. The percentage is internal-wallet mint face value divided by that $310k number. Treat it as a rough comparison (EURC is not exactly USD).'
+        ],
+        bullets: [
+          'Users who minted cards via Internal Wallet: 220',
+          'Combined face value of those mints: 6,634',
+          'USDC portion: 4,499',
+          'EURC portion: 2,134',
+          'Versus ~$310k total volume:≈ 2.14%.'
+        ]
+      },
+      {
+        id: 'security-and-ops',
+        title: 'Security and operational notes',
+        paragraphs: [
+          'Circle credentials and entity secrets belong on the server. The browser should keep calling your backend for anything that touches keys or signing.',
+          'Most of this was written for ARC-TESTNET. Other chains need testing and explicit config.'
+        ],
+        bullets: [
+          'Do not ship production API secrets in scripts or client code.',
+          'Watch for slow finalization; the UI retries polling by `transactionId`.',
+          'Document per-chain switches before you enable Circle in a new environment.'
         ]
       }
     ],
@@ -369,7 +487,13 @@ export function BlogPostRoute() {
   const [activeImage, setActiveImage] = useState<BlogImage | null>(null);
   const [paymentsPreviewValues, setPaymentsPreviewValues] = useState<SendPaymentPreviewValues | null>(null);
 
-  const post = slug ? blogPosts[slug] : null;
+  const post =
+    slug && PUBLIC_BLOG_SLUGS.has(slug) ? blogPosts[slug] ?? null : null;
+
+  useEffect(() => {
+    // Ensure each blog post opens from the top in SPA navigation.
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [slug]);
 
   useEffect(() => {
     if (post?.slug !== 'zktls_payments_guide') return;
@@ -562,6 +686,12 @@ export function BlogPostRoute() {
       }
       if (img.componentId === 'payments-receive-embed') {
         return (<button type="button" onClick={() => setActiveImage(img)} className="w-full text-left rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden" aria-label={`Open: ${img.alt}`}><div className="p-4 min-h-[200px]"><ZkSendPanel initialTab="receive" preview previewValues={paymentsPreviewValues ?? PAYMENTS_SEND_PREVIEW_FALLBACK} /></div></button>);
+      }
+      if (img.componentId === 'internal-wallet-dashboard-embed') {
+        return (<button type="button" onClick={() => setActiveImage(img)} className="w-full text-left rounded-xl overflow-hidden" aria-label={`Open: ${img.alt}`}><div className="p-2 min-h-[200px]"><InternalWalletDashboardPreview compact /></div></button>);
+      }
+      if (img.componentId === 'internal-wallet-create-embed') {
+        return (<button type="button" onClick={() => setActiveImage(img)} className="w-full text-left rounded-xl overflow-hidden" aria-label={`Open: ${img.alt}`}><div className="p-2 min-h-[200px]"><InternalWalletCreatePromptPreview compact /></div></button>);
       }
       const isSR = img.id === 'send-tab' || img.id === 'receive-tab';
       return (<button type="button" onClick={() => setActiveImage(img)} className={`w-full text-left ${isSR ? 'border-0 shadow-none ring-0 outline-none' : ''}`} aria-label={`Open image: ${img.alt}`}><img src={img.src} alt={img.alt} loading="lazy" className={`w-full h-40 object-cover ${isSR ? 'rounded-xl border-0 shadow-none' : 'rounded-xl'}`} />{!isSR && img.caption && <div className="mt-3 text-sm text-gray-600">{img.caption}</div>}</button>);
@@ -815,7 +945,7 @@ export function BlogPostRoute() {
             {activeImage.componentId === 'verification-infographic' ? (
               <div className="bg-[#FAFAFA] overflow-hidden">
                 <TransformWrapper
-                  initialScale={1}
+                  initialScale={0.02}
                   minScale={0.5}
                   maxScale={3}
                   centerOnInit
@@ -903,6 +1033,14 @@ export function BlogPostRoute() {
             ) : activeImage.componentId === 'payments-receive-embed' || activeImage.id === 'receive-tab' ? (
               <div className="bg-white rounded-xl overflow-hidden p-6 max-h-[85vh] overflow-y-auto">
                 <ZkSendPanel initialTab="receive" preview previewValues={paymentsPreviewValues ?? PAYMENTS_SEND_PREVIEW_FALLBACK} />
+              </div>
+            ) : activeImage.componentId === 'internal-wallet-dashboard-embed' ? (
+              <div className="bg-white rounded-xl overflow-hidden p-6 max-h-[85vh] overflow-y-auto">
+                <InternalWalletDashboardPreview />
+              </div>
+            ) : activeImage.componentId === 'internal-wallet-create-embed' ? (
+              <div className="bg-white rounded-xl overflow-hidden p-6 max-h-[85vh] overflow-y-auto">
+                <InternalWalletCreatePromptPreview />
               </div>
             ) : (
               <div className={isFramelessPreview ? 'overflow-hidden' : 'rounded-xl overflow-hidden bg-gray-900'}>

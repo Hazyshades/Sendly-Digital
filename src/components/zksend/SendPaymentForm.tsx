@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { useAccount, useWalletClient, useBalance } from 'wagmi';
+import { useAccount, useWalletClient, useBalance, useChainId } from 'wagmi';
 import { toast } from 'sonner';
 import { Wallet } from 'lucide-react';
 import { createPublicClient, http, parseEventLogs } from 'viem';
@@ -17,8 +17,10 @@ import {
   ARC_CHAIN_ID,
   ERC20ABI,
   ZkSendABI,
+  isDirectSendEscrowActiveForChain,
 } from '@/lib/web3/constants';
-import { arcTestnet } from '@/lib/web3/wagmiConfig';
+import { createDirectDepositRecord } from '@/lib/directsend/directSendPaymentsAPI';
+import { arcTestnet, tempoTestnet } from '@/lib/web3/wagmiConfig';
 import { DeveloperWalletService } from '@/lib/circle/developerWalletService';
 import { apiCall } from '@/lib/supabase/client';
 import { getCircleWalletPrivyUserIdForTx } from '@/hooks/useCircleWallet';
@@ -37,6 +39,7 @@ import {
 } from '@/components/ui/select';
 import { PlatformUsernameInput } from './PlatformUsernameInput';
 import { WalletSourceToggle } from './WalletSourceToggle';
+import { ZKSEND_SUCCESS_COPY, renderTransactionLink } from './transactionFeedback';
 
 import type { SendRecipientType } from './ZkSendPanel';
 import type { WalletSource } from './WalletSourceToggle';
@@ -44,7 +47,7 @@ import type { DeveloperWallet } from '@/lib/circle/developerWalletService';
 
 export type SendPaymentPreviewValues = {
   amount: string;
-  token: 'USDC' | 'EURC';
+  token: SupportedSendToken;
   platform: SendRecipientType;
   username: string;
   balance?: string;
@@ -71,6 +74,7 @@ type Props = {
 const FEE_BPS = 10n;
 const BPS_DENOMINATOR = 10000n;
 const DECIMALS = 1_000_000;
+type SupportedSendToken = 'USDC' | 'EURC' | 'PATHUSD' | 'ALPHAUSD' | 'BETAUSD' | 'THETAUSD';
 
 function parseAmountToWei(amount: string): bigint {
   return BigInt(Math.floor(parseFloat(amount) * DECIMALS));
@@ -91,19 +95,31 @@ export function SendPaymentForm({
   hasDeveloperWallet = false,
 }: Props) {
   const { address, isConnected } = useAccount();
+  const connectedChainId = useChainId();
   const { data: walletClient } = useWalletClient();
   const { user: privyUser } = usePrivySafe();
-  const activeChainId = ARC_CHAIN_ID;
-  const contracts = getContractsForChain(ARC_CHAIN_ID);
-  const TOKEN_OPTIONS = [
-    { value: 'USDC' as const, label: 'USDC', address: contracts.usdc },
-    { value: 'EURC' as const, label: 'EURC', address: contracts.eurc ?? contracts.usdc },
-  ] as const;
+  const activeChainId = connectedChainId || ARC_CHAIN_ID;
+  const contracts = getContractsForChain(activeChainId);
+  const isTempoNetwork = activeChainId === tempoTestnet.id;
+  const TOKEN_OPTIONS = isTempoNetwork
+    ? ([
+        { value: 'PATHUSD' as const, label: 'pathUSD', address: contracts.pathusd ?? '0x20c0000000000000000000000000000000000000' },
+        { value: 'ALPHAUSD' as const, label: 'AlphaUSD', address: contracts.alphausd ?? '0x20c0000000000000000000000000000000000001' },
+        { value: 'BETAUSD' as const, label: 'BetaUSD', address: contracts.betausd ?? '0x20c0000000000000000000000000000000000002' },
+        { value: 'THETAUSD' as const, label: 'ThetaUSD', address: contracts.thetausd ?? '0x20c0000000000000000000000000000000000003' },
+      ] as const)
+    : ([
+        { value: 'USDC' as const, label: 'USDC', address: contracts.usdc },
+        { value: 'EURC' as const, label: 'EURC', address: contracts.eurc ?? contracts.usdc },
+      ] as const);
 
   const [amount, setAmount] = useState(preview && previewValues ? previewValues.amount : '');
-  const [tokenType, setTokenType] = useState<'USDC' | 'EURC'>(preview && previewValues ? previewValues.token : 'USDC');
+  const [tokenType, setTokenType] = useState<SupportedSendToken>(
+    preview && previewValues ? previewValues.token : TOKEN_OPTIONS[0].value
+  );
   const [loading, setLoading] = useState(false);
   const [circleBalance, setCircleBalance] = useState<string | null>(null);
+  const [lastCreatedTxHash, setLastCreatedTxHash] = useState<string | null>(null);
 
   const tokenConfig = TOKEN_OPTIONS.find((t) => t.value === tokenType) ?? TOKEN_OPTIONS[0];
   const { data: balance } = useBalance({
@@ -115,6 +131,13 @@ export function SendPaymentForm({
     if (walletSource !== 'circle') return;
     if (!hasDeveloperWallet && onWalletSourceChange) onWalletSourceChange('external');
   }, [walletSource, hasDeveloperWallet, onWalletSourceChange]);
+
+  useEffect(() => {
+    if (preview) return;
+    if (!TOKEN_OPTIONS.some((t) => t.value === tokenType)) {
+      setTokenType(TOKEN_OPTIONS[0].value);
+    }
+  }, [preview, tokenType, TOKEN_OPTIONS]);
 
   useEffect(() => {
     if (preview || walletSource !== 'circle' || !developerWallet?.wallet_address) {
@@ -178,6 +201,7 @@ export function SendPaymentForm({
 
   const onSubmit = async () => {
     try {
+      setLastCreatedTxHash(null);
       const useCircle = walletSource === 'circle' && hasDeveloperWallet && developerWallet;
       if (useCircle) {
         if (!developerWallet || !amount || Number(amount) <= 0) throw new Error('Enter amount > 0');
@@ -217,13 +241,21 @@ export function SendPaymentForm({
         if (platform === 'address') {
           const recipientTrimmed = username.trim();
           if (!/^0x[a-fA-F0-9]{40}$/.test(recipientTrimmed)) throw new Error('Enter a valid recipient address (0x...)');
-          if (!contracts.directSend) throw new Error('DirectSend contract not configured');
+          const useEscrow = isDirectSendEscrowActiveForChain(activeChainId);
+          const directContract = useEscrow ? contracts.directSendV2 : contracts.directSend;
+          if (!directContract) {
+            throw new Error(
+              useEscrow
+                ? 'DirectSend V2 not configured (set VITE_*_DIRECT_SEND_V2_CONTRACT_ADDRESS)'
+                : 'DirectSend contract not configured'
+            );
+          }
           const approveRes = await DeveloperWalletService.sendTransaction({
             walletId: developerWallet.circle_wallet_id,
             walletAddress: developerWallet.wallet_address,
             contractAddress: tokenAddress,
             functionName: 'approve',
-            args: [contracts.directSend, totalWei],
+            args: [directContract, totalWei],
             blockchain: 'ARC-TESTNET',
             privyUserId: privyUserIdForTx,
             socialPlatform: developerWallet.social_platform ?? undefined,
@@ -234,9 +266,9 @@ export function SendPaymentForm({
           const sendRes = await DeveloperWalletService.sendTransaction({
             walletId: developerWallet.circle_wallet_id,
             walletAddress: developerWallet.wallet_address,
-            contractAddress: contracts.directSend,
-            functionName: 'sendToAddress',
-            args: [recipientTrimmed, amountWei, tokenAddress],
+            contractAddress: directContract,
+            functionName: useEscrow ? 'depositFor' : 'sendToAddress',
+            args: useEscrow ? [recipientTrimmed, amountWei, tokenAddress] : [recipientTrimmed, amountWei, tokenAddress],
             blockchain: 'ARC-TESTNET',
             privyUserId: privyUserIdForTx,
             socialPlatform: developerWallet.social_platform ?? undefined,
@@ -253,8 +285,8 @@ export function SendPaymentForm({
             toast.success(
               <span>
                 Payment sent successfully!{' '}
-                <a href={getExplorerTxUrl(activeChainId, txHash)} target="_blank" rel="noopener noreferrer" className="underline font-medium">
-                  TX: {txHash.slice(0, 10)}...{txHash.slice(-8)}
+                <a href={getExplorerTxUrl(activeChainId, txHash)} target="_blank" rel="noopener noreferrer" className="font-medium">
+                  TX: <span className="underline">{txHash.slice(0, 10)}...{txHash.slice(-8)}</span>
                 </a>
               </span>
             );
@@ -336,35 +368,27 @@ export function SendPaymentForm({
           }
         }
         if (paymentId && txHash) {
-          toast.success(`Payment created successfully! Payment ID: ${paymentId}`, {
+          setLastCreatedTxHash(txHash);
+          toast.success(ZKSEND_SUCCESS_COPY.paymentCreated, {
             description: (
-              <a
-                href={getExplorerTxUrl(activeChainId, txHash)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline font-medium"
-              >
-                TX: {txHash.slice(0, 10)}...{txHash.slice(-8)}
-              </a>
+              <span className="text-sm">
+                TX: {renderTransactionLink(activeChainId, txHash)}
+              </span>
             ),
           });
         } else if (paymentId) {
-          toast.success(`Payment created successfully! Payment ID: ${paymentId}`);
+          toast.success(ZKSEND_SUCCESS_COPY.paymentCreated);
         } else if (txHash) {
-          toast.success('Payment created successfully!', {
+          setLastCreatedTxHash(txHash);
+          toast.success(ZKSEND_SUCCESS_COPY.paymentCreated, {
             description: (
-              <a
-                href={getExplorerTxUrl(activeChainId, txHash)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline font-medium"
-              >
-                TX: {txHash.slice(0, 10)}...{txHash.slice(-8)}
-              </a>
+              <span className="text-sm">
+                TX: {renderTransactionLink(activeChainId, txHash)}
+              </span>
             ),
           });
         } else {
-          toast.success('Payment created successfully.');
+          toast.success(ZKSEND_SUCCESS_COPY.paymentCreated);
         }
         return;
       }
@@ -380,6 +404,49 @@ export function SendPaymentForm({
       if (platform === 'address') {
         const recipientTrimmed = username.trim();
         if (!/^0x[a-fA-F0-9]{40}$/.test(recipientTrimmed)) throw new Error('Enter a valid recipient address (0x...)');
+        const useEscrow = isDirectSendEscrowActiveForChain(activeChainId);
+
+        if (useEscrow) {
+          const { txHash, depositId } = await web3Service.depositDirectToAddress({
+            recipient: recipientTrimmed as `0x${string}`,
+            amount,
+            tokenType,
+          });
+          if (depositId && txHash) {
+            try {
+              await createDirectDepositRecord({
+                depositId,
+                senderAddress: address,
+                recipientWallet: recipientTrimmed,
+                amount,
+                currency: tokenType,
+                txHash,
+                chainId: activeChainId,
+                contractAddress: contracts.directSendV2!,
+              });
+            } catch (dbError) {
+              console.warn('[DirectSend] Failed to store deposit in DB:', dbError);
+            }
+          }
+          toast.success('Deposit sent. Recipient can claim from the Receive tab.');
+          if (txHash) {
+            toast.success(
+              <span>
+                {depositId ? `Deposit #${depositId}. ` : ''}
+                <a
+                  href={getExplorerTxUrl(activeChainId, txHash)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium"
+                >
+                  TX: <span className="underline">{txHash.slice(0, 10)}...{txHash.slice(-8)}</span>
+                </a>
+              </span>
+            );
+          }
+          return;
+        }
+
         const { txHash } = await web3Service.sendDirectToAddress({
           recipient: recipientTrimmed as `0x${string}`,
           amount,
@@ -394,9 +461,9 @@ export function SendPaymentForm({
                 href={getExplorerTxUrl(activeChainId, txHash)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline font-medium"
+                className="font-medium"
               >
-                TX: {txHash.slice(0, 10)}...{txHash.slice(-8)}
+                TX: <span className="underline">{txHash.slice(0, 10)}...{txHash.slice(-8)}</span>
               </a>
             </span>
           );
@@ -437,35 +504,27 @@ export function SendPaymentForm({
       }
 
       if (paymentId && txHash) {
-        toast.success(`Payment created successfully! Payment ID: ${paymentId}`, {
+        setLastCreatedTxHash(txHash);
+        toast.success(ZKSEND_SUCCESS_COPY.paymentCreated, {
           description: (
-            <a
-              href={getExplorerTxUrl(activeChainId, txHash)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline font-medium"
-            >
-              TX: {txHash.slice(0, 10)}...{txHash.slice(-8)}
-            </a>
+            <span className="text-sm">
+              TX: {renderTransactionLink(activeChainId, txHash)}
+            </span>
           ),
         });
       } else if (paymentId) {
-        toast.success(`Payment created successfully! Payment ID: ${paymentId}`);
+        toast.success(ZKSEND_SUCCESS_COPY.paymentCreated);
       } else if (txHash) {
-        toast.success('Payment created successfully!', {
+        setLastCreatedTxHash(txHash);
+        toast.success(ZKSEND_SUCCESS_COPY.paymentCreated, {
           description: (
-            <a
-              href={getExplorerTxUrl(activeChainId, txHash)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline font-medium"
-            >
-              TX: {txHash.slice(0, 10)}...{txHash.slice(-8)}
-            </a>
+            <span className="text-sm">
+              TX: {renderTransactionLink(activeChainId, txHash)}
+            </span>
           ),
         });
       } else {
-        toast.success('Payment created successfully.');
+        toast.success(ZKSEND_SUCCESS_COPY.paymentCreated);
       }
     } catch (e) {
       let msg = 'Failed to send payment';
@@ -504,9 +563,9 @@ export function SendPaymentForm({
               href={getExplorerTxUrl(activeChainId, txHash)}
               target="_blank"
               rel="noopener noreferrer"
-              className="underline font-medium"
+              className="font-medium"
             >
-              TX: {txHash.slice(0, 10)}...
+              TX: <span className="underline">{txHash.slice(0, 10)}...</span>
             </a>
           </span>
         );
@@ -567,7 +626,7 @@ export function SendPaymentForm({
             ) : (
               <Select
                 value={tokenType}
-                onValueChange={(v) => setTokenType(v as 'USDC' | 'EURC')}
+                onValueChange={(v) => setTokenType(v as SupportedSendToken)}
               >
                 <SelectTrigger className="w-[120px] gap-2" aria-label="Token">
                   <SelectValue />
@@ -622,6 +681,13 @@ export function SendPaymentForm({
             </Button>
           ) : null}
         </div>
+        {!preview && lastCreatedTxHash ? (
+          <div className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">
+              {ZKSEND_SUCCESS_COPY.paymentCreated} TX: {renderTransactionLink(activeChainId, lastCreatedTxHash)}
+            </span>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

@@ -18,9 +18,13 @@ type Props = {
   previewProfileImageUrl?: string | null;
 };
 
+const EVM_ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
+
 export function IdentitySelector({ platform, onPlatformChange, username, onUsernameChange, isConnected, readOnly, previewSuggestionLabel, previewProfileImageUrl }: Props) {
   const normalizedUsername = useMemo(() => normalizeSocialUsername(username.replace(/^@/, '')), [username]);
-  const isValid = !!normalizedUsername;
+  const isValid =
+    platform === 'address' ? EVM_ADDRESS_RE.test(username.trim()) : !!normalizedUsername;
+  const fieldLabel = platform === 'address' ? 'Recipient address' : 'Username';
 
   return (
     <Card className="border-2">
@@ -40,16 +44,20 @@ export function IdentitySelector({ platform, onPlatformChange, username, onUsern
             onPlatformChange={onPlatformChange}
             username={username}
             onUsernameChange={onUsernameChange}
-            label="Username"
+            label={fieldLabel}
             inputId="identity-username-input"
-            ariaLabel="Username"
+            ariaLabel={platform === 'address' ? 'Recipient wallet address' : 'Username'}
             readOnly={readOnly}
             previewSuggestionLabel={previewSuggestionLabel}
             previewProfileImageUrl={previewProfileImageUrl}
           />
 
           {!isValid && username.length > 0 && (
-            <div className="text-xs text-amber-600">Enter a valid username</div>
+            <div className="text-xs text-amber-600">
+              {platform === 'address'
+                ? 'Enter a valid wallet address (0x followed by 40 hex characters).'
+                : 'Enter a valid username'}
+            </div>
           )}
 
          {/* {!isValid && (

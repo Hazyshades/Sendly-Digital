@@ -1,26 +1,21 @@
 require("dotenv").config();
-require("@nomicfoundation/hardhat-verify");
+require("@nomicfoundation/hardhat-toolbox");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 const config = {
   solidity: {
-    compilers: [
-      {
-        version: "0.8.20",
-        settings: {
-          optimizer: { enabled: true, runs: 200 },
-        },
+    version: "0.8.20",
+    settings: {
+      optimizer: { 
+        enabled: true, 
+        runs: 1  // Minimum value to reduce contract size
       },
-      {
-        version: "0.8.4",
-        settings: {
-          optimizer: { enabled: true, runs: 200 },
-        },
-      },
-    ],
+      viaIR: true,  // Use new IR optimizer for better contract size optimization
+    },
   },
   paths: {
-    sources: "contracts",
+    /** V2 escrow contracts only; rest of `contracts/` may contain broken legacy paths. */
+    sources: "contracts/hardhat",
     tests: "test",
     cache: "cache",
     artifacts: "artifacts",
@@ -31,21 +26,12 @@ const config = {
       chainId: 5042002,
       accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
     },
-  },
-  etherscan: {
-    apiKey: {
-      arcTestnet: "empty",
+    // Tempo Testnet
+    tempoTestnet: {
+      url: process.env.VITE_TEMPO_RPC_URL || "https://rpc.moderato.tempo.xyz",
+      chainId: 42431,
+      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
     },
-    customChains: [
-      {
-        network: "arcTestnet",
-        chainId: 5042002,
-        urls: {
-          apiURL: "https://testnet.arcscan.app/api",
-          browserURL: "https://testnet.arcscan.app",
-        },
-      },
-    ],
   },
 };
 

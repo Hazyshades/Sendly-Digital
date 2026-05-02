@@ -52,19 +52,23 @@ export default function BridgeDialog({
   const [txTo, setTxTo] = useState<string | undefined>();
 
   useEffect(() => {
-    if (initialAmount) {
+    if (!open) {
+      return;
+    }
+
+    if (initialAmount !== undefined) {
       setAmount(initialAmount);
     }
-    if (fromChainId) {
+    if (fromChainId !== undefined) {
       setSelectedFromChainId(fromChainId);
     }
-    if (toChainId) {
+    if (toChainId !== undefined) {
       setSelectedToChainId(toChainId);
     }
     if (tokenSymbol) {
       setSelectedTokenSymbol(tokenSymbol);
     }
-  }, [initialAmount, fromChainId, toChainId, tokenSymbol]);
+  }, [open, initialAmount, fromChainId, toChainId, tokenSymbol]);
 
   useEffect(() => {
     if (selectedFromChainId && selectedToChainId) {
