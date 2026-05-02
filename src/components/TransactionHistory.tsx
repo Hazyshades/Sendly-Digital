@@ -39,6 +39,8 @@ interface Transaction {
   platform?: SocialPlatform;
 }
 
+type TransactionCurrency = Transaction['currency'];
+
 interface Analytics {
   totalSent: string;
   totalReceived: string;
@@ -46,7 +48,7 @@ interface Analytics {
   cardsSent: number;
   cardsReceived: number;
   averageAmount: string;
-  topCurrency: 'USDC' | 'EURC' | 'USYC' | 'PATHUSD' | 'ALPHAUSD' | 'BETAUSD' | 'THETAUSD';
+  topCurrency: TransactionCurrency;
 }
 
 function normalizeTxHash(h: string | null | undefined): string {
@@ -249,7 +251,7 @@ export function TransactionHistory() {
       let totalRedeemed = 0;
       let cardsSent = 0;
       let cardsReceived = 0;
-      const currencyCounts: Record<'USDC' | 'EURC' | 'USYC', number> = {
+      const currencyCounts: Record<TransactionCurrency, number> = {
         USDC: 0,
         EURC: 0,
         USYC: 0,
@@ -425,7 +427,7 @@ export function TransactionHistory() {
       let cardsSent = 0;
       let cardsReceived = 0;
       let cardsRedeemed = 0;
-      const currencyCounts: Record<'USDC' | 'EURC' | 'USYC', number> = {
+      const currencyCounts: Record<TransactionCurrency, number> = {
         USDC: 0,
         EURC: 0,
         USYC: 0,
