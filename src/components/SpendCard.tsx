@@ -595,6 +595,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
       // Update Supabase cache
       try {
         await GiftCardsService.updateCardRedeemedStatus(currentCard.tokenId, true, activeChainId);
+        await GiftCardsService.updateGraphCardRedeemedStatus(currentCard.tokenId, true, activeChainId);
         console.log('Card redeemed status updated in Supabase');
       } catch (error) {
         console.error('Error updating card status in Supabase:', error);

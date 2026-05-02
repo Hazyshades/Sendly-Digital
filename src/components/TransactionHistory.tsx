@@ -381,7 +381,7 @@ export function TransactionHistory() {
       
       // Load Supabase cache for received cards to enrich with tx_hash / created_at
       console.log('Loading received gift cards from Supabase...');
-      const supabaseReceivedCards = await GiftCardsService.getCardsByRecipientAddress(address, activeChainId);
+      const supabaseReceivedCards = await GiftCardsService.getCardsByRecipientForMyCards(address, activeChainId);
       const supabaseReceivedMap = new Map(
         supabaseReceivedCards.map(card => [card.token_id, card])
       );
@@ -399,7 +399,7 @@ export function TransactionHistory() {
       
       // Load sent gift cards from Supabase cache
       console.log('Loading sent gift cards from Supabase...');
-      const supabaseSentCards = await GiftCardsService.getCardsBySender(address, activeChainId);
+      const supabaseSentCards = await GiftCardsService.getCardsBySenderForMyCards(address, activeChainId);
       
       // Transform Supabase sent cards to match blockchain format
       const sentCards = supabaseSentCards.map(card => ({

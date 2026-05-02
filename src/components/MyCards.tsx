@@ -261,10 +261,12 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
       
       // Retrieve cards for all addresses (MetaMask + Internal wallets)
       const [allReceivedCards, supabaseSentCards] = await Promise.all([
-        Promise.all(recipientAddresses.map(addr => GiftCardsService.getCardsByRecipientAddress(addr, activeChainId))).then(
-          results => results.flat()
-        ),
-        isConnected && address ? GiftCardsService.getCardsBySender(address, activeChainId) : Promise.resolve([])
+        Promise.all(
+          recipientAddresses.map((addr) => GiftCardsService.getCardsByRecipientForMyCards(addr, activeChainId))
+        ).then((results) => results.flat()),
+        isConnected && address
+          ? GiftCardsService.getCardsBySenderForMyCards(address, activeChainId)
+          : Promise.resolve([]),
       ]);
 
         // Transform Supabase data to our format
@@ -360,7 +362,7 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
       // Also check cards with NULL recipient_address in Supabase
       // and update their owners from blockchain
       console.log('Checking cards with null recipient_address...');
-      const cardsWithNullRecipient = await GiftCardsService.getAllCardsWithNullRecipient();
+      const cardsWithNullRecipient = await GiftCardsService.getAllCardsWithNullRecipientForMyCards(activeChainId);
       console.log(`Found ${cardsWithNullRecipient.length} cards with null recipient_address`);
       
       // Check owners for cards with NULL recipient_address
