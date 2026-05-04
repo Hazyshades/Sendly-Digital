@@ -39,7 +39,7 @@ const nodes: NodeData[] = [
   {
     title: 'Provider APIs',
     subtitle: 'Social Platforms',
-    description: 'Twitter, Twitch, GitHub (session-scoped tokens, minimal scopes)',
+    description: 'X (Twitter), Twitch, GitHub (session-scoped tokens, minimal scopes)',
     color: '#10b981', // emerald
   },
 ];

@@ -85,7 +85,7 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'context',
         title: 'Testnet context',
         paragraphs: [
-          'Sendly\'s testnet leaned on Privy for identity and embedded wallets: one login, socials and wallet lined up. OAuth tokens lived in memory for the API calls we needed; nothing fancy beyond that. Provider traffic funneled through a single backend layer with retries and rate limits. When a metric looked off, we triangulated: Privy payloads against our schema, on-chain activity against our DB (indexer/subgraph when it helped), and spot calls to Twitter or Telegram on a random slice of users.'
+          'Sendly\'s testnet leaned on Privy for identity and embedded wallets: one login, socials and wallet lined up. OAuth tokens lived in memory for the API calls we needed; nothing fancy beyond that. Provider traffic funneled through a single backend layer with retries and rate limits. When a metric looked off, we triangulated: Privy payloads against our schema, on-chain activity against our DB (indexer/subgraph when it helped), and spot calls to X (Twitter) or Telegram on a random slice of users.'
         ]
       },
       {
@@ -106,7 +106,7 @@ const blogPosts: Record<string, BlogPost> = {
         title: 'Privy + OAuth pipeline',
         paragraphs: [
           'Users sign in with Privy. The session carries linked accounts and the embedded address. Keys stay in Privy\'s MPC split (their side + the device); we never assemble the full private key. Same login covers signing and social linking. JWT verification and how that identity must line up with Circle custodial calls are covered in Sendly on Privy today.',
-          'OAuth tokens are short-lived and narrow (read:user on Twitter, openid on Twitch, that kind of scope). We ping providers when we need profile or entitlement data, then drop them when the session ends. Outbound calls go through one gateway with three tries and exponential backoff on 429/5xx.'
+          'OAuth tokens are short-lived and narrow (read:user on X (Twitter), openid on Twitch, that kind of scope). We ping providers when we need profile or entitlement data, then drop them when the session ends. Outbound calls go through one gateway with three tries and exponential backoff on 429/5xx.'
         ],
         imageId: 'privy-oauth-flow'
       },
@@ -124,7 +124,7 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'verification',
         title: 'Verification methodology',
         paragraphs: [
-          'Three layers. Privy payloads: linked accounts and wallet fields have to match what our schema allows. On-chain: mints, transfers, and gas need to agree with our tables, and we pull indexer/subgraph data when the chain view is easier there. Spot checks: sample users, hit Twitter or Telegram live, make sure cached links haven\'t rotted.',
+          'Three layers. Privy payloads: linked accounts and wallet fields have to match what our schema allows. On-chain: mints, transfers, and gas need to agree with our tables, and we pull indexer/subgraph data when the chain view is easier there. Spot checks: sample users, hit X (Twitter) or Telegram live, make sure cached links haven\'t rotted.',
           'Mismatches get a request id in the log, never tokens or secrets. We watch link errors, provider failures, duplicates. If the error rate jumps past a line we drew in advance, a human actually reads the cases.'
         ],
         imageId: 'verification-flow'
@@ -142,7 +142,7 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'learnings',
         title: 'Operational takeaways',
         paragraphs: [
-          'Gas hovered near $0.05 a transaction. At that level the fee is basically flat whether someone moves ten dollars or ten thousand, which is a strong result for any ticket size. About four in five cards moved through Twitter; Telegram landed near 12%, Twitch near 8%. We keep the smaller channels on, but Twitter is where we spend attention first.',
+          'Gas hovered near $0.05 a transaction. At that level the fee is basically flat whether someone moves ten dollars or ten thousand, which is a strong result for any ticket size. About four in five cards moved through X (Twitter); Telegram landed near 12%, Twitch near 8%. We keep the smaller channels on, but X (Twitter) is where we spend attention first.',
         ]
       }
     ],
@@ -222,7 +222,7 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'platform-username',
         title: 'platform:username rules',
         paragraphs: [
-          'Normalize platform: lowercase and trim; map x to twitter. Normalize username: trim, lowercase, strip @. Example: Twitter + @Alice becomes twitter:alice; x + Bob becomes twitter:bob.',
+          'Normalize platform: lowercase and trim; map x to twitter. Normalize username: trim, lowercase, strip @. Example: X (Twitter) + @Alice becomes twitter:alice; x + Bob becomes twitter:bob.',
           'Usernames max 64 characters; letters, digits, underscores, hyphens. The UI and contract reject invalid or too-long values.'
         ]
       },
@@ -250,7 +250,7 @@ const blogPosts: Record<string, BlogPost> = {
           <>(1) Open <a href="https://www.zk.sendly.digital/payments" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Payments</a> → Receive tab, connect wallet.</>,
           '(2) Enter username and select platform.',
           '(3) Wait for pending items or hit Refresh.',
-          '(4) To prove ownership, use Connect Twitter/X, Twitch, GitHub, Telegram, or LinkedIn; finish OAuth, come back, then Refresh.'
+          '(4) To prove ownership, use Connect X (Twitter), Twitch, GitHub, Telegram, or LinkedIn; finish OAuth, come back, then Refresh.'
         ],
         imageId: 'receive-tab'
       },
@@ -444,7 +444,7 @@ const blogPosts: Record<string, BlogPost> = {
         ],
         bullets: [
           'After mint, we read `tokenId` from the ERC-721 `Transfer` event.',
-          'Twitter, Twitch, Telegram, and similar recipients use separate create/claim paths.',
+          'X (Twitter), Twitch, Telegram, and similar recipients use separate create/claim paths.',
           'After claim, the NFT is a normal ERC-721 in the recipient\'s context.'
         ]
       },
