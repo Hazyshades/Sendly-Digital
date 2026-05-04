@@ -59,7 +59,7 @@ interface BlogImage {
 const blogPosts: Record<string, BlogPost> = {
   privy_results: {
     slug: 'privy_results',
-    title: 'Privy testnet: what the numbers said, how we checked them, and what we\'d do again',
+    title: 'Privy testnet: metrics, methodology, and takeaways',
     description:
       'Roughly 12k wallets, 31k cards sent, ~$86k TVL, ~$310k total volume. Privy as our auth + embedded wallet layer, the checks we ran before trusting a chart, and the operational stuff that actually mattered.',
     date: '2026-04-01',
@@ -85,7 +85,7 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'context',
         title: 'Testnet context',
         paragraphs: [
-          'Sendly\'s testnet leaned on Privy alone for identity and embedded wallets: one login, socials and wallet lined up. OAuth tokens lived in memory for the API calls we needed; nothing fancy beyond that. Provider traffic funneled through a single backend layer with retries and rate limits. When a metric looked off, we triangulated: Privy payloads against our schema, on-chain activity against our DB (indexer/subgraph when it helped), and spot calls to Twitter or Telegram on a random slice of users.'
+          'Sendly\'s testnet leaned on Privy for identity and embedded wallets: one login, socials and wallet lined up. OAuth tokens lived in memory for the API calls we needed; nothing fancy beyond that. Provider traffic funneled through a single backend layer with retries and rate limits. When a metric looked off, we triangulated: Privy payloads against our schema, on-chain activity against our DB (indexer/subgraph when it helped), and spot calls to Twitter or Telegram on a random slice of users.'
         ]
       },
       {

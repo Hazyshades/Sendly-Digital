@@ -19,12 +19,13 @@ pnpm-debug.log*
 # Dependency directories
 node_modules/
 jspm_packages/
-
 # Build output
 dist/
 build/
 out/
 .vite/ # Vite's internal cache directory
+# Vite occasional sidecar next to vite.config (e.g. failed rename); do not commit
+*.timestamp-*.mjs
 
 # Editor directories and files
 .idea/
@@ -89,7 +90,8 @@ tests/node_modules/
 
 # OpenSpec
 openspec/**/*.md
-
+openspec/
+/openspec/
 .cursor/
 /contracts_reclaim_protocol/
 
