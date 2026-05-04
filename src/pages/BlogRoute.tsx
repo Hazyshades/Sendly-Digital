@@ -53,7 +53,7 @@ const blogPosts: BlogPost[] = [
     slug: 'privy_results',
     title: 'Privy testnet: metrics, methodology, and takeaways',
     description:
-      'Roughly 12k wallets, 31k cards sent, ~$86k TVL, ~$310k total volume. Privy as our auth + embedded wallet layer, the checks we ran before trusting a chart, and the operational stuff that actually mattered.',
+      'Roughly 12k wallets, 31k cards sent, ~$89k TVL, ~$315k total volume. Privy as our auth + embedded wallet layer, the checks we ran before trusting a chart, and the operational stuff that actually mattered.',
     date: '2026-04-01',
     category: 'Technology',
     tags: ['Privy', 'OAuth', 'Testnet'],

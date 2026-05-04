@@ -61,7 +61,7 @@ const blogPosts: Record<string, BlogPost> = {
     slug: 'privy_results',
     title: 'Privy testnet: metrics, methodology, and takeaways',
     description:
-      'Roughly 12k wallets, 31k cards sent, ~$86k TVL, ~$310k total volume. Privy as our auth + embedded wallet layer, the checks we ran before trusting a chart, and the operational stuff that actually mattered.',
+      'Roughly 12k wallets, 31k cards sent, ~$89k TVL, ~$315k total volume. Privy as our auth + embedded wallet layer, the checks we ran before trusting a chart, and the operational stuff that actually mattered.',
     date: '2026-04-01',
     category: 'Technology',
     tags: ['Privy', 'OAuth', 'Testnet'],
@@ -95,10 +95,10 @@ const blogPosts: Record<string, BlogPost> = {
           'Counts and balances for the window we measured:'
         ],
         bullets: [
-          'Addresses: 11,673. Cards sent: 31,700. Transactions: 38,747.',
-          'Gas spent: \u2248 770 USDC',
-          'TVL: 82,100 USDC + 2,900 EURC (\u2248 85,000 total)',
-          'Total volume: \u2248 310,000 USDC and \u2248 5,000 EURC.',
+          'Addresses: 11,700. Cards sent: 31,800. Transactions: 39,000.',
+          'Gas spent: \u2248 780 USDC',
+          'TVL: 86,000 USDC + 3,100 EURC (\u2248 89,100 total)',
+          'Total volume: \u2248 315,000 USDC and \u2248 5,000 EURC.',
         ]
       },
       {
