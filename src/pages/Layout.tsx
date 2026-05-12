@@ -20,12 +20,25 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
+/** When `VITE_MAINTENANCE_BANNER` is unset, this default applies. Set to `false` after maintenance. */
+const MAINTENANCE_BANNER_FALLBACK = true;
+const MAINTENANCE_BANNER_MESSAGE =
+  "We're performing maintenance. Internal Wallet and Leaderboard are temporarily unavailable.";
+
+function readMaintenanceBannerFlag(): boolean {
+  const raw = import.meta.env.VITE_MAINTENANCE_BANNER;
+  if (raw === '1' || raw === 'true') return true;
+  if (raw === '0' || raw === 'false') return false;
+  return MAINTENANCE_BANNER_FALLBACK;
+}
+
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const [isPrivyModalOpen, setIsPrivyModalOpen] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const zk = isZkHost();
   const zkLocal = isZkLocalhost();
+  const showMaintenanceBanner = readMaintenanceBannerFlag();
 
   const navigationItems = zk
     ? [
@@ -47,6 +60,14 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen circle-gradient-bg">
+      {showMaintenanceBanner ? (
+        <div
+          role="status"
+          className="relative z-20 border-b border-amber-200/80 bg-amber-50/95 px-4 py-2.5 text-center text-sm font-medium text-amber-950 backdrop-blur-sm"
+        >
+          {MAINTENANCE_BANNER_MESSAGE}
+        </div>
+      ) : null}
       <div className="abstract-shape"></div>
       <header className="flex items-center justify-between p-6 relative z-10 h-20">
         <Link to="/" className="flex items-center gap-3">
