@@ -23,7 +23,7 @@ interface LayoutProps {
 /** When `VITE_MAINTENANCE_BANNER` is unset, this default applies. Set to `false` after maintenance. */
 const MAINTENANCE_BANNER_FALLBACK = true;
 const MAINTENANCE_BANNER_MESSAGE =
-  "We're performing maintenance. Internal Wallet and Leaderboard are temporarily unavailable.";
+  "We're performing maintenance. Internal Wallet and Leaderboard may be temporarily unavailable.";
 
 function readMaintenanceBannerFlag(): boolean {
   const raw = import.meta.env.VITE_MAINTENANCE_BANNER;
