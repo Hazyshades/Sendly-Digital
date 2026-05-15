@@ -66,6 +66,30 @@ function normalizeArgs(args: readonly unknown[]): unknown[] {
   });
 }
 
+async function waitForTxReceiptRpc(rpcUrl: string, txHash: string, timeoutMs: number): Promise<Record<string, unknown>> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const rec = (await relayRpc(rpcUrl, 'eth_getTransactionReceipt', [txHash])) as Record<
+      string,
+      unknown
+    > | null;
+    if (rec && typeof rec.blockNumber === 'string') {
+      return rec;
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  throw new BridgeError('Waiting for batch transaction confirmation timed out.', 'TX_RECEIPT_TIMEOUT');
+}
+
+type SendCallsEnvelope = {
+  atomicRequired?: boolean;
+  calls: Array<{ to?: string; data?: string; value?: string }>;
+  chainId: string;
+  from?: string;
+  id?: string;
+  version?: string;
+};
+
 async function decodeAndSubmitContractTx(
   ctx: DeveloperWalletEip1193Context,
   chainIdNum: number,
@@ -121,6 +145,11 @@ async function decodeAndSubmitContractTx(
  */
 export function createDeveloperWalletEip1193Provider(ctx: DeveloperWalletEip1193Context): EIP1193Provider {
   let activeChainId = ctx.initialChainId;
+  /** synthetic EIP-5792 batch payloads after sequential Developer Wallet executions */
+  const completedBatches = new Map<
+    string,
+    { statusCode: number; receipts: Record<string, unknown>[]; chainIdHex: string }
+  >();
 
   async function handleSendTransaction(payload: Record<string, unknown>): Promise<string> {
     const from = (payload.from as string)?.toLowerCase?.();
@@ -186,11 +215,80 @@ export function createDeveloperWalletEip1193Provider(ctx: DeveloperWalletEip1193
           return {} as T;
 
         case 'wallet_sendCalls':
-        case 'wallet_sendCalls_v1':
-          throw new BridgeError(
-            'wallet_sendCalls is not supported by Internal Wallet bridge (use RainbowKit/external wallet)',
-            'BATCH_RPC_UNSUPPORTED'
-          );
+        case 'wallet_sendCalls_v1': {
+          const envelope = params[0] as SendCallsEnvelope | undefined;
+          if (!envelope?.calls?.length || !envelope.chainId) {
+            throw new BridgeError('wallet_sendCalls: invalid params', 'INVALID_SEND_CALLS');
+          }
+          if (envelope.atomicRequired && envelope.calls.length > 1) {
+            throw new BridgeError(
+              'Atomic multi-call batches are not supported on Internal Wallet. Connect MetaMask or another external wallet.',
+              'ATOMIC_BATCH_UNSUPPORTED'
+            );
+          }
+
+          const fromAddr = envelope.from?.toLowerCase?.();
+          if (fromAddr && fromAddr !== ctx.walletAddressLower) {
+            throw new BridgeError('Wrong `from` address for Internal Wallet batched sends', 'WRONG_SIGNER_ADDRESS');
+          }
+
+          const chainIdNum = Number(hexToBigInt(envelope.chainId));
+          activeChainId = chainIdNum;
+          const rpcUrl = ctx.getRpcUrl(chainIdNum);
+          const batchId =
+            typeof envelope.id === 'string' && envelope.id.length > 0
+              ? envelope.id
+              : `sendly-iw-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+
+          const receiptsAcc: Record<string, unknown>[] = [];
+          const chainIdHex = `0x${chainIdNum.toString(16)}`;
+
+          for (let i = 0; i < envelope.calls.length; i++) {
+            const call = envelope.calls[i];
+            if (!call?.to) {
+              throw new BridgeError('wallet_sendCalls: call missing `to`', 'INVALID_SEND_CALLS');
+            }
+            if (call.value !== undefined && hexToBigInt(call.value) !== 0n) {
+              throw new BridgeError(
+                'Native-token `value` in batched calls is not supported on Internal Wallet.',
+                'NATIVE_VALUE_IN_BATCH_UNSUPPORTED'
+              );
+            }
+            const data = call.data && call.data.startsWith('0x') ? call.data : call.data ? `0x${call.data}` : '0x';
+            const hash = await decodeAndSubmitContractTx(ctx, chainIdNum, call.to, data);
+            receiptsAcc.push(await waitForTxReceiptRpc(rpcUrl, hash, 120_000));
+
+            if (envelope.calls.length > 1 && i < envelope.calls.length - 1) {
+              await new Promise((r) => setTimeout(r, 40));
+            }
+          }
+
+          completedBatches.set(batchId, { statusCode: 200, receipts: receiptsAcc, chainIdHex });
+          return { id: batchId } as unknown as T;
+        }
+
+        case 'wallet_getCallsStatus': {
+          const raw = params[0] as string | { id?: string } | undefined;
+          const sid = typeof raw === 'string' ? raw : typeof raw?.id === 'string' ? raw.id : undefined;
+          if (!sid) {
+            throw new BridgeError('wallet_getCallsStatus: missing batch id', 'INVALID_BATCH_STATUS');
+          }
+          const stored = completedBatches.get(sid);
+          if (!stored) {
+            throw new BridgeError(
+              `Internal Wallet: unknown batch "${sid}". Retry the bridge or use an external wallet.`,
+              'UNKNOWN_BATCH'
+            );
+          }
+          return {
+            version: '2.0.0',
+            id: sid,
+            chainId: stored.chainIdHex,
+            atomic: false,
+            statusCode: stored.statusCode,
+            receipts: stored.receipts,
+          } as unknown as T;
+        }
 
         case 'eth_estimateGas':
         case 'eth_call':
@@ -202,9 +300,8 @@ export function createDeveloperWalletEip1193Provider(ctx: DeveloperWalletEip1193
         case 'eth_feeHistory':
           return relayRpc(ctx.getRpcUrl(activeChainId), method, [...params]) as Promise<T>;
 
-        case 'wallet_getCallsStatus':
         case 'wallet_getCallsReceipt':
-          throw new BridgeError(`${method} is not supported`, 'UNSUPPORTED_RPC');
+          throw new BridgeError(`${method} is not supported on Internal Wallet`, 'UNSUPPORTED_RPC');
 
         case 'eth_sendTransaction':
           return (await handleSendTransaction(params[0] as Record<string, unknown>)) as unknown as T;

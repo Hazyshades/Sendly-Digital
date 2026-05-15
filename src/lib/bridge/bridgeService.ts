@@ -29,6 +29,21 @@ function findBridgeStepTxHash(
   return match?.txHash;
 }
 
+type KitStep = { name?: string; state?: string; errorMessage?: string };
+
+function bridgeKitFailureMessage(steps: KitStep[] | undefined): string {
+  const list = steps ?? [];
+  const errWithMsg = [...list].reverse().find((s) => s.state === 'error' && s.errorMessage);
+  if (errWithMsg?.errorMessage) {
+    return errWithMsg.errorMessage;
+  }
+  const failed = list.filter((s) => s.state === 'error').map((s) => s.name || 'step');
+  if (failed.length) {
+    return `Bridge failed at: ${failed.join(', ')}`;
+  }
+  return 'Bridge did not complete successfully. Check your wallet or try an external wallet (MetaMask).';
+}
+
 class BridgeService {
   async bridgeArcToBase(amount: string): Promise<BridgeResult> {
     return this.bridge({
@@ -130,6 +145,29 @@ class BridgeService {
         })?.txHash;
 
       const mintTxHash = findBridgeStepTxHash(result.steps, ['mint']);
+
+      if (import.meta.env.DEV) {
+        console.debug('[BridgeService] BridgeKit result', {
+          state: (result as { state?: string }).state,
+          steps: (result as { steps?: unknown[] }).steps,
+        });
+      }
+
+      if ((result as { state?: string }).state !== 'success') {
+        throw new BridgeError(
+          bridgeKitFailureMessage((result as { steps?: KitStep[] }).steps),
+          'BRIDGE_KIT_PARTIAL_OR_FAILED',
+          result
+        );
+      }
+
+      if (!burnTxHash || !mintTxHash) {
+        throw new BridgeError(
+          'Bridge reported success but transaction hashes are missing. Please try again or use an external wallet.',
+          'BRIDGE_UNEXPECTED_RESULT',
+          result
+        );
+      }
 
       return {
         fromTxHash: burnTxHash,

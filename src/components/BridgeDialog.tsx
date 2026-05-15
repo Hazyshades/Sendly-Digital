@@ -174,7 +174,7 @@ export default function BridgeDialog({
       setTxFrom(res.fromTxHash);
       setTxTo(res.toTxHash);
       
-      if (res.toTxHash) {
+      if (res.fromTxHash && res.toTxHash) {
         onBridgeComplete?.();
       }
     } catch (e: any) {
