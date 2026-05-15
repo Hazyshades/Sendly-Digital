@@ -8,15 +8,6 @@ const DEFAULT_CHAIN_ID = Number(import.meta.env.VITE_ARC_CHAIN_ID || 5042002);
 /** Source for /my and related UI: `graph` (gift_cards_graph) or legacy `gift_cards`. */
 export type MyCardsDataSource = 'graph' | 'gift_cards';
 
-export type SocialRecipientAccount = {
-  type: Exclude<GiftCardRecord['recipient_type'], 'address'>;
-  username: string;
-};
-
-export function normalizeSocialUsername(username: string): string {
-  return username.replace(/^@/, '').trim().toLowerCase();
-}
-
 export function getMyCardsDataSource(): MyCardsDataSource {
   const v = import.meta.env.VITE_MYCARDS_SOURCE;
   if (v === 'gift_cards') return 'gift_cards';
@@ -100,50 +91,12 @@ export class GiftCardsService {
     }
   }
 
-  static async getCardsBySocialRecipient(
-    recipientType: SocialRecipientAccount['type'],
-    recipientUsername: string,
-    chainId?: number
-  ): Promise<GiftCardRecord[]> {
-    const normalized = normalizeSocialUsername(recipientUsername);
-    if (!normalized) return [];
-
-    try {
-      let q = supabase
-        .from('gift_cards')
-        .select('*')
-        .eq('recipient_type', recipientType)
-        .ilike('recipient_username', normalized);
-      if (chainId != null) q = q.eq('chain_id', chainId);
-      let { data, error } = await q.order('created_at', { ascending: false });
-      if (error && isChainIdSchemaError(error) && chainId != null) {
-        const r = await supabase
-          .from('gift_cards')
-          .select('*')
-          .eq('recipient_type', recipientType)
-          .ilike('recipient_username', normalized)
-          .order('created_at', { ascending: false });
-        data = r.data;
-        error = r.error;
-      }
-      if (error) {
-        console.error('Error fetching social received cards:', error);
-        return [];
-      }
-      return data ?? [];
-    } catch (error) {
-      console.error('Error fetching social received cards:', error);
-      return [];
-    }
-  }
-
   static async getCardsByRecipientAddress(recipientAddress: string, chainId?: number): Promise<GiftCardRecord[]> {
     try {
       let q = supabase
         .from('gift_cards')
         .select('*')
-        .eq('recipient_address', recipientAddress.toLowerCase())
-        .eq('recipient_type', 'address');
+        .eq('recipient_address', recipientAddress.toLowerCase());
       if (chainId != null) q = q.eq('chain_id', chainId);
       let { data, error } = await q.order('created_at', { ascending: false });
       if (error && isChainIdSchemaError(error) && chainId != null) {
@@ -151,7 +104,6 @@ export class GiftCardsService {
           .from('gift_cards')
           .select('*')
           .eq('recipient_address', recipientAddress.toLowerCase())
-          .eq('recipient_type', 'address')
           .order('created_at', { ascending: false });
         data = r.data;
         error = r.error;
@@ -306,52 +258,13 @@ export class GiftCardsService {
     }
   }
 
-  static async getGraphCardsBySocialRecipient(
-    recipientType: SocialRecipientAccount['type'],
-    recipientUsername: string,
-    chainId?: number
-  ): Promise<GiftCardRecord[]> {
-    const normalized = normalizeSocialUsername(recipientUsername);
-    if (!normalized) return [];
-
-    try {
-      let q = supabase
-        .from('gift_cards_graph')
-        .select('*')
-        .eq('recipient_type', recipientType)
-        .ilike('recipient_username', normalized);
-      if (chainId != null) q = q.eq('chain_id', chainId);
-      let { data, error } = await q.order('created_at', { ascending: false });
-      if (error && isChainIdSchemaError(error) && chainId != null) {
-        const r = await supabase
-          .from('gift_cards_graph')
-          .select('*')
-          .eq('recipient_type', recipientType)
-          .ilike('recipient_username', normalized)
-          .order('created_at', { ascending: false });
-        data = r.data;
-        error = r.error;
-        if (!error) return filterGraphRowsByChainId((data ?? []) as GiftCardRecord[], chainId);
-      }
-      if (error) {
-        console.error('Error fetching social received cards (graph):', error);
-        return [];
-      }
-      return (data ?? []) as GiftCardRecord[];
-    } catch (error) {
-      console.error('Error fetching social received cards (graph):', error);
-      return [];
-    }
-  }
-
-  /** Received cards (address recipient) from gift_cards_graph. */
+  /** Cards where `recipient_address` is this wallet (incl. claimed social if row still has platform `recipient_type`). */
   static async getGraphCardsByRecipientAddress(recipientAddress: string, chainId?: number): Promise<GiftCardRecord[]> {
     try {
       let q = supabase
         .from('gift_cards_graph')
         .select('*')
-        .eq('recipient_address', recipientAddress.toLowerCase())
-        .eq('recipient_type', 'address');
+        .eq('recipient_address', recipientAddress.toLowerCase());
       if (chainId != null) q = q.eq('chain_id', chainId);
       let { data, error } = await q.order('created_at', { ascending: false });
       if (error && isChainIdSchemaError(error) && chainId != null) {
@@ -359,7 +272,6 @@ export class GiftCardsService {
           .from('gift_cards_graph')
           .select('*')
           .eq('recipient_address', recipientAddress.toLowerCase())
-          .eq('recipient_type', 'address')
           .order('created_at', { ascending: false });
         data = r.data;
         error = r.error;
@@ -469,27 +381,6 @@ export class GiftCardsService {
     return getMyCardsDataSource() === 'graph'
       ? this.getGraphCardsByRecipientAddress(recipientAddress, chainId)
       : this.getCardsByRecipientAddress(recipientAddress, chainId);
-  }
-
-  static async getCardsBySocialRecipientsForMyCards(
-    accounts: SocialRecipientAccount[],
-    chainId?: number
-  ): Promise<GiftCardRecord[]> {
-    const socialAccounts = accounts.filter((a) => a.username.trim());
-    if (socialAccounts.length === 0) return [];
-
-    const useGraph = getMyCardsDataSource() === 'graph';
-    const results = await Promise.all(
-      socialAccounts.map(({ type, username }) =>
-        useGraph
-          ? this.getGraphCardsBySocialRecipient(type, username, chainId)
-          : this.getCardsBySocialRecipient(type, username, chainId)
-      )
-    );
-
-    return Array.from(
-      new Map(results.flat().map((card) => [card.token_id, card])).values()
-    );
   }
 
   static async getAllCardsWithNullRecipientForMyCards(chainId?: number): Promise<GiftCardRecord[]> {

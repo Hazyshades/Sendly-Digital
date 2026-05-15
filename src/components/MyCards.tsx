@@ -16,12 +16,7 @@ import { ARC_CHAIN_ID } from '@/lib/web3/constants';
 import web3Service from '@/lib/web3/web3Service';
 import { ClaimCards } from './ClaimCards';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
-import {
-  GiftCardsService,
-  type GiftCardInsert,
-  type GiftCardRecord,
-  type SocialRecipientAccount,
-} from '@/lib/supabase/giftCards';
+import { GiftCardsService, type GiftCardInsert } from '@/lib/supabase/giftCards';
 import { DeveloperWalletService } from '@/lib/circle/developerWalletService';
 
 interface GiftCard {
@@ -204,53 +199,10 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
     }
   }, [authenticated, user?.twitter?.username, user?.twitch?.username, telegramUsername, user?.tiktok?.username, user?.instagram?.username, isConnected, address]);
 
-  const collectSocialRecipientAccounts = (): SocialRecipientAccount[] => {
-    if (!authenticated || !user) return [];
-
-    const accounts: SocialRecipientAccount[] = [];
-    if (user.twitter?.username) {
-      accounts.push({ type: 'twitter', username: user.twitter.username });
-    }
-    if (user.twitch?.username) {
-      accounts.push({ type: 'twitch', username: user.twitch.username });
-    }
-    if (telegramUsername) {
-      accounts.push({ type: 'telegram', username: telegramUsername });
-    }
-    if (user.tiktok?.username) {
-      accounts.push({ type: 'tiktok', username: user.tiktok.username });
-    }
-    if (user.instagram?.username) {
-      accounts.push({ type: 'instagram', username: user.instagram.username });
-    }
-    return accounts;
-  };
-
-  const mapReceivedCardFromRecord = (card: GiftCardRecord): GiftCard => {
-    const isSocialRecipient = card.recipient_type !== 'address';
-    const isUnclaimedSocial = isSocialRecipient && !card.recipient_address && !card.redeemed;
-
-    return {
-      tokenId: card.token_id,
-      amount: card.amount,
-      currency: card.currency,
-      design: 'pink',
-      message: card.message,
-      recipient: card.recipient_address || (isConnected && address ? address : ''),
-      sender: card.sender_address,
-      status: card.redeemed ? 'redeemed' : isUnclaimedSocial ? 'pending' : 'active',
-      createdAt: card.created_at ? new Date(card.created_at).toLocaleDateString() : new Date().toLocaleDateString(),
-      hasTimer: false,
-      hasPassword: false,
-      qrCode: `/spend?tokenId=${card.token_id}`,
-    };
-  };
-
   const fetchCards = async () => {
     // If MetaMask is connected - use its address
     // If there is no MetaMask but a social network is linked - check for a Internal wallet
     let recipientAddresses: string[] = [];
-    const socialRecipientAccounts = collectSocialRecipientAccounts();
     
     if (isConnected && address) {
       recipientAddresses.push(address.toLowerCase());
@@ -297,8 +249,9 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
       }
     }
     
-    // If neither MetaMask nor a Internal wallet nor linked social accounts - do not load cards
-    if (recipientAddresses.length === 0 && socialRecipientAccounts.length === 0) {
+    // If neither MetaMask nor a Internal wallet is available — do not load cards.
+    // Unclaimed social gift cards belong in Pending Claims (on-chain vault), not Received.
+    if (recipientAddresses.length === 0) {
       setLoading(false);
       return;
     }
@@ -307,22 +260,16 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
       // First, try to load from Supabase cache (fast) - display immediately
       // Loading cards from Supabase cache
       
-      // Retrieve cards for wallet addresses and linked social usernames
-      const [addressReceivedCards, socialReceivedCards, supabaseSentCards] = await Promise.all([
-        recipientAddresses.length > 0
-          ? Promise.all(
-              recipientAddresses.map((addr) => GiftCardsService.getCardsByRecipientForMyCards(addr, activeChainId))
-            ).then((results) => results.flat())
-          : Promise.resolve([]),
-        socialRecipientAccounts.length > 0
-          ? GiftCardsService.getCardsBySocialRecipientsForMyCards(socialRecipientAccounts, activeChainId)
-          : Promise.resolve([]),
+      // Received: only rows where recipient is your wallet (after claim sync / DB address path).
+      // Pending social cards are listed under Pending Claims, not here.
+      const [allReceivedCards, supabaseSentCards] = await Promise.all([
+        Promise.all(
+          recipientAddresses.map((addr) => GiftCardsService.getCardsByRecipientForMyCards(addr, activeChainId))
+        ).then((results) => results.flat()),
         isConnected && address
           ? GiftCardsService.getCardsBySenderForMyCards(address, activeChainId)
           : Promise.resolve([]),
       ]);
-
-      const allReceivedCards = [...addressReceivedCards, ...socialReceivedCards];
 
         // Transform Supabase data to our format
         // Remove duplicates by tokenId
@@ -330,7 +277,20 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
         new Map(allReceivedCards.map(card => [card.token_id, card])).values()
       );
       
-      const transformedReceivedCards: GiftCard[] = uniqueReceivedCards.map(mapReceivedCardFromRecord);
+      const transformedReceivedCards: GiftCard[] = uniqueReceivedCards.map(card => ({
+        tokenId: card.token_id,
+        amount: card.amount,
+        currency: card.currency,
+        design: 'pink',
+        message: card.message,
+        recipient: card.recipient_address || (isConnected && address ? address : ''),
+        sender: card.sender_address,
+        status: card.redeemed ? 'redeemed' : 'active',
+        createdAt: card.created_at ? new Date(card.created_at).toLocaleDateString() : new Date().toLocaleDateString(),
+        hasTimer: false,
+        hasPassword: false,
+        qrCode: `/spend?tokenId=${card.token_id}`
+      }));
 
       const transformedSentCards: GiftCard[] = supabaseSentCards.map(card => {
         const username = card.recipient_username ? card.recipient_username.replace(/^@/, '') : null;
