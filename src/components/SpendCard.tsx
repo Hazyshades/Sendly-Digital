@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Camera, Gift, Lock, Clock, AlertCircle, CheckCircle, ChevronDown } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -21,7 +21,8 @@ import { GiftCardsService } from '@/lib/supabase/giftCards';
 import { GiftCardABI } from '@/lib/web3/constants';
 import BridgeDialog from './BridgeDialog';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
-import { DeveloperWalletService } from '@/lib/circle/developerWalletService';
+import { DeveloperWalletService, type DeveloperWallet } from '@/lib/circle/developerWalletService';
+import type { DeveloperWalletBridgeSigner } from '@/types/bridge';
 
 interface RedeemableCard {
   tokenId: string;
@@ -171,6 +172,60 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
 
     checkSocialWallet();
   }, [isConnected, authenticated, privyUser]);
+
+  /** Circle Internal Wallet signer for Stripe/CCTP bridge when MetaMask is not connected */
+  const internalBridgeSigner = useMemo((): DeveloperWalletBridgeSigner | undefined => {
+    if (isConnected || !hasDeveloperWallet || !developerWallet) return undefined;
+
+    let privyUserId: string | undefined;
+    if (privyUser?.id) {
+      privyUserId = privyUser.id.startsWith('did:privy:')
+        ? privyUser.id.replace('did:privy:', '')
+        : privyUser.id;
+    }
+
+    let socialPlatform: string | undefined;
+    let socialUserId: string | undefined;
+
+    const socialPlatforms = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'] as const;
+    for (const platform of socialPlatforms) {
+      if (platform === 'twitter' && privyUser?.twitter) {
+        socialPlatform = 'twitter';
+        socialUserId = (privyUser.twitter as { subject?: string }).subject;
+        break;
+      }
+      if (platform === 'twitch' && privyUser?.twitch) {
+        socialPlatform = 'twitch';
+        socialUserId = (privyUser.twitch as { subject?: string }).subject;
+        break;
+      }
+      if (platform === 'telegram' && privyUser?.telegram) {
+        socialPlatform = 'telegram';
+        socialUserId =
+          privyUser.telegram.telegramUserId ||
+          (privyUser.telegram as { subject?: string }).subject ||
+          undefined;
+        break;
+      }
+      if (platform === 'tiktok' && privyUser?.tiktok) {
+        socialPlatform = 'tiktok';
+        socialUserId = (privyUser.tiktok as { subject?: string }).subject;
+        break;
+      }
+      if (platform === 'instagram' && (privyUser as { instagram?: { subject?: string } }).instagram) {
+        socialPlatform = 'instagram';
+        socialUserId = (privyUser as { instagram?: { subject?: string } }).instagram?.subject;
+        break;
+      }
+    }
+
+    return {
+      wallet: developerWallet as DeveloperWallet,
+      privyUserId,
+      socialPlatform,
+      socialUserId,
+    };
+  }, [isConnected, hasDeveloperWallet, developerWallet, privyUser]);
 
   // Auto-fill Token ID if provided from MyCards
   useEffect(() => {
@@ -1197,6 +1252,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
             ? currentCard.currency
             : 'USDC'
         }
+        developerWalletSigner={internalBridgeSigner}
       />
     </div>
   );

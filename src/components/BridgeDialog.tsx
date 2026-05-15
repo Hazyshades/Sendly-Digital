@@ -14,6 +14,7 @@ import {
   validateBridgeRoute
 } from '@/lib/bridge/bridgeConfig';
 import { useAccount } from 'wagmi';
+import type { DeveloperWalletBridgeSigner } from '@/types/bridge';
 
 interface BridgeDialogProps {
   open: boolean;
@@ -25,6 +26,8 @@ interface BridgeDialogProps {
   fromCurrency?: string;
   toCurrency?: string;
   tokenSymbol?: 'USDC' | 'EURC' | 'USYC';
+  /** When set (and no RainbowKit address), bridging uses Developer Wallet `/wallets/send-transaction` */
+  developerWalletSigner?: DeveloperWalletBridgeSigner | null;
 }
 
 export default function BridgeDialog({ 
@@ -36,7 +39,8 @@ export default function BridgeDialog({
   toChainId,
   fromCurrency: _fromCurrency,
   toCurrency: _toCurrency,
-  tokenSymbol
+  tokenSymbol,
+  developerWalletSigner = null,
 }: BridgeDialogProps) {
   const { address, chainId: connectedChainId } = useAccount();
   
@@ -159,7 +163,10 @@ export default function BridgeDialog({
         toChainId: selectedToChainId,
         fromCurrency: fromTokenAddress,
         toCurrency: toTokenAddress,
-        amount
+        amount,
+        developerWalletSigner: developerWalletSigner?.wallet?.wallet_address
+          ? developerWalletSigner
+          : undefined,
       });
 
       console.log('[BridgeDialog] Bridge finished:', res);
@@ -194,13 +201,16 @@ export default function BridgeDialog({
   const fromExplorerUrl = fromChain?.blockExplorer;
   const toExplorerUrl = toChain?.blockExplorer;
 
+  const hasSigningContext = Boolean(address) || Boolean(developerWalletSigner?.wallet?.wallet_address);
+
   const isFormValid = 
     selectedFromChainId && 
     selectedToChainId && 
     selectedFromChainId !== selectedToChainId &&
     !validationError &&
     amount && 
-    parseFloat(amount) > 0;
+    parseFloat(amount) > 0 &&
+    hasSigningContext;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -219,6 +229,14 @@ export default function BridgeDialog({
             </a>
           </DialogDescription>
         </DialogHeader>
+
+        {developerWalletSigner?.wallet?.wallet_address && !address ? (
+          <Alert>
+            <AlertDescription>
+              Using your Internal Wallet: transactions are sent via Sendly (no MetaMask popup). Keep this tab open until the bridge finishes.
+            </AlertDescription>
+          </Alert>
+        ) : null}
         
         <div className="space-y-4">
           <div className="space-y-2">
@@ -407,7 +425,7 @@ export default function BridgeDialog({
           </Button>
           <Button 
             onClick={handleBridge} 
-            disabled={isBridging || !isFormValid || !address}
+            disabled={isBridging || !isFormValid}
           >
             {isBridging ? (
               <span className="flex items-center gap-2">

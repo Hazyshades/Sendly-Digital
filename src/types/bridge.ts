@@ -1,5 +1,6 @@
 import type { ChainConfig } from '@/lib/bridge/chainRegistry';
 import type { TokenConfig } from '@/lib/bridge/tokenRegistry';
+import type { DeveloperWallet } from '@/lib/circle/developerWalletService';
 
 export type { ChainConfig, TokenConfig };
 
@@ -18,6 +19,14 @@ export type BridgeResult = {
   error?: string;
 };
 
+/** When set, `/wallets/send-transaction` is used instead of `window.ethereum`. */
+export interface DeveloperWalletBridgeSigner {
+  wallet: DeveloperWallet;
+  privyUserId?: string;
+  socialPlatform?: string;
+  socialUserId?: string;
+}
+
 export interface BridgeParams {
   fromChainId: number;
   toChainId: number;
@@ -25,6 +34,7 @@ export interface BridgeParams {
   toCurrency: string;
   amount: string;
   recipient?: string;
+  developerWalletSigner?: DeveloperWalletBridgeSigner;
 }
 
 export interface BridgeUrlParams {

@@ -14,6 +14,7 @@ import { createWalletClient, custom } from 'viem';
 import { arcTestnet } from '@/lib/web3/wagmiConfig';
 import { ARC_CHAIN_ID } from '@/lib/web3/constants';
 import web3Service from '@/lib/web3/web3Service';
+import type { GiftCardInfo } from '@/types/web3';
 import { ClaimCards } from './ClaimCards';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
 import { GiftCardsService, type GiftCardInsert } from '@/lib/supabase/giftCards';
@@ -292,6 +293,42 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
         qrCode: `/spend?tokenId=${card.token_id}`
       }));
 
+      /** After vault claim Supabase rows often still have null recipient_address; chain is authoritative. */
+      const chainGiftToMyCard = (c: GiftCardInfo, ownerAddr: string): GiftCard => ({
+        tokenId: c.tokenId,
+        amount: c.amount,
+        currency: c.token,
+        design: 'pink',
+        message: c.message,
+        recipient: ownerAddr,
+        sender: c.sender,
+        status: c.redeemed ? 'redeemed' : 'active',
+        createdAt: new Date().toLocaleDateString(),
+        hasTimer: false,
+        hasPassword: false,
+        qrCode: `/spend?tokenId=${c.tokenId}`,
+      });
+
+      const receivedByTokenId = new Map<string, GiftCard>();
+      for (const row of transformedReceivedCards) {
+        receivedByTokenId.set(row.tokenId, row);
+      }
+      for (const addr of recipientAddresses) {
+        try {
+          const owned = await web3Service.snapshotOwnedGiftCardsForRecipient(addr, activeChainId);
+          for (const oc of owned) {
+            if (!receivedByTokenId.has(oc.tokenId)) {
+              receivedByTokenId.set(oc.tokenId, chainGiftToMyCard(oc, addr));
+            }
+          }
+        } catch (e) {
+          console.warn(`[MyCards] On-chain snapshot for ${addr.slice(0, 10)}… failed`, e);
+        }
+      }
+      const mergedReceived = Array.from(receivedByTokenId.values()).sort(
+        (a, b) => Number(BigInt(b.tokenId) - BigInt(a.tokenId))
+      );
+
       const transformedSentCards: GiftCard[] = supabaseSentCards.map(card => {
         const username = card.recipient_username ? card.recipient_username.replace(/^@/, '') : null;
         const recipientDisplay = (() => {
@@ -323,8 +360,8 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
         };
       });
 
-      // Update UI with cached data immediately - don't wait for blockchain!
-      setReceivedCards(transformedReceivedCards);
+      // Supabase + on-chain ownership (fills gaps when DB not updated after claim)
+      setReceivedCards(mergedReceived);
       setSentCards(transformedSentCards);
       setLoading(false);
 
@@ -649,18 +686,9 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
             <ClaimCards 
               autoLoad={true}
               onCardClaimed={async () => {
-                // Wait a bit for database to update after claim
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // Reset hasFetched to force reload
-                setHasFetched(false);
-                
-                // Always refresh cards after claim, even without MetaMask
-                // This ensures cards claimed via Internal wallet appear immediately
+                await new Promise(resolve => setTimeout(resolve, 500));
                 await fetchCards();
                 await fetchPendingCardsCount();
-                
-                // Switch to "Received" tab to show the newly claimed card
                 setActiveTab('received');
               }}
               onPendingCountChange={setPendingCount}

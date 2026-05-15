@@ -528,6 +528,33 @@ export class Web3Service {
     }
   }
 
+  /**
+   * Read-only: gift cards (ERC-721) owned by `recipientAddress` without an injected wallet client.
+   * Restores signer/account/chain so singleton state is unchanged.
+   */
+  async snapshotOwnedGiftCardsForRecipient(
+    recipientAddress: string,
+    chainId?: number
+  ): Promise<GiftCardInfo[]> {
+    const prevWallet = this.walletClient;
+    const prevAccount = this.account;
+    const prevChainId = this.chainId;
+    try {
+      if (chainId != null && chainId !== this.chainId) {
+        this.setChainId(chainId);
+      }
+      this.walletClient = null;
+      this.account = recipientAddress.toLowerCase();
+      return await this.loadGiftCards(false, true);
+    } finally {
+      this.account = prevAccount;
+      this.walletClient = prevWallet;
+      if (this.chainId !== prevChainId) {
+        this.setChainId(prevChainId);
+      }
+    }
+  }
+
   // private async loadSentGiftCardsViaAPI(): Promise<GiftCardInfo[]> {
   //   // Skip API - go directly to blockchain queries
   //   // API only works for recent transfers, blockchain is more reliable

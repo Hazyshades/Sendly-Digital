@@ -7,21 +7,13 @@ import {
   getSupportedTokensForChainByChainId,
   type BridgeRouteValidation,
 } from './bridgeConfig';
-
 import type { BridgeResult, BridgeParams } from '@/types/bridge';
+import { BridgeError } from '@/lib/bridge/bridgeErrors';
+import { createDeveloperWalletEip1193Provider } from '@/lib/bridge/developerWalletEip1193Provider';
+import { getBridgeHttpRpc } from '@/lib/bridge/bridgeRpc';
 
 export type { BridgeResult, BridgeParams };
-
-export class BridgeError extends Error {
-  constructor(
-    message: string,
-    public code: string,
-    public details?: any
-  ) {
-    super(message);
-    this.name = 'BridgeError';
-  }
-}
+export { BridgeError };
 
 class BridgeService {
   async bridgeArcToBase(amount: string): Promise<BridgeResult> {
@@ -30,7 +22,7 @@ class BridgeService {
       toChainId: 84532,
       fromCurrency: '0x3600000000000000000000000000000000000000',
       toCurrency: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
-      amount
+      amount,
     });
   }
 
@@ -40,9 +32,12 @@ class BridgeService {
     fromCurrency,
     toCurrency,
     amount,
-    recipient
+    recipient,
+    developerWalletSigner,
   }: BridgeParams): Promise<BridgeResult> {
-    if (!(window as any).ethereum) {
+    const useInternalWallet = Boolean(developerWalletSigner?.wallet?.wallet_address);
+
+    if (!useInternalWallet && !(window as any).ethereum) {
       throw new BridgeError(
         'Wallet not found. Please install MetaMask or another compatible wallet.',
         'WALLET_NOT_CONNECTED'
@@ -57,11 +52,9 @@ class BridgeService {
     );
 
     if (!validation.isValid) {
-      throw new BridgeError(
-        validation.error || 'Bridge route is invalid',
-        'ROUTE_NOT_AVAILABLE',
-        { validation }
-      );
+      throw new BridgeError(validation.error || 'Bridge route is invalid', 'ROUTE_NOT_AVAILABLE', {
+        validation,
+      });
     }
 
     const fromChain = validation.fromChain!;
@@ -69,33 +62,49 @@ class BridgeService {
 
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
-      throw new BridgeError(
-        'Invalid amount. Please enter a positive number.',
-        'INVALID_AMOUNT'
-      );
+      throw new BridgeError('Invalid amount. Please enter a positive number.', 'INVALID_AMOUNT');
     }
 
     try {
       const kit = new BridgeKit();
 
-      const adapter = await createAdapterFromProvider({
-        provider: (window as any).ethereum,
-        capabilities: {
-          addressContext: 'user-controlled',
-        },
-      });
+      const adapter =
+        useInternalWallet && developerWalletSigner
+          ? await createAdapterFromProvider({
+              provider: createDeveloperWalletEip1193Provider({
+                wallet: developerWalletSigner.wallet,
+                walletAddressLower: developerWalletSigner.wallet.wallet_address.toLowerCase(),
+                initialChainId: fromChainId,
+                getRpcUrl: (cid: number) => getBridgeHttpRpc(cid),
+                verification: {
+                  privyUserId: developerWalletSigner.privyUserId,
+                  socialPlatform: developerWalletSigner.socialPlatform,
+                  socialUserId: developerWalletSigner.socialUserId,
+                },
+              }),
+              capabilities: {
+                addressContext: 'user-controlled',
+              },
+            })
+          : await createAdapterFromProvider({
+              provider: (window as any).ethereum,
+              capabilities: {
+                addressContext: 'user-controlled',
+              },
+            });
 
+      // Bridge Kit and adapter bundles ship slightly different typings (`Blockchain`, etc.).
       const result = await kit.bridge({
-        from: { 
-          adapter, 
-          chain: fromChain.bridgeKitId as any
+        from: {
+          adapter: adapter as any,
+          chain: fromChain.bridgeKitId as any,
         },
-        to: { 
-          adapter, 
-          chain: toChain.bridgeKitId as any
+        to: {
+          adapter: adapter as any,
+          chain: toChain.bridgeKitId as any,
         },
         amount,
-        ...(recipient && { recipient })
+        ...(recipient && { recipient }),
       });
 
       const burnStep = result.steps.find((s) => s.name === 'depositForBurn');
@@ -103,44 +112,32 @@ class BridgeService {
       return {
         fromTxHash: burnStep?.txHash,
         toTxHash: mintStep?.txHash,
-        statusUrl: undefined
+        statusUrl: undefined,
       };
     } catch (error: any) {
       console.error('[BridgeService] Bridge error:', error);
-      
+
       if (error instanceof BridgeError) {
         throw error;
       }
 
       const errorMessage = error?.message || 'Bridge operation failed';
-      
+
       if (errorMessage.includes('insufficient') || errorMessage.includes('balance')) {
-        throw new BridgeError(
-          'Insufficient funds to perform bridge',
-          'INSUFFICIENT_BALANCE',
-          error
-        );
+        throw new BridgeError('Insufficient funds to perform bridge', 'INSUFFICIENT_BALANCE', error);
       }
 
       if (errorMessage.includes('user rejected') || errorMessage.includes('denied')) {
-        throw new BridgeError(
-          'Operation cancelled by user',
-          'USER_REJECTED',
-          error
-        );
+        throw new BridgeError('Operation cancelled by user', 'USER_REJECTED', error);
       }
 
-      throw new BridgeError(
-        errorMessage,
-        'BRIDGE_FAILED',
-        error
-      );
+      throw new BridgeError(errorMessage, 'BRIDGE_FAILED', error);
     }
   }
 
   async validateBridgeRoute(
-    fromChainId: number, 
-    toChainId: number, 
+    fromChainId: number,
+    toChainId: number,
     tokenSymbol: string
   ): Promise<BridgeRouteValidation> {
     return validateBridgeRoute(fromChainId, toChainId, tokenSymbol);
@@ -166,5 +163,3 @@ class BridgeService {
 
 const bridgeService = new BridgeService();
 export default bridgeService;
-
-
