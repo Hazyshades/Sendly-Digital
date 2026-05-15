@@ -25,6 +25,7 @@ import { BlogRoute } from '@/pages/BlogRoute';
 import { BlogPostRoute } from '@/pages/BlogPostRoute';
 import { ReclaimCallbackRoute } from '@/pages/ReclaimCallbackRoute';
 import { ZkSendRoute } from '@/pages/ZkSendRoute';
+import { ArchitectureRoute } from '@/pages/ArchitectureRoute';
 import { isZkHost, toZkUrl } from '@/lib/runtime/zkHost';
 
 function SharedAppRoutes({ zkMode }: { zkMode: boolean }) {
@@ -56,6 +57,8 @@ function SharedAppRoutes({ zkMode }: { zkMode: boolean }) {
       <Route path="/Circle-Mint" element={<CircleMintRoute />} />
       <Route path="/blog" element={<BlogRoute />} />
       <Route path="/blog/:slug" element={<BlogPostRoute />} />
+      <Route path="/Architecture" element={<ArchitectureRoute />} />
+      <Route path="/Architecture/" element={<ArchitectureRoute />} />
     </Routes>
   );
 }

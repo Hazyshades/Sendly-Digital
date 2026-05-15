@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sendly × Circle - Integration overview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/presentation.css" />
+  <style>.md-link { font-size: 0.85rem; margin-top: 1rem; }</style>
+</head>
+<body class="sendly-bg">
+  <div aria-hidden="true" class="abstract-blob"></div>
+  <div class="wrap">
+    <header class="site-header">
+      <p class="eyebrow">Sendly × Circle</p>
+      <h1>How we use Circle</h1>
+      <p class="lead">
+        Sendly runs on Circle in four spots: Wallets, Gateway, CCTP, and the APIs behind
+        social USDC payments. This deck shows where each piece lives in our repos.
+      </p>
+      <div class="hero-stat">
+        <span><strong>4</strong> repos</span>
+        <span><strong>4</strong> pages</span>
+      </div>
+    </header>
+
+    <section class="section-block">
+      <p class="section-num">01</p>
+      <h2>Architecture &amp; flows</h2>
+      <p class="section-desc">Repos and call paths from the UI through Edge to Circle, then on-chain.</p>
+      <div class="card-grid" style="display:grid">
+        <a class="card" href="01-architecture-map.html">
+          <h3>Multi-repo system map</h3>
+          <p>React app → Supabase Edge → Circle. Contracts and zkTLS sit alongside. Click a node for file paths.</p>
+          <span class="file">01-architecture-map.html →</span>
+        </a>
+        <a class="card" href="04-interactive-flows.html">
+          <h3>Payment &amp; Gateway flows</h3>
+          <p>zkSEND, Gateway deposit and transfer, CCTP bridge, gift cards - each step names the file.</p>
+          <span class="file">04-interactive-flows.html →</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="section-block">
+      <p class="section-num">02</p>
+      <h2>Integration status</h2>
+      <p class="section-desc">What ships today, what we are testing on testnet, and what is queued next.</p>
+      <div class="card-grid">
+        <a class="card" href="02-implementation-status.html">
+          <h3>Circle product matrix</h3>
+          <p>Developer Wallets, Gateway, Bridge Kit, zkTLS - with repo pointers.</p>
+          <span class="file">02-implementation-status.html →</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="section-block">
+      <p class="section-num">03</p>
+      <h2>Code map</h2>
+      <p class="section-desc">Filter by repo or layer. Copy a path and open it in the repo during the walkthrough.</p>
+      <div class="card-grid" style="display:grid">
+        <a class="card" href="03-files-contact-sheet.html">
+          <h3>Integration file index</h3>
+          <p>32 files we usually open in a Circle review. Copy a path and jump straight in.</p>
+          <span class="file">03-files-contact-sheet.html →</span>
+        </a>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

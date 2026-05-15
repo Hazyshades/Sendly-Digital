@@ -86,7 +86,7 @@ export async function createDirectDepositRecord(input: CreateDirectDepositInput)
 
 /**
  * List pending (unclaimed) deposits for a recipient from the Supabase index (GET).
- * Returns null if the route is missing (404) or errors — caller may fall back to RPC.
+ * Returns null if the route is missing (404) or errors - caller may fall back to RPC.
  */
 export async function fetchDirectDepositsPendingForRecipient(params: {
   recipientWallet: string;

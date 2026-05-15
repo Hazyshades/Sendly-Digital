@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sendly × Circle - Flows</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/presentation.css" />
+  <style>
+    .flow-tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1.25rem 0; }
+    .flow-tabs button {
+      font: inherit; font-size: 0.8rem; padding: 0.5rem 0.9rem;
+      background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+      border-radius: 8px; cursor: pointer; text-align: left;
+    }
+    .flow-tabs button.active { border-color: var(--circle); color: var(--text); background: var(--surface2); }
+    .steps { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+    .step {
+      position: relative; padding: 1rem 1rem 1rem 3rem;
+      border-left: 2px solid var(--border); margin-left: 0.75rem;
+      cursor: pointer;
+    }
+    .step::before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute; left: -0.65rem; top: 1rem;
+      width: 1.3rem; height: 1.3rem; border-radius: 50%;
+      background: var(--surface2); border: 2px solid var(--border);
+      font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    }
+    .step.active { border-left-color: var(--circle); background: var(--surface); }
+    .step.active::before { border-color: var(--circle); background: var(--circle); color: #fff; }
+    .step h4 { margin: 0 0 0.25rem; font-size: 0.95rem; }
+    .step p { margin: 0; font-size: 0.85rem; color: var(--muted); }
+    .step p a, .step-detail .file-refs a {
+      color: var(--accent);
+      text-decoration: none;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+    }
+    .step p a:hover, .step-detail .file-refs a:hover { text-decoration: underline; }
+    .step-detail {
+      margin-top: 1.5rem; padding: 1.25rem;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    }
+    .step-detail .file-refs { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0; }
+    .file-sep { color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; }
+  </style>
+</head>
+<body class="sendly-bg">
+  <div aria-hidden="true" class="abstract-blob"></div>
+  <div class="wrap">
+    <a class="back" href="overview.html">← Overview</a>
+    <p class="eyebrow">04 · Flows</p>
+    <h1>Payment flows</h1>
+    <p class="lead">Pick a flow, then a step. You get the file name and what happens on that line.</p>
+
+    <div class="flow-tabs" id="tabs"></div>
+    <ol class="steps" id="steps"></ol>
+    <div class="step-detail" id="detail">
+      <p>Choose a flow above, then a step.</p>
+    </div>
+  </div>
+
+  <script>
+    const flows = {
+      gift: {
+        title: "1 · NFT Gift Cards",
+        status: "IMPLEMENTED",
+        steps: [
+          { title: "Sender creates card", file: "CreateGiftCard.tsx", note: "/create - mint ERC-721 with message and USDC from the Circle wallet" },
+          { title: "USDC locked on-chain", file: "sendly-contracts/giftCard/.../GiftCard.sol", note: "Funds sit in the contract until someone claims" },
+          { title: "Recipient signs in", file: "useCircleWallet.ts · Privy OAuth", note: "Privy OAuth for identity today." },
+          { title: "Claim", file: "GiftCard.sol claim flow", note: "NFT moves to the recipient wallet; they can redeem the USDC" },
+        ],
+      },
+      payment: {
+        title: "2 · Payments with zkTLS",
+        status: "IMPLEMENTED",
+        steps: [
+          { title: "Sender fills the form", file: "SendPaymentForm.tsx · WalletSourceToggle.tsx", note: "@username and amount. Source wallet is the Circle dev wallet." },
+          { title: "Resolve recipient", file: "useCircleWallet.ts", note: "Wallet address → social handle" },
+          { title: "Approve and createPayment", file: "SendPaymentForm.tsx + index.tsx /wallets/send-transaction", note: "DeveloperWalletService → Edge → Circle contractExecution → ZkSend.sol" },
+          { title: "Wait for confirmation", file: "developerWalletService.pollTransactionStatus", note: "Polls Circle through Supabase Edge" },
+          { title: "Recipient proves handle", file: "sendly-zktls-attestator/server.js", note: "zkTLS proof, then claimPayment on ZkSend.sol" },
+          { title: "Claim completes", file: "ZkSend.sol claimPayment", note: "USDC lands in the recipient wallet" },
+        ],
+      },
+      gateway: {
+        title: "3 · Gateway",
+        status: "IN TESTING",
+        steps: [
+          { title: "Open /gateway", file: "GatewayRoute.tsx", note: "Still shaking this out on testnet" },
+          { title: "Load balances", file: "gatewayClient.ts → gateway-api-testnet", note: "GET /v1/balances" },
+          { title: "Deposit", file: "gatewayService.deposit()", note: "approve, then GatewayWallet.deposit" },
+          { title: "Transfer", file: "gatewayService.transfer()", note: "Sign EIP-712 BurnIntent, hit the API, gatewayMint on the destination chain" },
+          { title: "Server-side UBK", file: "gateway-balances, gateway-deposit, gateway-spend", note: "Unified Balance Kit with adapter-circle-wallets" },
+        ],
+      },
+      bridge: {
+        title: "4 · CCTP",
+        status: "IMPLEMENTED",
+        steps: [
+          { title: "Open /bridge", file: "BridgeRoute.tsx", note: "" },
+          { title: "Check the route", file: "bridgeConfig.ts", note: "validateBridgeRouteByAddresses" },
+          { title: "Run the bridge", file: "bridgeService.ts", note: "Bridge Kit + viem adapter: approve, burn, mint" },
+        ],
+      },
+    };
+
+    const GITHUB_ORG = "Sendly-Digital";
+    const GITHUB_BRANCH = "main";
+
+    const FILE_PATHS = {
+      "CreateGiftCard.tsx": "sendly-frontend/src/components/CreateGiftCard.tsx",
+      "SendPaymentForm.tsx": "sendly-frontend/src/components/zksend/SendPaymentForm.tsx",
+      "WalletSourceToggle.tsx": "sendly-frontend/src/components/zksend/WalletSourceToggle.tsx",
+      "useCircleWallet.ts": "sendly-frontend/src/hooks/useCircleWallet.ts",
+      "developerWalletService.pollTransactionStatus": "sendly-frontend/src/lib/circle/developerWalletService.ts",
+      "GatewayRoute.tsx": "sendly-frontend/src/pages/GatewayRoute.tsx",
+      "gatewayClient.ts": "sendly-frontend/src/lib/circle/gateway/gatewayClient.ts",
+      "gatewayService.deposit()": "sendly-frontend/src/lib/circle/gateway/gatewayService.ts",
+      "gatewayService.transfer()": "sendly-frontend/src/lib/circle/gateway/gatewayService.ts",
+      "BridgeRoute.tsx": "sendly-frontend/src/pages/BridgeRoute.tsx",
+      "bridgeConfig.ts": "sendly-frontend/src/lib/bridge/bridgeConfig.ts",
+      "bridgeService.ts": "sendly-frontend/src/lib/bridge/bridgeService.ts",
+      "index.tsx /wallets/send-transaction": "sendly-supabase/functions/arc/server/index.tsx",
+      "sendly-contracts/giftCard/.../GiftCard.sol": "sendly-contracts/giftCard/contracts/contracts/GiftCard.sol",
+      "GiftCard.sol claim flow": "sendly-contracts/giftCard/contracts/contracts/GiftCard.sol",
+      "ZkSend.sol claimPayment": "sendly-contracts/zktls_payments/ZkSend.sol",
+      "sendly-zktls-attestator/server.js": "sendly-zktls-attestator/server.js",
+      "gateway-balances": "sendly-supabase/functions/arc/server/gateway-balances/index.ts",
+      "gateway-deposit": "sendly-supabase/functions/arc/server/gateway-deposit/index.ts",
+      "gateway-spend": "sendly-supabase/functions/arc/server/gateway-spend/index.ts",
+    };
+
+    function pathToGithubUrl(fullPath) {
+      const slash = fullPath.indexOf("/");
+      if (slash === -1) {
+        return `https://github.com/${GITHUB_ORG}/${fullPath}`;
+      }
+      const repo = fullPath.slice(0, slash);
+      const filePath = fullPath.slice(slash + 1);
+      return `https://github.com/${GITHUB_ORG}/${repo}/blob/${GITHUB_BRANCH}/${filePath}`;
+    }
+
+    function escapeHtml(s) {
+      return s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function resolveFilePath(token) {
+      const t = token.trim();
+      if (!t) return null;
+      if (FILE_PATHS[t]) return FILE_PATHS[t];
+      if (/^sendly-[\w-]+\/.+/.test(t) && !t.includes("...")) return t;
+      return null;
+    }
+
+    function linkForRef(token) {
+      const t = token.trim();
+      const label = escapeHtml(t);
+      const path = resolveFilePath(t);
+      if (!path) return label;
+      const href = pathToGithubUrl(path);
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+    }
+
+    function formatFileRefs(fileStr) {
+      const rules = [
+        { re: /\s*→\s*/, sep: " → " },
+        { re: /\s*·\s*/, sep: " · " },
+        { re: /\s*,\s*/, sep: ", " },
+        { re: /\s*\+\s*/, sep: " + " },
+      ];
+      let parts = [fileStr];
+      let sep = "";
+      for (const rule of rules) {
+        if (rule.re.test(fileStr)) {
+          parts = fileStr.split(rule.re).filter((p) => p.trim());
+          sep = rule.sep;
+          break;
+        }
+      }
+      return parts
+        .map((part, i) => (i ? `<span class="file-sep">${sep}</span>` : "") + linkForRef(part))
+        .join("");
+    }
+
+    let flowKey = "gift";
+    let stepIdx = 0;
+    const tabs = document.getElementById("tabs");
+    const stepsEl = document.getElementById("steps");
+    const detail = document.getElementById("detail");
+
+    Object.keys(flows).forEach((key) => {
+      const f = flows[key];
+      const b = document.createElement("button");
+      b.textContent = f.title;
+      b.dataset.key = key;
+      if (key === flowKey) b.classList.add("active");
+      b.addEventListener("click", () => {
+        flowKey = key;
+        stepIdx = 0;
+        tabs.querySelectorAll("button").forEach((x) => x.classList.toggle("active", x.dataset.key === flowKey));
+        renderSteps();
+        showDetail();
+      });
+      tabs.appendChild(b);
+    });
+
+    function renderSteps() {
+      const f = flows[flowKey];
+      stepsEl.innerHTML = f.steps.map((s, i) => `
+        <li class="step ${i === stepIdx ? "active" : ""}" data-i="${i}">
+          <h4>${s.title}</h4>
+          <p>${formatFileRefs(s.file)}</p>
+        </li>
+      `).join("");
+      stepsEl.querySelectorAll(".step").forEach((el) => {
+        el.addEventListener("click", () => {
+          stepIdx = +el.dataset.i;
+          renderSteps();
+          showDetail();
+        });
+      });
+    }
+
+    function showDetail() {
+      const f = flows[flowKey];
+      const s = f.steps[stepIdx];
+      detail.innerHTML = `
+        <p><span class="badge badge-${f.status === "IMPLEMENTED" ? "live" : "test"}">${f.status}</span></p>
+        <h3 style="margin:0.5rem 0 0;font-family:var(--display);font-weight:400">${s.title}</h3>
+        <p class="file-refs">${formatFileRefs(s.file)}</p>
+        <p style="margin:0">${s.note || "-"}</p>
+      `;
+    }
+
+    renderSteps();
+    showDetail();
+  </script>
+</body>
+</html>

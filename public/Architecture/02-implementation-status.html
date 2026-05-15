@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sendly × Circle - Implementation status</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/presentation.css" />
+  <style>
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { text-align: left; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    tr:hover td { background: var(--surface2); }
+    td code { font-size: 0.8rem; }
+    td a { color: var(--sendly-indigo); text-decoration: none; }
+    td a:hover { text-decoration: underline; }
+    td a code { color: inherit; }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 1.5rem 0; }
+    h2.section { font-family: var(--display); font-size: 1.35rem; margin: 2rem 0 0.75rem; }
+    .planned-list ul { margin: 0; padding: 1rem 1.25rem 1rem 2.25rem; color: var(--muted); }
+  </style>
+</head>
+<body class="sendly-bg">
+  <div aria-hidden="true" class="abstract-blob"></div>
+  <div class="wrap">
+    <a class="back" href="overview.html">← Overview</a>
+    <p class="eyebrow">02 · Status</p>
+    <h1>Circle product matrix</h1>
+    <p class="lead">What is live, what we are exercising on testnet, and what is still in the queue.</p>
+
+    <h2 class="section">Implemented</h2>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Product</th><th>Status</th><th>Where</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Developer-Controlled Wallets</td>
+            <td><span class="badge badge-live">Live</span></td>
+            <td>
+              <a href="https://github.com/Sendly-Digital/sendly-frontend/blob/main/src/lib/circle/developerWalletService.ts" target="_blank" rel="noopener noreferrer"><code>developerWalletService.ts</code></a>
+              ·
+              <a href="https://github.com/Sendly-Digital/sendly-supabase/blob/main/functions/arc/server/index.tsx" target="_blank" rel="noopener noreferrer"><code>functions/arc/server/index.tsx</code></a>
+            </td>
+          </tr>
+          <tr>
+            <td>Bridge Kit / CCTP</td>
+            <td><span class="badge badge-live">Live</span></td>
+            <td>
+              <a href="https://github.com/Sendly-Digital/sendly-frontend/blob/main/src/lib/bridge/bridgeService.ts" target="_blank" rel="noopener noreferrer"><code>bridgeService.ts</code></a>,
+              <a href="https://github.com/Sendly-Digital/sendly-frontend/blob/main/src/pages/BridgeRoute.tsx" target="_blank" rel="noopener noreferrer">bridge UI</a>
+            </td>
+          </tr>
+          <tr>
+            <td>Social identity</td>
+            <td><span class="badge badge-live">Live</span></td>
+            <td>
+              <a href="https://github.com/Sendly-Digital/sendly-frontend/blob/main/src/hooks/useCircleWallet.ts" target="_blank" rel="noopener noreferrer"><code>useCircleWallet.ts</code></a>
+            </td>
+          </tr>
+          <tr>
+            <td>zkTLS backend</td>
+            <td><span class="badge badge-live">Deployed</span></td>
+            <td>
+              <a href="https://github.com/Sendly-Digital/sendly-zktls-attestator" target="_blank" rel="noopener noreferrer"><code>sendly-zktls-attestator</code></a>
+            </td>
+          </tr>
+          <tr>
+            <td>ZkSend / GiftCard</td>
+            <td><span class="badge badge-live">Deployed</span></td>
+            <td>
+              <a href="https://github.com/Sendly-Digital/sendly-contracts" target="_blank" rel="noopener noreferrer"><code>sendly-contracts</code></a>
+            </td>
+          </tr>
+          <tr>
+            <td>Gateway (frontend)</td>
+            <td><span class="badge badge-test">In testing</span></td>
+            <td>
+              <a href="https://github.com/Sendly-Digital/sendly-frontend/tree/main/src/lib/circle/gateway" target="_blank" rel="noopener noreferrer"><code>src/lib/circle/gateway/*</code></a>
+            </td>
+          </tr>
+          <tr>
+            <td>Unified Balance Kit (backend)</td>
+            <td><span class="badge badge-test">In testing</span></td>
+            <td>
+              <a href="https://github.com/Sendly-Digital/sendly-supabase/tree/main/functions/arc/server/gateway-balances" target="_blank" rel="noopener noreferrer"><code>gateway-balances</code></a> /
+              <a href="https://github.com/Sendly-Digital/sendly-supabase/tree/main/functions/arc/server/gateway-deposit" target="_blank" rel="noopener noreferrer"><code>deposit</code></a> /
+              <a href="https://github.com/Sendly-Digital/sendly-supabase/tree/main/functions/arc/server/gateway-spend" target="_blank" rel="noopener noreferrer"><code>spend</code></a>
+            </td>
+          </tr>
+         
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="section">Planned</h2>
+    <div class="panel planned-list">
+      <ul style="margin:0;padding-left:1.2rem;color:var(--muted)">
+        <li>Agent Wallet</li>
+        <li>x402 Nanopayments</li>
+        <li>Modular Wallet</li>
+        <li>Sendly SDK · Fiat Ramps · Mobile App</li>
+      </ul>
+    </div>
+
+    <h2 class="section">Dual Gateway</h2>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Layer</th><th>Path</th><th>Approach</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Frontend</td>
+            <td>
+              <a href="https://github.com/Sendly-Digital/sendly-frontend/tree/main/src/lib/circle/gateway" target="_blank" rel="noopener noreferrer"><code>sendly-frontend/src/lib/circle/gateway/</code></a>
+            </td>
+            <td>viem + EIP-712 + Gateway REST</td>
+          </tr>
+          <tr>
+            <td>Backend</td>
+            <td>
+              <a href="https://github.com/Sendly-Digital/sendly-supabase/tree/main/functions/arc/server" target="_blank" rel="noopener noreferrer"><code>sendly-supabase/.../gateway-*/</code></a>
+            </td>
+            <td>Unified Balance Kit + adapter-circle-wallets</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

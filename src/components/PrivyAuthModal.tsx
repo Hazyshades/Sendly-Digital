@@ -503,7 +503,7 @@ export function PrivyAuthModal({ isOpen, onClose }: PrivyAuthModalProps) {
               )}
             </div>
 
-            {/* Instagram / Threads — temporarily hidden
+            {/* Instagram / Threads - temporarily hidden
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 rounded-lg flex items-center justify-center overflow-hidden">

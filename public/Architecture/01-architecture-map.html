@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sendly × Circle - Architecture</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/presentation.css" />
+  <style>
+    .diagram-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+    }
+    .diagram-wrap svg { width: 100%; height: auto; max-height: 420px; }
+    .node { cursor: pointer; transition: opacity 0.15s; }
+    .node:hover rect { stroke: var(--sendly-indigo); stroke-width: 2; }
+    .node.dim { opacity: 0.35; }
+    .detail {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      min-height: 120px;
+    }
+    .detail h3 { margin: 0 0 0.5rem; font-size: 1.1rem; }
+    .detail p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+    .detail ul { margin: 0.75rem 0 0; padding-left: 1.2rem; font-size: 0.85rem; color: var(--muted); }
+    .detail ul a { color: var(--accent); text-decoration: none; }
+    .detail ul a:hover { text-decoration: underline; }
+    .detail ul a code { color: inherit; }
+    .detail ul .path-note { color: var(--muted); }
+    .legend { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.8rem; color: var(--muted); margin-top: 1rem; }
+    .legend span::before {
+      content: "";
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      margin-right: 0.35rem;
+      vertical-align: middle;
+    }
+    .legend .fe::before { background: #6366f1; }
+    .legend .sb::before { background: #10b981; }
+    .legend .ct::before { background: #f59e0b; }
+    .legend .zk::before { background: #8b5cf6; }
+    .legend .ci::before { background: #4f46e5; }
+  </style>
+</head>
+<body class="sendly-bg">
+  <div aria-hidden="true" class="abstract-blob"></div>
+  <div class="wrap">
+    <a class="back" href="overview.html">← Overview</a>
+    <p class="eyebrow">01 · Architecture</p>
+    <h1>Multi-repo system map</h1>
+    <p class="lead">Click a box to see what that repo owns and which Circle APIs it calls. Same layout as <code>docs/Architecture.md</code>.</p>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" aria-label="Sendly architecture">
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#6366f1" />
+          </marker>
+        </defs>
+        <path d="M200 95 L280 95" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow)" fill="none"/>
+        <path d="M420 95 L500 95" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow)" fill="none"/>
+        <path d="M120 130 L120 200 L200 200" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="4" fill="none"/>
+        <path d="M320 130 L320 175 L200 200" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="4" fill="none"/>
+        <path d="M120 200 L120 280" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow)" fill="none"/>
+        <path d="M200 95 L200 55 L120 55 L120 95" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#arrow)" fill="none"/>
+
+        <g class="node" data-id="frontend">
+          <rect x="40" y="70" width="160" height="56" rx="12" fill="rgba(255,255,255,0.92)" stroke="#6366f1"/>
+          <text x="120" y="95" text-anchor="middle" fill="#111827" font-size="13" font-family="Plus Jakarta Sans,sans-serif" font-weight="600">sendly-frontend</text>
+          <text x="120" y="112" text-anchor="middle" fill="#6b7280" font-size="10" font-family="Plus Jakarta Sans,sans-serif">React · Vite</text>
+        </g>
+        <g class="node" data-id="supabase">
+          <rect x="280" y="70" width="140" height="56" rx="12" fill="rgba(255,255,255,0.92)" stroke="#10b981"/>
+          <text x="350" y="95" text-anchor="middle" fill="#111827" font-size="13" font-family="Plus Jakarta Sans,sans-serif" font-weight="600">sendly-supabase</text>
+          <text x="350" y="112" text-anchor="middle" fill="#6b7280" font-size="10" font-family="Plus Jakarta Sans,sans-serif">Edge + Postgres</text>
+        </g>
+        <g class="node" data-id="circle">
+          <rect x="500" y="70" width="160" height="56" rx="12" fill="rgba(255,255,255,0.92)" stroke="#4f46e5"/>
+          <text x="580" y="95" text-anchor="middle" fill="#111827" font-size="13" font-family="Plus Jakarta Sans,sans-serif" font-weight="600">Circle APIs</text>
+          <text x="580" y="112" text-anchor="middle" fill="#6b7280" font-size="10" font-family="Plus Jakarta Sans,sans-serif">Wallets · Gateway · CCTP</text>
+        </g>
+        <g class="node" data-id="contracts">
+          <rect x="40" y="260" width="160" height="56" rx="12" fill="rgba(255,255,255,0.92)" stroke="#f59e0b"/>
+          <text x="120" y="285" text-anchor="middle" fill="#111827" font-size="13" font-family="Plus Jakarta Sans,sans-serif" font-weight="600">sendly-contracts</text>
+          <text x="120" y="302" text-anchor="middle" fill="#6b7280" font-size="10" font-family="Plus Jakarta Sans,sans-serif">ZkSend · GiftCard</text>
+        </g>
+        <g class="node" data-id="zktls">
+          <rect x="40" y="10" width="160" height="48" rx="12" fill="rgba(255,255,255,0.92)" stroke="#8b5cf6"/>
+          <text x="120" y="32" text-anchor="middle" fill="#111827" font-size="12" font-family="Plus Jakarta Sans,sans-serif" font-weight="600">zktls-attestator</text>
+          <text x="120" y="48" text-anchor="middle" fill="#6b7280" font-size="9" font-family="Plus Jakarta Sans,sans-serif">api.sendly.digital</text>
+        </g>
+        <text x="360" y="200" text-anchor="middle" fill="#6b7280" font-size="11" font-family="Plus Jakarta Sans,sans-serif">Settles on Arc Testnet</text>
+      </svg>
+    </div>
+
+    <div class="legend">
+      <span class="fe">Frontend</span>
+      <span class="sb">Supabase</span>
+      <span class="ci">Circle</span>
+      <span class="ct">Contracts</span>
+      <span class="zk">zkTLS</span>
+    </div>
+
+    <div class="detail" id="detail">
+      <h3>Pick a repo</h3>
+      <p>Click a box on the diagram.</p>
+    </div>
+  </div>
+
+  <script>
+    const info = {
+      frontend: {
+        title: "sendly-frontend",
+        body: "UI, internal vs browser wallet toggle, tx building, Gateway and Bridge in the client.",
+        paths: [
+          "src/lib/circle/developerWalletService.ts",
+          "src/lib/circle/gateway/*",
+          "src/lib/bridge/bridgeService.ts",
+          "src/components/zksend/*",
+        ],
+      },
+      supabase: {
+        title: "sendly-supabase",
+        body: "API keys and entity secret never leave the Edge layer. Wallets, contractExecution, Gateway UBK.",
+        paths: [
+          "functions/arc/server/index.tsx - /wallets/*",
+          "functions/arc/server/gateway-*/",
+        ],
+      },
+      circle: {
+        title: "Circle APIs (external)",
+        body: "Developer-Controlled Wallets, Gateway attestation, CCTP and Bridge Kit.",
+        paths: ["api.circle.com", "gateway-api-testnet.circle.com"],
+      },
+      contracts: {
+        title: "sendly-contracts",
+        body: "zkSEND payments and NFT gift cards. Both settle on Arc Testnet.",
+        paths: ["zktls_payments/ZkSend.sol", "giftCard/.../GiftCard.sol"],
+      },
+      zktls: {
+        title: "sendly-zktls-attestator",
+        body: "OAuth, Reclaim and zkFetch checks, zkTLS proofs for claim flows.",
+        paths: ["server.js - /api/reclaim/*, /api/proof/generate"],
+      },
+    };
+
+    const GITHUB_ORG = "Sendly-Digital";
+    const GITHUB_BRANCH = "main";
+
+    const REPO_BY_NODE = {
+      frontend: "sendly-frontend",
+      supabase: "sendly-supabase",
+      contracts: "sendly-contracts",
+      zktls: "sendly-zktls-attestator",
+    };
+
+    const PATH_OVERRIDES = {
+      "giftCard/.../GiftCard.sol": "giftCard/contracts/contracts/GiftCard.sol",
+      "functions/arc/server/gateway-*/": "functions/arc/server/gateway-balances",
+      "server.js - /api/reclaim/*, /api/proof/generate": "server.js",
+    };
+
+    const EXTERNAL_LINKS = {
+      "api.circle.com": "https://developers.circle.com",
+      "gateway-api-testnet.circle.com": "https://developers.circle.com/api-reference/circle-mint/api-reference-programmatic-accesses/gateway",
+    };
+
+    function escapeHtml(s) {
+      return s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function githubUrl(repo, filePath, tree) {
+      const base = `https://github.com/${GITHUB_ORG}/${repo}`;
+      return tree
+        ? `${base}/tree/${GITHUB_BRANCH}/${filePath}`
+        : `${base}/blob/${GITHUB_BRANCH}/${filePath}`;
+    }
+
+    function formatPathLine(nodeId, raw) {
+      const noteIdx = raw.indexOf(" - ");
+      const filePart = noteIdx === -1 ? raw.trim() : raw.slice(0, noteIdx).trim();
+      const note = noteIdx === -1 ? "" : raw.slice(noteIdx);
+
+      const repo = REPO_BY_NODE[nodeId];
+      if (!repo) {
+        const href = EXTERNAL_LINKS[filePart];
+        if (href) {
+          return `<li><a href="${href}" target="_blank" rel="noopener noreferrer"><code>${escapeHtml(raw)}</code></a></li>`;
+        }
+        return `<li><code>${escapeHtml(raw)}</code></li>`;
+      }
+
+      let path = PATH_OVERRIDES[raw] || PATH_OVERRIDES[filePart] || filePart;
+      const isTree = /\*\/?$/.test(path) || path.endsWith("*/");
+      if (isTree) {
+        path = path.replace(/\/?\*+\/?$/, "").replace(/\/$/, "");
+        const href = githubUrl(repo, path, true);
+        return `<li><a href="${href}" target="_blank" rel="noopener noreferrer"><code>${escapeHtml(filePart)}</code></a>${note ? `<span class="path-note">${escapeHtml(note)}</span>` : ""}</li>`;
+      }
+
+      const href = githubUrl(repo, path, false);
+      return `<li><a href="${href}" target="_blank" rel="noopener noreferrer"><code>${escapeHtml(filePart)}</code></a>${note ? `<span class="path-note">${escapeHtml(note)}</span>` : ""}</li>`;
+    }
+
+    const detail = document.getElementById("detail");
+    document.querySelectorAll(".node").forEach((node) => {
+      node.addEventListener("click", () => {
+        const id = node.dataset.id;
+        const d = info[id];
+        document.querySelectorAll(".node").forEach((n) => n.classList.toggle("dim", n !== node));
+        detail.innerHTML = `<h3>${escapeHtml(d.title)}</h3><p>${escapeHtml(d.body)}</p><ul>${d.paths.map((p) => formatPathLine(id, p)).join("")}</ul>`;
+      });
+    });
+  </script>
+</body>
+</html>

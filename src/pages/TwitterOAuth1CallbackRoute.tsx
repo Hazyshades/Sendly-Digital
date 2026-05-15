@@ -87,7 +87,7 @@ export function TwitterOAuth1CallbackRoute() {
 
     const exchange = async () => {
       if (!oauthToken || !oauthVerifier) {
-        // if no needed parameters — simply close the popup, if not opened from the popup, redirect to the main page.
+        // if no needed parameters - simply close the popup, if not opened from the popup, redirect to the main page.
         if (window.opener && !window.opener.closed) {
           window.close();
         } else {
@@ -143,7 +143,7 @@ export function TwitterOAuth1CallbackRoute() {
         console.error('[OAuth1 Callback] exchange failed:', error);
       }
 
-      // If popup opened not from the parent window (opener is not accessible) — redirect to the main page.
+      // If popup opened not from the parent window (opener is not accessible) - redirect to the main page.
       if (!window.opener || window.opener.closed) {
         navigate('/');
       } else {

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sendly × Circle - Code map</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/presentation.css" />
+  <style>
+    .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1.25rem 0; }
+    .toolbar button {
+      font: inherit; font-size: 0.8rem; padding: 0.4rem 0.75rem;
+      background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+      border-radius: 999px; cursor: pointer;
+    }
+    .toolbar button.active { border-color: var(--circle); color: var(--text); background: var(--surface2); }
+    .file-list { list-style: none; margin: 0; padding: 0; }
+    .file-item {
+      display: grid; grid-template-columns: 2rem 1fr auto;
+      gap: 0.75rem; align-items: start;
+      padding: 0.85rem 1rem; border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .file-item.must { border-left: 3px solid var(--circle); }
+    .file-item.hidden { display: none; }
+    .file-item .num { color: var(--muted); font-size: 0.8rem; font-weight: 600; }
+    .file-item .path { font-family: var(--font-mono); font-size: 0.8rem; word-break: break-all; }
+    .file-item .path a { color: var(--accent); text-decoration: none; }
+    .file-item .path a:hover { text-decoration: underline; }
+    .file-item .meta { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+    .copy-btn {
+      font-size: 0.7rem; padding: 0.25rem 0.5rem; background: var(--surface2);
+      border: 1px solid var(--border); color: var(--text); border-radius: 4px; cursor: pointer;
+    }
+    .copy-btn:hover { border-color: var(--circle); }
+    .count { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body class="sendly-bg">
+  <div aria-hidden="true" class="abstract-blob"></div>
+  <div class="wrap">
+    <a class="back" href="overview.html">← Overview</a>
+    <p class="eyebrow">03 · Code map</p>
+    <h1>Integration file index</h1>
+    <p class="lead">Filter by repo or layer. Copy a path and open it while we walk through the code.</p>
+
+    <div class="toolbar" id="filters"></div>
+    <p class="count" id="count"></p>
+    <ul class="file-list" id="list"></ul>
+  </div>
+
+  <script>
+    const files = [
+      { n: 1, tier: "must", repo: "frontend", path: "sendly-frontend/src/lib/circle/developerWalletService.ts", product: "Dev Wallets", show: "DeveloperWalletService class" },
+      { n: 2, tier: "must", repo: "frontend", path: "sendly-frontend/src/hooks/useCircleWallet.ts", product: "Dev Wallets", show: "useCircleWallet, getCircleWalletPrivyUserIdForTx" },
+      { n: 3, tier: "must", repo: "frontend", path: "sendly-frontend/src/components/zksend/WalletSourceToggle.tsx", product: "Dev Wallets UX", show: "Internal vs Browser wallet toggle" },
+      { n: 4, tier: "must", repo: "frontend", path: "sendly-frontend/src/components/zksend/SendPaymentForm.tsx", product: "zkSEND", show: "onSubmit, sendTransaction, createPayment" },
+      { n: 5, tier: "must", repo: "frontend", path: "sendly-frontend/src/components/CreateGiftCard.tsx", product: "Gift cards", show: "Circle approve + mint flow" },
+      { n: 6, tier: "must", repo: "frontend", path: "sendly-frontend/src/lib/circle/gateway/gatewayService.ts", product: "Gateway", show: "deposit(), transfer()" },
+      { n: 7, tier: "must", repo: "frontend", path: "sendly-frontend/src/lib/circle/gateway/gatewayClient.ts", product: "Gateway API", show: "GatewayClient methods" },
+      { n: 8, tier: "must", repo: "frontend", path: "sendly-frontend/src/lib/circle/gateway/typedData.ts", product: "Gateway", show: "EIP-712 BurnIntent" },
+      { n: 9, tier: "gateway", repo: "frontend", path: "sendly-frontend/src/lib/circle/gateway/gatewayConfig.ts", product: "Gateway", show: "getGatewayConfig()" },
+      { n: 10, tier: "gateway", repo: "frontend", path: "sendly-frontend/src/lib/circle/gateway/abis.ts", product: "Gateway", show: "GatewayWallet, GatewayMinter ABIs" },
+      { n: 11, tier: "gateway", repo: "frontend", path: "sendly-frontend/src/components/gateway/GatewayBalanceCard.tsx", product: "Gateway UI", show: "Unified balance card" },
+      { n: 12, tier: "gateway", repo: "frontend", path: "sendly-frontend/src/components/gateway/GatewayDepositDialog.tsx", product: "Gateway UI", show: "handleDeposit()" },
+      { n: 13, tier: "gateway", repo: "frontend", path: "sendly-frontend/src/components/gateway/GatewayTransferDialog.tsx", product: "Gateway UI", show: "handleTransfer()" },
+      { n: 14, tier: "gateway", repo: "frontend", path: "sendly-frontend/src/pages/GatewayRoute.tsx", product: "Gateway", show: "/gateway route" },
+      { n: 15, tier: "must", repo: "supabase", path: "sendly-supabase/functions/arc/server/index.tsx", product: "Dev Wallets", show: "/wallets/send-transaction - hide env" },
+      { n: 16, tier: "must", repo: "supabase", path: "sendly-supabase/functions/arc/zk-sender/index.ts", product: "zkSEND", show: "ZkSend encode + send-transaction" },
+      { n: 17, tier: "gateway", repo: "supabase", path: "sendly-supabase/functions/arc/server/gateway-balances/index.ts", product: "UBK", show: "UnifiedBalanceKit.getBalances()" },
+      { n: 18, tier: "gateway", repo: "supabase", path: "sendly-supabase/functions/arc/server/gateway-deposit/index.ts", product: "UBK", show: "UnifiedBalanceKit.deposit()" },
+      { n: 19, tier: "gateway", repo: "supabase", path: "sendly-supabase/functions/arc/server/gateway-spend/index.ts", product: "UBK", show: "UnifiedBalanceKit.spend()" },
+      { n: 20, tier: "db", repo: "supabase", path: "sendly-supabase/migrations/zktls-attestator/025_create_zksend_payments.sql", product: "DB", show: "zksend_payments" },
+      { n: 21, tier: "rec", repo: "contracts", path: "sendly-contracts/zktls_payments/ZkSend.sol", product: "zkSEND", show: "createPayment, claimPayment" },
+      { n: 22, tier: "rec", repo: "contracts", path: "sendly-contracts/giftCard/contracts/contracts/GiftCard.sol", product: "Gift cards", show: "mint / claim" },
+      { n: 23, tier: "rec", repo: "zktls", path: "sendly-zktls-attestator/server.js", product: "zkTLS", show: "Reclaim routes - no secrets" },
+      { n: 24, tier: "rec", repo: "zktls", path: "sendly-zktls-attestator/README.md", product: "zkTLS", show: "API overview" },
+      { n: 25, tier: "bridge", repo: "frontend", path: "sendly-frontend/src/lib/bridge/bridgeService.ts", product: "CCTP", show: "kit.bridge()" },
+      { n: 26, tier: "bridge", repo: "frontend", path: "sendly-frontend/src/lib/bridge/bridgeConfig.ts", product: "CCTP", show: "validateBridgeRouteByAddresses" },
+      { n: 27, tier: "bridge", repo: "frontend", path: "sendly-frontend/src/components/BridgeUsdcDialog.tsx", product: "CCTP UI", show: "handleBridge()" },
+      { n: 28, tier: "bridge", repo: "frontend", path: "sendly-frontend/src/components/BridgeDialog.tsx", product: "CCTP UI", show: "bridge dialog" },
+      { n: 29, tier: "bridge", repo: "frontend", path: "sendly-frontend/src/pages/BridgeRoute.tsx", product: "CCTP", show: "/bridge" },
+      { n: 30, tier: "ref", repo: "frontend", path: "sendly-frontend/package.json", product: "SDKs", show: "4 Circle dependencies" },
+      { n: 31, tier: "ref", repo: "frontend", path: "sendly-frontend/docs/Architecture.md", product: "Docs", show: "multi-repo map" },
+      { n: 32, tier: "ref", repo: "frontend", path: "sendly-frontend/src/App.tsx", product: "Routes", show: "/gateway, /bridge, /payments" },
+    ];
+
+    const filterDefs = [
+      { id: "all", label: "All" },
+      { id: "must", label: "Core" },
+      { id: "frontend", label: "Frontend" },
+      { id: "supabase", label: "Supabase" },
+      { id: "contracts", label: "Contracts" },
+      { id: "zktls", label: "Zktls" },
+      { id: "gateway", label: "Gateway" },
+      { id: "bridge", label: "Bridge" },
+    ];
+
+    const GITHUB_ORG = "Sendly-Digital";
+    const GITHUB_BRANCH = "main";
+
+    function pathToGithubUrl(fullPath) {
+      const slash = fullPath.indexOf("/");
+      if (slash === -1) {
+        return `https://github.com/${GITHUB_ORG}/${fullPath}`;
+      }
+      const repo = fullPath.slice(0, slash);
+      const filePath = fullPath.slice(slash + 1);
+      return `https://github.com/${GITHUB_ORG}/${repo}/blob/${GITHUB_BRANCH}/${filePath}`;
+    }
+
+    function escapeHtml(s) {
+      return s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    let active = "all";
+    const filtersEl = document.getElementById("filters");
+    const listEl = document.getElementById("list");
+    const countEl = document.getElementById("count");
+
+    filterDefs.forEach((f) => {
+      const b = document.createElement("button");
+      b.textContent = f.label;
+      b.dataset.id = f.id;
+      if (f.id === "all") b.classList.add("active");
+      b.addEventListener("click", () => {
+        active = f.id;
+        filtersEl.querySelectorAll("button").forEach((x) => x.classList.toggle("active", x.dataset.id === active));
+        render();
+      });
+      filtersEl.appendChild(b);
+    });
+
+    function match(f) {
+      if (active === "all") return true;
+      if (active === "must") return f.tier === "must";
+      if (active === "gateway") return f.tier === "gateway";
+      if (active === "bridge") return f.tier === "bridge";
+      return f.repo === active;
+    }
+
+    function render() {
+      const visible = files.filter(match);
+      countEl.textContent = `${visible.length} file${visible.length === 1 ? "" : "s"}`;
+      listEl.innerHTML = visible.map((f) => `
+        <li class="file-item ${f.tier === "must" ? "must" : ""}">
+          <span class="num">${f.n}</span>
+          <div>
+            <div class="path"><a href="${pathToGithubUrl(f.path)}" target="_blank" rel="noopener noreferrer">${escapeHtml(f.path)}</a></div>
+            <div class="meta"><span class="badge badge-${f.tier === "must" ? "live" : "plan"}">${f.product}</span> ${escapeHtml(f.show)}</div>
+          </div>
+          <button type="button" class="copy-btn" data-path="${escapeHtml(f.path)}">Copy</button>
+        </li>
+      `).join("");
+      listEl.querySelectorAll(".copy-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          navigator.clipboard.writeText(btn.dataset.path);
+          btn.textContent = "Copied";
+          setTimeout(() => { btn.textContent = "Copy"; }, 1200);
+        });
+      });
+    }
+    render();
+  </script>
+</body>
+</html>

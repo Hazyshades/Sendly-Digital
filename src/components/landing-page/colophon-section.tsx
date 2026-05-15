@@ -88,6 +88,7 @@ export function ColophonSection() {
         <div className="col-span-1">
           <h4 className="font-mono text-[9px] uppercase tracking-[0.2em] text-gray-500 mb-4">Stack</h4>
           <ul className="space-y-2">
+            <li className="font-mono text-xs text-gray-600">Circle SDK</li>
             <li className="font-mono text-xs text-gray-600">Reclaim Protocol</li>
           </ul>
         </div>

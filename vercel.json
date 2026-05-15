@@ -1,6 +1,36 @@
 {
   "redirects": [
     {
+      "source": "/Architecture",
+      "destination": "/Architecture/overview.html",
+      "permanent": false
+    },
+    {
+      "source": "/Architecture/",
+      "destination": "/Architecture/overview.html",
+      "permanent": false
+    },
+    {
+      "source": "/grant",
+      "destination": "/Architecture",
+      "permanent": true
+    },
+    {
+      "source": "/grant/",
+      "destination": "/Architecture",
+      "permanent": true
+    },
+    {
+      "source": "/grant/:path*",
+      "destination": "/Architecture/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/Architecture/index.html",
+      "destination": "/Architecture/overview.html",
+      "permanent": true
+    },
+    {
       "source": "/:path*",
       "has": [
         {
