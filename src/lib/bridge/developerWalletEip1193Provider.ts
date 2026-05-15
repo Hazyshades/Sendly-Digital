@@ -12,13 +12,19 @@ import { DeveloperWalletService, type DeveloperWallet } from '@/lib/circle/devel
 import { getCircleBlockchainForChainId } from '@/lib/bridge/chainIdToCircleBlockchain';
 import { BridgeError } from '@/lib/bridge/bridgeErrors';
 
+/** CCTP v2 uses `usdc.increaseAllowance` (OZ-style), not plain `approve` on many routes — not in narrow `erc20Abi`. */
+const ERC20_ALLOWANCE_EXTENSIONS_ABI = parseAbi([
+  'function increaseAllowance(address spender, uint256 addedValue) returns (bool)',
+  'function decreaseAllowance(address spender, uint256 subtractedValue) returns (bool)',
+]);
+
 const CCTP_V2_BRIDGE_DECODE_ABI = parseAbi([
   'function depositForBurn(uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address burnToken, bytes32 destinationCaller, uint256 maxFee, uint32 minFinalityThreshold)',
   'function depositForBurnWithHook(uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address burnToken, bytes32 destinationCaller, uint256 maxFee, uint32 minFinalityThreshold, bytes hookData)',
   'function receiveMessage(bytes message, bytes attestation)',
 ]);
 
-const DECODE_ABI = [...erc20Abi, ...CCTP_V2_BRIDGE_DECODE_ABI] as Abi;
+const DECODE_ABI = [...erc20Abi, ...ERC20_ALLOWANCE_EXTENSIONS_ABI, ...CCTP_V2_BRIDGE_DECODE_ABI] as Abi;
 
 export interface DeveloperWalletEip1193Context {
   wallet: DeveloperWallet;
