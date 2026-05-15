@@ -15,6 +15,20 @@ import { getBridgeHttpRpc } from '@/lib/bridge/bridgeRpc';
 export type { BridgeResult, BridgeParams };
 export { BridgeError };
 
+/** CCTP v2 steps use `burn` / `mint` (see `@circle-fin/provider-cctp-v2`); older docs used `depositForBurn`. */
+function stepNameLower(s: { name?: string }): string {
+  return String(s.name ?? '').toLowerCase();
+}
+
+function findBridgeStepTxHash(
+  steps: Array<{ name?: string; txHash?: string; state?: string }>,
+  matchers: string[]
+): string | undefined {
+  const set = new Set(matchers.map((m) => m.toLowerCase()));
+  const match = steps.find((s) => set.has(stepNameLower(s)) && s.state === 'success');
+  return match?.txHash;
+}
+
 class BridgeService {
   async bridgeArcToBase(amount: string): Promise<BridgeResult> {
     return this.bridge({
@@ -107,11 +121,19 @@ class BridgeService {
         ...(recipient && { recipient }),
       });
 
-      const burnStep = result.steps.find((s) => s.name === 'depositForBurn');
-      const mintStep = result.steps.find((s) => s.name === 'mint');
+      const burnTxHash =
+        findBridgeStepTxHash(result.steps, ['burn', 'depositForBurn', 'deposit_for_burn']) ??
+        // если имя шага изменится в новой версии Kit, берём последний успешный on-chain шаг до mint (обычно burn)
+        [...result.steps].reverse().find((s) => {
+          const n = stepNameLower(s);
+          return s.state === 'success' && Boolean(s.txHash) && n !== 'mint' && n !== 'fetchattestation';
+        })?.txHash;
+
+      const mintTxHash = findBridgeStepTxHash(result.steps, ['mint']);
+
       return {
-        fromTxHash: burnStep?.txHash,
-        toTxHash: mintStep?.txHash,
+        fromTxHash: burnTxHash,
+        toTxHash: mintTxHash,
         statusUrl: undefined,
       };
     } catch (error: any) {
