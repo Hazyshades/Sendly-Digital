@@ -249,33 +249,46 @@ export class DeveloperWalletService {
     walletId: string;
     walletAddress: string;
     contractAddress: string;
-    functionName: string;
-    args: any[];
     blockchain: string;
+    /** Pre-encoded calldata (0x…). When set, functionName/args are optional on the server. */
+    callData?: string;
+    functionName?: string;
+    args?: any[];
     privyUserId?: string;
     socialPlatform?: string;
     socialUserId?: string;
   }): Promise<{ success: boolean; txHash?: string; transactionId?: string; transactionState?: string; error?: string; transaction?: any }> {
     try {
-      // Convert BigInt values to strings for JSON serialization
-      const serializedArgs = params.args.map(arg => {
-        if (typeof arg === 'bigint') {
-          return arg.toString();
-        }
-        return arg;
-      });
+      const hasCallData = typeof params.callData === 'string' && params.callData.startsWith('0x');
+      if (!hasCallData && (!params.functionName || params.args === undefined)) {
+        return { success: false, error: 'functionName and args are required when callData is not provided' };
+      }
 
-      const requestBody = {
+      // Convert BigInt values to strings for JSON serialization
+      const serializedArgs = hasCallData
+        ? undefined
+        : params.args!.map(arg => {
+            if (typeof arg === 'bigint') {
+              return arg.toString();
+            }
+            return arg;
+          });
+
+      const requestBody: Record<string, unknown> = {
         walletId: params.walletId,
         walletAddress: params.walletAddress,
         contractAddress: params.contractAddress,
-        functionName: params.functionName,
-        args: serializedArgs,
         blockchain: params.blockchain,
         privyUserId: params.privyUserId,
         socialPlatform: params.socialPlatform,
-        socialUserId: params.socialUserId
+        socialUserId: params.socialUserId,
       };
+      if (hasCallData) {
+        requestBody.callData = params.callData;
+      } else {
+        requestBody.functionName = params.functionName;
+        requestBody.args = serializedArgs;
+      }
 
       const response = await apiCall('/wallets/send-transaction', {
         method: 'POST',
