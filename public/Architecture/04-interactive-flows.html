@@ -45,6 +45,21 @@
     }
     .step-detail .file-refs { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0; }
     .file-sep { color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; }
+    .flow-video {
+      margin-top: 1.5rem; padding: 1.25rem;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    }
+    .flow-video h3 { margin: 0 0 0.75rem; font-size: 1rem; font-family: var(--display); font-weight: 400; }
+    .flow-video-frame {
+      position: relative; width: 100%; padding-bottom: 56.25%;
+      border-radius: 8px; overflow: hidden; background: #0a0a0a;
+    }
+    .flow-video-frame iframe {
+      position: absolute; inset: 0; width: 100%; height: 100%; border: 0;
+    }
+    .flow-video-link { margin: 0.75rem 0 0; font-size: 0.85rem; }
+    .flow-video-link a { color: var(--accent); text-decoration: none; }
+    .flow-video-link a:hover { text-decoration: underline; }
   </style>
 </head>
 <body class="sendly-bg">
@@ -53,13 +68,14 @@
     <a class="back" href="overview.html">← Overview</a>
     <p class="eyebrow">04 · Flows</p>
     <h1>Payment flows</h1>
-    <p class="lead">Pick a flow, then a step. You get the file name and what happens on that line.</p>
+    <p class="lead">Pick a flow, then a step. You get the file name and what happens on that line. Demo videos are available for <strong>NFT Gift Cards</strong> and <strong>Payments with zkTLS</strong> at the bottom of the page.</p>
 
     <div class="flow-tabs" id="tabs"></div>
     <ol class="steps" id="steps"></ol>
     <div class="step-detail" id="detail">
       <p>Choose a flow above, then a step.</p>
     </div>
+    <section class="flow-video" id="flow-video" hidden aria-label="Flow demo video"></section>
   </div>
 
   <script>
@@ -67,6 +83,8 @@
       gift: {
         title: "1 · NFT Gift Cards",
         status: "IMPLEMENTED",
+        videoDriveUrl: "https://drive.google.com/file/d/1X6qINkMEJSe8UarFBavsSBX6T6aYgLe0/view?usp=sharing",
+        videoTitle: "Gift Card Flow",
         steps: [
           { title: "Sender creates card", file: "CreateGiftCard.tsx", note: "/create - mint ERC-721 with message and USDC from the Circle wallet" },
           { title: "USDC locked on-chain", file: "sendly-contracts/giftCard/.../GiftCard.sol", note: "Funds sit in the contract until someone claims" },
@@ -77,6 +95,8 @@
       payment: {
         title: "2 · Payments with zkTLS",
         status: "IMPLEMENTED",
+        videoDriveUrl: "https://drive.google.com/file/d/1Xx9L1iyOGuiwj200vMv0POTqTuinQ57-/view?usp=sharing",
+        videoTitle: "Payments Flow",
         steps: [
           { title: "Sender fills the form", file: "SendPaymentForm.tsx · WalletSourceToggle.tsx", note: "@username and amount. Source wallet is the Circle dev wallet." },
           { title: "Resolve recipient", file: "useCircleWallet.ts", note: "Wallet address → social handle" },
@@ -151,6 +171,22 @@
         .replace(/"/g, "&quot;");
     }
 
+    function driveFileId(urlOrId) {
+      if (!urlOrId) return null;
+      const m = String(urlOrId).match(/\/d\/([a-zA-Z0-9_-]+)/);
+      return m ? m[1] : urlOrId;
+    }
+
+    function drivePreviewUrl(urlOrId) {
+      const id = driveFileId(urlOrId);
+      return id ? `https://drive.google.com/file/d/${id}/preview` : null;
+    }
+
+    function driveViewUrl(urlOrId) {
+      const id = driveFileId(urlOrId);
+      return id ? `https://drive.google.com/file/d/${id}/view` : null;
+    }
+
     function resolveFilePath(token) {
       const t = token.trim();
       if (!t) return null;
@@ -194,6 +230,7 @@
     const tabs = document.getElementById("tabs");
     const stepsEl = document.getElementById("steps");
     const detail = document.getElementById("detail");
+    const flowVideo = document.getElementById("flow-video");
 
     Object.keys(flows).forEach((key) => {
       const f = flows[key];
@@ -207,6 +244,7 @@
         tabs.querySelectorAll("button").forEach((x) => x.classList.toggle("active", x.dataset.key === flowKey));
         renderSteps();
         showDetail();
+        renderFlowVideo();
       });
       tabs.appendChild(b);
     });
@@ -239,8 +277,29 @@
       `;
     }
 
+    function renderFlowVideo() {
+      const f = flows[flowKey];
+      const preview = drivePreviewUrl(f.videoDriveUrl);
+      if (!preview) {
+        flowVideo.hidden = true;
+        flowVideo.innerHTML = "";
+        return;
+      }
+      const viewUrl = driveViewUrl(f.videoDriveUrl);
+      const title = escapeHtml(f.videoTitle || "Demo video");
+      flowVideo.hidden = false;
+      flowVideo.innerHTML = `
+        <h3>${title}</h3>
+        <div class="flow-video-frame">
+          <iframe src="${preview}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen title="${title}"></iframe>
+        </div>
+        <p class="flow-video-link"><a href="${viewUrl}" target="_blank" rel="noopener noreferrer">Open on Google Drive</a></p>
+      `;
+    }
+
     renderSteps();
     showDetail();
+    renderFlowVideo();
   </script>
 </body>
 </html>
