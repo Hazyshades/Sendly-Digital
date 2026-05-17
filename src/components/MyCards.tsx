@@ -249,7 +249,7 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
       }
     }
     
-    // If neither MetaMask nor a Internal wallet is available — do not load cards.
+    // If neither MetaMask nor a Internal wallet is available - do not load cards.
     // Unclaimed social gift cards belong in Pending Claims (on-chain vault), not Received.
     if (recipientAddresses.length === 0) {
       setLoading(false);
