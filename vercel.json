@@ -31,6 +31,26 @@
       "permanent": true
     },
     {
+      "source": "/blog/privy_results",
+      "destination": "/blog/privy-results",
+      "permanent": true
+    },
+    {
+      "source": "/blog/nft_gift_cards_guide",
+      "destination": "/blog/nft-gift-cards-guide",
+      "permanent": true
+    },
+    {
+      "source": "/blog/zktls_payments_guide",
+      "destination": "/blog/zktls-payments-guide",
+      "permanent": true
+    },
+    {
+      "source": "/blog/circle_sdk_wallet_playbook",
+      "destination": "/blog/circle-sdk-wallet-playbook",
+      "permanent": true
+    },
+    {
       "source": "/:path*",
       "has": [
         {

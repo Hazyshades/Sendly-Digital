@@ -2,6 +2,7 @@ import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import fs from 'fs'
 import path from 'path'
+import { blogPrerenderPlugin } from './src/lib/blog/vitePrerenderPlugin'
 
 function copyDirSync(src: string, dest: string) {
   fs.mkdirSync(dest, { recursive: true })
@@ -116,7 +117,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [react(), architecturePresentationPlugin()],
+    plugins: [react(), architecturePresentationPlugin(), blogPrerenderPlugin()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

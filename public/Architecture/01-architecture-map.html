@@ -32,7 +32,14 @@
     .detail ul a:hover { text-decoration: underline; }
     .detail ul a code { color: inherit; }
     .detail ul .path-note { color: var(--muted); }
-    .legend { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.8rem; color: var(--muted); margin-top: 1rem; }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem 1.5rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin: 1rem 0 1.5rem;
+    }
     .legend span::before {
       content: "";
       display: inline-block;
@@ -47,6 +54,9 @@
     .legend .ct::before { background: #f59e0b; }
     .legend .zk::before { background: #8b5cf6; }
     .legend .ci::before { background: #4f46e5; }
+    .lead a { color: var(--accent); text-decoration: none; }
+    .lead a:hover { text-decoration: underline; }
+    .lead a code { color: inherit; }
   </style>
 </head>
 <body class="sendly-bg">
@@ -55,7 +65,7 @@
     <a class="back" href="overview.html">← Overview</a>
     <p class="eyebrow">01 · Architecture</p>
     <h1>Multi-repo system map</h1>
-    <p class="lead">Click a box to see what that repo owns and which Circle APIs it calls. Same layout as <code>docs/Architecture.md</code>.</p>
+    <p class="lead">Click a box to see what that repo owns and which Circle APIs it calls. Same layout as <a href="https://github.com/Sendly-Digital/sendly-frontend/blob/main/docs/Architecture.md" target="_blank" rel="noopener noreferrer"><code>docs/Architecture.md</code></a>.</p>
 
     <div class="diagram-wrap">
       <svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" aria-label="Sendly architecture">
@@ -89,14 +99,14 @@
         <g class="node" data-id="contracts">
           <rect x="40" y="260" width="160" height="56" rx="12" fill="rgba(255,255,255,0.92)" stroke="#f59e0b"/>
           <text x="120" y="285" text-anchor="middle" fill="#111827" font-size="13" font-family="Plus Jakarta Sans,sans-serif" font-weight="600">sendly-contracts</text>
-          <text x="120" y="302" text-anchor="middle" fill="#6b7280" font-size="10" font-family="Plus Jakarta Sans,sans-serif">ZkSend · GiftCard</text>
+          <text x="120" y="302" text-anchor="middle" fill="#6b7280" font-size="10" font-family="Plus Jakarta Sans,sans-serif">zkSend · GiftCard</text>
         </g>
         <g class="node" data-id="zktls">
           <rect x="40" y="10" width="160" height="48" rx="12" fill="rgba(255,255,255,0.92)" stroke="#8b5cf6"/>
           <text x="120" y="32" text-anchor="middle" fill="#111827" font-size="12" font-family="Plus Jakarta Sans,sans-serif" font-weight="600">zktls-attestator</text>
           <text x="120" y="48" text-anchor="middle" fill="#6b7280" font-size="9" font-family="Plus Jakarta Sans,sans-serif">api.sendly.digital</text>
         </g>
-        <text x="360" y="200" text-anchor="middle" fill="#6b7280" font-size="11" font-family="Plus Jakarta Sans,sans-serif">Settles on Arc Testnet</text>
+        <text x="360" y="200" text-anchor="middle" fill="#6b7280" font-size="11" font-family="Plus Jakarta Sans,sans-serif">Settles on Arc</text>
       </svg>
     </div>
 
@@ -110,7 +120,6 @@
 
     <div class="detail" id="detail">
       <h3>Pick a repo</h3>
-      <p>Click a box on the diagram.</p>
     </div>
   </div>
 
@@ -118,7 +127,7 @@
     const info = {
       frontend: {
         title: "sendly-frontend",
-        body: "UI, internal vs browser wallet toggle, tx building, Gateway and Bridge in the client.",
+        body: "Client-side wallet management & transaction construction. Direct Circle Gateway & Bridge integration for instant fiat and cross-chain operations.",
         paths: [
           "src/lib/circle/developerWalletService.ts",
           "src/lib/circle/gateway/*",
@@ -128,7 +137,7 @@
       },
       supabase: {
         title: "sendly-supabase",
-        body: "API keys and entity secret never leave the Edge layer. Wallets, contractExecution, Gateway UBK.",
+        body: "Edge-powered orchestration: Wallet management, smart contract execution, and Unified Balance Kit for seamless multi-chain operations.",
         paths: [
           "functions/arc/server/index.tsx - /wallets/*",
           "functions/arc/server/gateway-*/",
@@ -141,7 +150,7 @@
       },
       contracts: {
         title: "sendly-contracts",
-        body: "zkSEND payments and NFT gift cards. Both settle on Arc Testnet.",
+        body: "zkSend payments and NFT gift cards.",
         paths: ["zktls_payments/ZkSend.sol", "giftCard/.../GiftCard.sol"],
       },
       zktls: {

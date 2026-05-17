@@ -3,6 +3,7 @@ import { Buffer } from 'buffer'
 
 import React, { Suspense, lazy, useEffect, useState } from 'react'
 import ReactDOM from 'react-dom/client'
+import { HelmetProvider } from 'react-helmet-async'
 import { BrowserRouter } from 'react-router-dom'
 import { WagmiProvider } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -93,7 +94,8 @@ const AppRoot = () => {
   }, [privyAuthMode, privyAppId]);
 
   return (
-    <BrowserRouter>
+    <HelmetProvider>
+      <BrowserRouter>
       {disablePrivy ? (
         <AppContent />
       ) : PrivyProviderWrapper ? (
@@ -105,7 +107,8 @@ const AppRoot = () => {
       ) : (
         <AppContent />
       )}
-    </BrowserRouter>
+      </BrowserRouter>
+    </HelmetProvider>
   );
 };
 

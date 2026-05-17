@@ -123,7 +123,6 @@ export function HeroSection() {
           <div className="hero-typed flex items-center gap-4">
             <div className="font-mono text-sm md:text-base text-gray-600 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl border border-gray-200 shadow-circle-card">
               {typedAddress}
-              <span className="animate-cursor-blink inline-block w-0.5 h-4 ml-1 bg-[#6366f1]" />
             </div>
           </div>
 

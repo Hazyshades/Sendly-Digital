@@ -12,7 +12,13 @@ import { CreateGiftCardPreview } from '@/components/CreateGiftCardPreview';
 import { InternalWalletDashboardPreview } from '@/components/InternalWalletDashboardPreview';
 import { InternalWalletCreatePromptPreview } from '@/components/InternalWalletCreatePromptPreview';
 import { BlogLayout } from '@/components/BlogLayout';
-import { PUBLIC_BLOG_SLUGS } from '@/lib/blog/publicSlugs';
+import { BlogEngagementBar } from '@/components/blog/BlogEngagementBar';
+import { BlogPostHead } from '@/components/blog/BlogPostHead';
+import {
+  getBlogPostMeta,
+  isPublicBlogSlug,
+  resolveBlogSlug,
+} from '@/lib/blog/posts';
 import { fetchTwitterUserPreview } from '@/lib/twitter/userLookup';
 
 /** Fallback when cache/API has no data or request fails. */
@@ -57,8 +63,8 @@ interface BlogImage {
 }
 
 const blogPosts: Record<string, BlogPost> = {
-  privy_results: {
-    slug: 'privy_results',
+  'privy-results': {
+    slug: 'privy-results',
     title: 'Privy testnet: metrics, methodology, and takeaways',
     description:
       'Roughly 12k wallets, 31k cards sent, ~$89k TVL, ~$315k total volume. Privy as our auth + embedded wallet layer, the checks we ran before trusting a chart, and the operational stuff that actually mattered.',
@@ -148,8 +154,8 @@ const blogPosts: Record<string, BlogPost> = {
     ],
     content: ''
   },
-  zktls_payments_guide: {
-    slug: 'zktls_payments_guide',
+  'zktls-payments-guide': {
+    slug: 'zktls-payments-guide',
     title: 'User Guide: Payments (zkTLS and zkSend)',
     description:
       'Send money to platform:username. The recipient proves they control that account (zkTLS), then the contract sends funds to their wallet.',
@@ -288,8 +294,8 @@ const blogPosts: Record<string, BlogPost> = {
     ],
     content: ''
   },
-  nft_gift_cards_guide: {
-    slug: 'nft_gift_cards_guide',
+  'nft-gift-cards-guide': {
+    slug: 'nft-gift-cards-guide',
     title: 'NFT Gift Cards - User Guide',
     description:
       'Mint a gift card on-chain. Pick an amount, add a message, and send it to a wallet or to someone\'s social username.',
@@ -371,8 +377,8 @@ const blogPosts: Record<string, BlogPost> = {
     ],
     content: ''
   },
-  circle_sdk_wallet_playbook: {
-    slug: 'circle_sdk_wallet_playbook',
+  'circle-sdk-wallet-playbook': {
+    slug: 'circle-sdk-wallet-playbook',
     title: 'Circle SDK in Sendly: Internal Wallet, Asset Flow, and NFT Cards',
     description:
       'How Sendly uses Circle Developer Wallet: internal-wallet payments, funding and transfers, and minting NFT gift cards.',
@@ -487,16 +493,25 @@ export function BlogPostRoute() {
   const [activeImage, setActiveImage] = useState<BlogImage | null>(null);
   const [paymentsPreviewValues, setPaymentsPreviewValues] = useState<SendPaymentPreviewValues | null>(null);
 
+  const canonicalSlug = slug ? resolveBlogSlug(slug) : null;
   const post =
-    slug && PUBLIC_BLOG_SLUGS.has(slug) ? blogPosts[slug] ?? null : null;
+    canonicalSlug && isPublicBlogSlug(canonicalSlug)
+      ? blogPosts[canonicalSlug] ?? null
+      : null;
+  const postMeta = canonicalSlug ? getBlogPostMeta(canonicalSlug) : undefined;
+
+  useEffect(() => {
+    if (!slug || !canonicalSlug || slug === canonicalSlug) return;
+    navigate(`/blog/${canonicalSlug}`, { replace: true });
+  }, [slug, canonicalSlug, navigate]);
 
   useEffect(() => {
     // Ensure each blog post opens from the top in SPA navigation.
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  }, [slug]);
+  }, [canonicalSlug]);
 
   useEffect(() => {
-    if (post?.slug !== 'zktls_payments_guide') return;
+    if (post?.slug !== 'zktls-payments-guide') return;
     fetchTwitterUserPreview(BLOG_PREVIEW_USERNAME)
       .then((result) => {
         if (result.success) {
@@ -773,6 +788,7 @@ export function BlogPostRoute() {
 
   return (
     <BlogLayout backLink={backLink} cohereTypography={hasEnhancedLayout}>
+      {postMeta && <BlogPostHead post={postMeta} />}
       {hasEnhancedLayout ? (
         <>
           {/* Hero -  full width, above the grid */}
@@ -819,7 +835,8 @@ export function BlogPostRoute() {
             <article className="relative">
               {post.sections && post.images &&
                 renderSections(post.sections, post.images, true)}
-              <div className="pt-12 border-t border-gray-200 mt-12">
+              <div className="pt-12 border-t border-gray-200 mt-12 space-y-6">
+                <BlogEngagementBar slug={post.slug} recordViewOnMount />
                 <div className="flex items-center justify-between">
                   <button
                     onClick={() => navigate('/blog')}
@@ -901,7 +918,8 @@ export function BlogPostRoute() {
             {renderContent(post.content)}
           </div>
 
-          <div className="mt-12 pt-8 border-t border-gray-200">
+          <div className="mt-12 pt-8 border-t border-gray-200 space-y-6">
+            <BlogEngagementBar slug={post.slug} recordViewOnMount />
             <div className="flex items-center justify-between">
               <button
                 onClick={() => navigate('/blog')}
