@@ -2,11 +2,17 @@ import { useEffect } from 'react';
 
 const ARCHITECTURE_INDEX = '/Architecture/overview.html';
 
-/** Redirects /Architecture to the static Circle integration presentation. */
+const ARCHITECTURE_ROOT_PATHS = new Set([
+  '/Architecture',
+  '/Architecture/',
+  '/architecture',
+  '/architecture/',
+]);
+
+/** Redirects /Architecture (and /architecture) to the static Circle integration presentation. */
 export function ArchitectureRoute() {
   useEffect(() => {
-    const path = window.location.pathname;
-    if (path === '/Architecture' || path === '/Architecture/') {
+    if (ARCHITECTURE_ROOT_PATHS.has(window.location.pathname)) {
       window.location.replace(ARCHITECTURE_INDEX);
     }
   }, []);

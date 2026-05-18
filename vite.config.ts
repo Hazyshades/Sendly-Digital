@@ -14,7 +14,6 @@ function copyDirSync(src: string, dest: string) {
   }
 }
 
-const ARCHITECTURE_MOUNT = '/Architecture'
 const ARCHITECTURE_MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -33,15 +32,22 @@ function architecturePresentationPlugin(): Plugin {
     if (fs.existsSync(legacyIndex)) fs.unlinkSync(legacyIndex)
   }
 
+  const architectureRelPath = (rawUrl: string): string | null => {
+    const match = rawUrl.match(/^\/architecture(\/.*)?$/i)
+    if (!match) return null
+    return match[1] ?? '/'
+  }
+
   const serveArchitecture = (
     req: import('http').IncomingMessage,
     res: import('http').ServerResponse,
     next: (err?: unknown) => void,
   ) => {
     const rawUrl = req.url?.split('?')[0] ?? ''
-    if (!rawUrl.startsWith(ARCHITECTURE_MOUNT)) return next()
+    const relPrefix = architectureRelPath(rawUrl)
+    if (relPrefix === null) return next()
 
-    let rel = decodeURIComponent(rawUrl.slice(ARCHITECTURE_MOUNT.length) || '/')
+    let rel = decodeURIComponent(relPrefix)
     if (rel === '/' || rel === '' || rel === '/index.html') rel = '/overview.html'
 
     const file = path.normalize(path.join(dest, rel.replace(/^\//, '')))

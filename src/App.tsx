@@ -59,6 +59,8 @@ function SharedAppRoutes({ zkMode }: { zkMode: boolean }) {
       <Route path="/blog/:slug" element={<BlogPostRoute />} />
       <Route path="/Architecture" element={<ArchitectureRoute />} />
       <Route path="/Architecture/" element={<ArchitectureRoute />} />
+      <Route path="/architecture" element={<ArchitectureRoute />} />
+      <Route path="/architecture/" element={<ArchitectureRoute />} />
     </Routes>
   );
 }

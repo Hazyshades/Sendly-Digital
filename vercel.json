@@ -11,6 +11,16 @@
       "permanent": false
     },
     {
+      "source": "/architecture",
+      "destination": "/Architecture/overview.html",
+      "permanent": false
+    },
+    {
+      "source": "/architecture/",
+      "destination": "/Architecture/overview.html",
+      "permanent": false
+    },
+    {
       "source": "/grant",
       "destination": "/Architecture",
       "permanent": true
