@@ -380,7 +380,7 @@ const blogPosts: Record<string, BlogPost> = {
   'circle-sdk-wallet-playbook': {
     slug: 'circle-sdk-wallet-playbook',
     title:
-      'Circle Dev-Controlled Wallets in Sendly: From Social Login to Managed Asset Flow',
+      'Circle SDK in Sendly: From Social Login to Managed Asset Flow',
     description:
       'How Sendly uses Circle Developer-Controlled Wallets so social-only users can mint, claim, top up, and redeem NFT gift cards on Arc - without MetaMask.',
     date: '2026-06-20',
