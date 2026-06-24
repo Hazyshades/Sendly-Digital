@@ -351,7 +351,7 @@ const blogPosts: Record<string, BlogPost> = {
         paragraphs: [],
         bullets: [
           'Wallet: MetaMask, Rabby, or Circle wallet',
-          'Tokens: USDC or EURC on Arc Testnet',
+          'Tokens: USDC or EURC on Arc',
           'A supported social account (if sending or receiving by username)'
         ]
       },
@@ -361,7 +361,7 @@ const blogPosts: Record<string, BlogPost> = {
         paragraphs: [],
         bullets: [
           'No card: log in with the account that should receive it.',
-          'Claim errors: stay on Arc Testnet and keep a little gas for fees.',
+          'Claim errors: stay on Arc and keep a little gas for fees.',
           'Wrong person: on-chain sends cannot be undone. Check the address or username before you confirm.',
           'Lost password: only whoever set it can help; we do not have it.'
         ]
@@ -370,7 +370,7 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'security',
         title: 'Security notes',
         paragraphs: [
-          'Smart contracts on Arc Testnet hold the rules. We do not store private keys.',
+          'Smart contracts on Arc hold the rules. We do not store private keys.',
           'With Circle, Circle manages keys. Do not sign transactions you do not understand.'
         ]
       }
@@ -382,7 +382,7 @@ const blogPosts: Record<string, BlogPost> = {
     title:
       'Circle Dev-Controlled Wallets in Sendly: From Social Login to Managed Asset Flow',
     description:
-      'How Sendly uses Circle Developer-Controlled Wallets so social-only users can mint, claim, top up, and redeem NFT gift cards on Arc Testnet-without MetaMask.',
+      'How Sendly uses Circle Developer-Controlled Wallets so social-only users can mint, claim, top up, and redeem NFT gift cards on Arc - without MetaMask.',
     date: '2026-06-20',
     category: 'Technology',
     tags: ['Circle', 'Developer Wallets', 'Gateway', 'NFT', 'Arc Testnet', 'Privy'],
@@ -427,8 +427,8 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'where-circle-sits',
         title: 'Where Circle sits in Sendly',
         paragraphs: [
-          'Sendly is a USDC-first payment app for social identities. On Arc Testnet, the flow this article covers is NFT Gift Cards: ERC-721 cards with locked USDC/EURC value until the recipient claims. Internal Wallet, powered by Circle Developer-Controlled Wallets, signs mint, claim, top-up, and redeem when the user picks “Internal Wallet” instead of a browser wallet.',
-          'The system path is: React frontend → Supabase Edge Functions → Circle APIs → Arc Testnet contracts → Supabase Postgres. The browser owns UX and browser-wallet signing. Supabase owns privileged server operations. Circle owns wallet custody, Gateway/CCTP infrastructure, and programmatic signing. Arc settles contract calls.',
+          'Sendly is a USDC-first payment app for social identities. On Arc, the flow this article covers is NFT Gift Cards: ERC-721 cards with locked USDC/EURC value until the recipient claims. Internal Wallet, powered by Circle Developer-Controlled Wallets, signs mint, claim, top-up, and redeem when the user picks “Internal Wallet” instead of a browser wallet.',
+          'The system path is: React frontend → Supabase Edge Functions → Circle APIs → Arc contracts → Supabase Postgres. The browser owns UX and browser-wallet signing. Supabase owns privileged server operations. Circle owns wallet custody, Gateway/CCTP infrastructure, and programmatic signing. Arc settles contract calls.',
           'The browser never talks to Circle for signing. The React app calls Edge Functions. Edge Functions hold Circle API credentials, encrypt the entity secret, execute wallet operations, and persist wallet and payment state in Postgres. Circle submits the transaction; Arc Network settles the contract call.'
         ]
       },
@@ -493,8 +493,8 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'minting-nft-gift-cards',
         title: 'Minting NFT gift cards',
         paragraphs: [
-          'The sender creates a card with an optional message and USDC or EURC value; value stays locked in the GiftCard contract on Arc Testnet until the recipient claims.',
-          'Minting runs through `CreateGiftCard`: check balance and allowance, upload metadata (IPFS), then execute on Arc Testnet. Internal Wallet mode sends approve and mint via `DeveloperWalletService` → Circle API. External mode prompts the user\'s browser wallet.',
+          'The sender creates a card with an optional message and USDC or EURC value; value stays locked in the GiftCard contract on Arc until the recipient claims.',
+          'Minting runs through `CreateGiftCard`: check balance and allowance, upload metadata (IPFS), then execute on Arc. Internal Wallet mode sends approve and mint via `DeveloperWalletService` → Circle API. External mode prompts the user\'s browser wallet.',
           'Circle executes the contract call; the GiftCard contract mints the ERC-721 and locks value. The UI reads `tokenId` from the `Transfer` event. Social-directed cards (X, Twitch, Telegram, and others) stay in platform vaults until the matching username claims.'
         ],
         bullets: [
