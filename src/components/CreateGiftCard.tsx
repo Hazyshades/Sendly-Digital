@@ -332,7 +332,7 @@ export function CreateGiftCard() {
   }, [isTempoNetwork]);
 
 
-  // Checking for the presence of a Internal wallet for social networks
+  // Checking for the presence of a Internal Wallet for social networks
   useEffect(() => {
     const checkSocialWallet = async () => {
       // If MetaMask is connected, ALWAYS check for developer wallet by address
@@ -347,7 +347,7 @@ export function CreateGiftCard() {
 
       try {
         setCheckingWallet(true);
-        // Check for a Internal wallet for linked social networks
+        // Check for a Internal Wallet for linked social networks
         const socialPlatforms = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'];
         const blockchain = 'ARC-TESTNET';
         let foundWallet: any = null;
@@ -482,7 +482,7 @@ export function CreateGiftCard() {
   }, [isConnected, connector]);
 
   const handleCreateCard = async () => {
-    // Check for a wallet (MetaMask or Internal wallet)
+    // Check for a wallet (MetaMask or Internal Wallet)
     if (!isConnected && !hasDeveloperWallet) {
       setError('Please connect your wallet first');
       return;
@@ -588,7 +588,7 @@ export function CreateGiftCard() {
       
       const amountWei = (parseFloat(formData.amount) * 1000000).toString(); // 6 decimals for USDC/EURC
       
-      // Check balance for Internal wallet
+      // Check balance for Internal Wallet
       if (useDeveloperWallet) {
         const publicClient = createPublicClient({
           chain: activeChain,
@@ -655,7 +655,7 @@ export function CreateGiftCard() {
         // Note: If user is authenticated only via social account (no MetaMask),
         // privyUserId may be undefined, but socialPlatform/socialUserId will be used for verification
 
-          // Send approve via Internal wallet
+          // Send approve via Internal Wallet
           const approveTx = await DeveloperWalletService.sendTransaction({
             walletId: developerWallet.circle_wallet_id,
             walletAddress: developerWallet.wallet_address,
@@ -702,7 +702,7 @@ export function CreateGiftCard() {
       
       // Use different methods based on wallet type and recipient type
       if (useDeveloperWallet) {
-        // Create card via Internal wallet
+        // Create card via Internal Wallet
         const normalizedUsername = formData.recipientType !== 'address' 
           ? formData.recipientUsername.toLowerCase().replace(/^@/, '').trim()
           : '';
@@ -767,7 +767,7 @@ export function CreateGiftCard() {
         // Note: If user is authenticated only via social account (no MetaMask),
         // privyUserId may be undefined, but socialPlatform/socialUserId will be used for verification
         
-        // Send transaction via Internal wallet
+        // Send transaction via Internal Wallet
         const txResult = await DeveloperWalletService.sendTransaction({
           walletId: developerWallet.circle_wallet_id,
           walletAddress: developerWallet.wallet_address,
@@ -1336,7 +1336,7 @@ export function CreateGiftCard() {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  // Show the message only if there is neither MetaMask nor a social Internal wallet
+  // Show the message only if there is neither MetaMask nor a social Internal Wallet
   if (!isConnected && !hasDeveloperWallet) {
     if (checkingWallet) {
       return (

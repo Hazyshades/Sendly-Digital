@@ -15,7 +15,7 @@ export function FAQRoute() {
         },
         {
           question: 'How does sending by username work?',
-          answer: 'When you send a gift card by username, the funds are deposited into a special vault contract linked to that username. The recipient can log into the platform, authenticate through their social network, and claim the card. If the recipient doesn\'t have a wallet yet, the platform will automatically create a Internal wallet for them through Circle.'
+          answer: 'When you send a gift card by username, the funds are deposited into a special vault contract linked to that username. The recipient can log into the platform, authenticate through their social network, and claim the card. If the recipient doesn\'t have a wallet yet, the platform will automatically create a Internal Wallet for them through Circle.'
         },
         {
           question: 'Which social networks are supported?',
@@ -23,7 +23,7 @@ export function FAQRoute() {
         },
         {
           question: 'Does the recipient need a wallet to receive a card?',
-          answer: 'No! If the recipient doesn\'t have a wallet, the platform will automatically create a Internal wallet for them through Circle. The recipient only needs to authenticate through their social network, and they\'ll be able to claim the card.'
+          answer: 'No! If the recipient doesn\'t have a wallet, the platform will automatically create a Internal Wallet for them through Circle. The recipient only needs to authenticate through their social network, and they\'ll be able to claim the card.'
         }
       ]
     },
@@ -93,7 +93,7 @@ export function FAQRoute() {
         },
         {
           question: 'Who has access to my funds?',
-          answer: 'Only you have access to funds in your wallet. The platform does not store your private keys. When using a Internal wallet through Circle, keys are managed by Circle, but only the authenticated user has access to the funds.'
+          answer: 'Only you have access to funds in your wallet. The platform does not store your private keys. When using a Internal Wallet through Circle, keys are managed by Circle, but only the authenticated user has access to the funds.'
         }
       ]
     },
@@ -110,12 +110,12 @@ export function FAQRoute() {
           answer: 'The platform charges network fees (gas fees) for creating and claiming cards. Fees depend on network load and transaction complexity.'
         },
         {
-          question: 'What is a Internal wallet?',
-          answer: 'A Internal wallet is a wallet automatically created for users through Circle. It allows users to receive and manage cryptocurrency without needing to set up their own wallet manually.'
+          question: 'What is a Internal Wallet?',
+          answer: 'A Internal Wallet is a wallet automatically created for users through Circle. It allows users to receive and manage cryptocurrency without needing to set up their own wallet manually.'
         },
         {
-          question: 'Can I use my own wallet instead of a Internal wallet?',
-          answer: 'Yes, you can connect your own wallet (e.g., MetaMask) to send cards and manage funds. Internal wallets are automatically created only for receiving cards if the user doesn\'t have a connected wallet.'
+          question: 'Can I use my own wallet instead of a Internal Wallet?',
+          answer: 'Yes, you can connect your own wallet (e.g., MetaMask) to send cards and manage funds. Internal Wallets are automatically created only for receiving cards if the user doesn\'t have a connected wallet.'
         },
         {
           question: 'What if a transaction gets stuck?',

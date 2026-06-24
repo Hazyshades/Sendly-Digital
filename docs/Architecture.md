@@ -98,7 +98,7 @@ sequenceDiagram
     end
 
     Edge-->>Hook: Circle wallet address and metadata
-    Hook-->>UI: Internal wallet ready
+    Hook-->>UI: Internal Wallet ready
 ```
 
 ## zkTLS Direct Payments
@@ -112,7 +112,7 @@ The UI supports two payment sources:
 - Browser Wallet: the user signs transactions with an injected wallet.
 - Internal Wallet: Sendly uses the user's Circle Developer-Controlled Wallet.
 
-For the internal wallet path, the frontend prepares contract calls and sends them through `DeveloperWalletService`. The backend keeps Circle credentials out of the browser.
+For the Internal Wallet path, the frontend prepares contract calls and sends them through `DeveloperWalletService`. The backend keeps Circle credentials out of the browser.
 
 ```mermaid
 sequenceDiagram

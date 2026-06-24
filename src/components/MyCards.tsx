@@ -177,7 +177,7 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
   };
 
   useEffect(() => {
-    // Load cards if MetaMask is connected OR a social network with a Internal wallet is available
+    // Load cards if MetaMask is connected OR a social network with a Internal Wallet is available
     if ((isConnected && address) || (authenticated && user)) {
       if (!hasFetched) {
         setHasFetched(true);
@@ -201,14 +201,14 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
 
   const fetchCards = async () => {
     // If MetaMask is connected - use its address
-    // If there is no MetaMask but a social network is linked - check for a Internal wallet
+    // If there is no MetaMask but a social network is linked - check for a Internal Wallet
     let recipientAddresses: string[] = [];
     
     if (isConnected && address) {
       recipientAddresses.push(address.toLowerCase());
     }
     
-    // Check Internal wallet for social networks
+    // Check Internal Wallet for social networks
     if (authenticated && user) {
       try {
         const socialPlatforms = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'];
@@ -245,11 +245,11 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
           }
         }
       } catch (error) {
-        console.error('Error fetching Internal wallets:', error);
+        console.error('Error fetching Internal Wallets:', error);
       }
     }
     
-    // If neither MetaMask nor a Internal wallet is available - do not load cards.
+    // If neither MetaMask nor a Internal Wallet is available - do not load cards.
     // Unclaimed social gift cards belong in Pending Claims (on-chain vault), not Received.
     if (recipientAddresses.length === 0) {
       setLoading(false);
@@ -563,7 +563,7 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
     return matchesSearch && matchesStatus && matchesCurrency;
   });
 
-  // Allow viewing pending cards even without wallet connection (they can use Internal wallet)
+  // Allow viewing pending cards even without wallet connection (they can use Internal Wallet)
   // But require wallet for viewing received/sent cards
   if (!isConnected && !authenticated) {
     return (
@@ -656,7 +656,7 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
                 setHasFetched(false);
                 
                 // Always refresh cards after claim, even without MetaMask
-                // This ensures cards claimed via Internal wallet appear immediately
+                // This ensures cards claimed via Internal Wallet appear immediately
                 await fetchCards();
                 await fetchPendingCardsCount();
                 

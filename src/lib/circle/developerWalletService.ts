@@ -81,7 +81,7 @@ export class DeveloperWalletService {
 
       return response as CreateWalletResponse;
     } catch (error) {
-      // Error creating Internal wallet
+      // Error creating Internal Wallet
       throw error;
     }
   }
@@ -97,7 +97,7 @@ export class DeveloperWalletService {
 
       return response.wallets || [];
     } catch (error) {
-      // Error fetching Internal wallets
+      // Error fetching Internal Wallets
       throw error;
     }
   }
@@ -149,7 +149,7 @@ export class DeveloperWalletService {
   }
 
   /**
-   * Link Telegram ID to a Internal wallet
+   * Link Telegram ID to a Internal Wallet
    */
   static async linkTelegram(request: LinkTelegramRequest): Promise<LinkTelegramResponse> {
     try {
@@ -243,7 +243,7 @@ export class DeveloperWalletService {
   }
 
   /**
-   * Send transaction via Internal wallet
+   * Send transaction via Internal Wallet
    */
   static async sendTransaction(params: {
     walletId: string;

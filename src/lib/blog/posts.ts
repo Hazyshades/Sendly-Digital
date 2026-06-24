@@ -45,13 +45,14 @@ export const BLOG_POSTS: BlogPostMeta[] = [
   },
   {
     slug: 'circle-sdk-wallet-playbook',
-    title: 'Circle SDK in Sendly: Internal Wallet, Asset Flow, and NFT Cards',
+    title:
+      'Circle Developer-Controlled Wallets in Sendly: From Social Login to Managed Asset Flow',
     description:
-      'How Sendly uses Circle Developer Wallet: internal-wallet payments, funding and transfers, and minting NFT gift cards.',
-    date: '2026-04-14',
+      'How Sendly uses Circle Developer-Controlled Wallets so social-only users can mint, claim, top up, and redeem NFT gift cards on Arc Testnet - without crypto wallet',
+    date: '2026-06-20',
     category: 'Technology',
-    tags: ['Circle', 'Developer Wallets', 'NFT'],
-    readTime: '9 min',
+    tags: ['Circle', 'Developer Wallets', 'Gateway', 'NFT', 'Arc Testnet', 'Privy'],
+    readTime: '12 min',
     coverImage: '/SENDLY x CIRCLE.png',
   },
   {
@@ -69,7 +70,11 @@ export const BLOG_POSTS: BlogPostMeta[] = [
 ];
 
 /** Slugs listed on /blog and served at /blog/:slug */
-export const PUBLIC_BLOG_SLUGS = new Set<string>(['privy-results']);
+export const PUBLIC_BLOG_SLUGS = new Set<string>([
+  'privy-results',
+  'circle-sdk-wallet-playbook',
+  // 'nft-gift-cards-guide',
+]);
 
 export function resolveBlogSlug(slug: string): string {
   return LEGACY_SLUG_MAP[slug] ?? slug;

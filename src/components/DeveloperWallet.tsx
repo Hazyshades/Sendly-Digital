@@ -161,7 +161,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
           isCheckingRef.current = false;
         });
       } else if (authenticated && privyUser && !isConnected) {
-        // If MetaMask is NOT connected, but a social account exists - check Internal wallet for the social account
+        // If MetaMask is NOT connected, but a social account exists - check Internal Wallet for the social account
         checkSocialWallet().finally(() => {
           isCheckingRef.current = false;
         });
@@ -218,7 +218,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
     try {
       setChecking(true);
       console.log('[DeveloperWallet] Checking social wallet for authenticated user');
-      // Check for a Internal wallet for linked social networks
+      // Check for a Internal Wallet for linked social networks
       const socialPlatforms = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'];
       
       let walletFound = false;
@@ -368,7 +368,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
 
       if (response.success && response.wallet) {
         setWallet(response.wallet);
-        toast.success('Internal wallet created successfully!');
+        toast.success('Internal Wallet created successfully!');
         if (onWalletCreated) {
           onWalletCreated(response.wallet);
         }
@@ -516,14 +516,14 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
 
       await web3Service.initialize(clientToUse, address, activeChainId);
 
-      // Send tokens to Internal wallet
+      // Send tokens to Internal Wallet
       const txHash = await web3Service.sendToken(
         topUpToken,
         wallet.wallet_address,
         topUpAmount
       );
 
-      toast.success(`Successfully sent ${topUpAmount} ${topUpToken} to Internal wallet!`);
+      toast.success(`Successfully sent ${topUpAmount} ${topUpToken} to Internal Wallet!`);
       setTopUpAmount('');
       
       // Open transaction in explorer
@@ -634,7 +634,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
       setLinkingTelegram(true);
 
       const timestamp = new Date().toISOString();
-      const messageToSign = `I authorize linking my Internal wallet ${wallet.wallet_address.toLowerCase()} to Telegram user ${telegramUserId} at ${timestamp}`;
+      const messageToSign = `I authorize linking my Internal Wallet ${wallet.wallet_address.toLowerCase()} to Telegram user ${telegramUserId} at ${timestamp}`;
 
       let signer = walletClient;
       if (!signer) {

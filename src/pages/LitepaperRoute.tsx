@@ -64,7 +64,7 @@ export function LitepaperRoute() {
               the need to know the recipient's wallet address.
             </p>
             <p>
-              Using <strong>Circle Internal wallets</strong> technology and smart contracts on the 
+              Using <strong>Circle Internal Wallets</strong> technology and smart contracts on the 
               <strong> ARC Testnet</strong> blockchain, Sendly allows sending stablecoins (USDC, EURC, USYC) 
               to any user on Twitter, Twitch, Telegram, TikTok, or Instagram by simply entering their username.
             </p>
@@ -128,7 +128,7 @@ export function LitepaperRoute() {
               </CardHeader>
               <CardContent className="space-y-3 text-gray-700">
                 <p>
-                  Circle Internal wallets are automatically created for users when they first claim a card. 
+                  Circle Internal Wallets are automatically created for users when they first claim a card. 
                   Recipients don't need to set up MetaMask or other wallets.
                 </p>
               </CardContent>
@@ -221,7 +221,7 @@ export function LitepaperRoute() {
                   <div className="flex-1">
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">Wallet Creation</h3>
                     <p className="text-gray-700">
-                      If the recipient doesn't have a wallet, the platform automatically creates a Circle Internal wallet, 
+                      If the recipient doesn't have a wallet, the platform automatically creates a Circle Internal Wallet, 
                       linked to their social account. The process is completely transparent to the user.
                     </p>
                   </div>
@@ -267,7 +267,7 @@ export function LitepaperRoute() {
                 <CardTitle>Wallets</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-gray-700">
-                <p><strong>Circle Internal wallets</strong> - automatic wallet creation</p>
+                <p><strong>Circle Internal Wallets</strong> - automatic wallet creation</p>
                 <p><strong>MetaMask</strong> - support for traditional wallets</p>
                 <p><strong>Privy</strong> - social authentication</p>
               </CardContent>
@@ -325,7 +325,7 @@ export function LitepaperRoute() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-gray-700">
-                <p>Circle Internal wallets are automatically created for new users</p>
+                <p>Circle Internal Wallets are automatically created for new users</p>
               </CardContent>
             </Card>
 

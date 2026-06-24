@@ -641,7 +641,7 @@ export function PendingPayments({
   const claim = async (paymentId: string) => {
     try {
       if (!useCircle && (!isConnected || !address || !walletClient)) throw new Error('Connect wallet to claim payment');
-      if (useCircle && !developerWallet) throw new Error('Internal wallet not available');
+      if (useCircle && !developerWallet) throw new Error('Internal Wallet not available');
       const u = normalizeSocialUsername(username.replace(/^@/, ''));
       if (!u) throw new Error('Enter username');
       const normalizedPlatform = normalizeSocialPlatform(platform);
@@ -979,7 +979,7 @@ export function PendingPayments({
     if (rows.length === 0) return;
     try {
       if (!useCircle && (!isConnected || !address || !walletClient)) throw new Error('Connect wallet to claim payment');
-      if (useCircle && !developerWallet) throw new Error('Internal wallet not available');
+      if (useCircle && !developerWallet) throw new Error('Internal Wallet not available');
       const u = normalizeSocialUsername(username.replace(/^@/, ''));
       if (!u) throw new Error('Enter username');
       const normalizedPlatform = normalizeSocialPlatform(platform);
@@ -1283,7 +1283,7 @@ export function PendingPayments({
         throw new Error('DirectSend V2 is not configured');
       }
       if (!useCircle && (!isConnected || !address || !walletClient)) throw new Error('Connect wallet to claim');
-      if (useCircle && !developerWallet) throw new Error('Internal wallet not available');
+      if (useCircle && !developerWallet) throw new Error('Internal Wallet not available');
       if (!addressModeRecipient) throw new Error('Enter your wallet address');
       if (address?.toLowerCase() !== addressModeRecipient.toLowerCase()) {
         throw new Error('Connected wallet must match the address field above');

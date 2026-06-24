@@ -252,7 +252,7 @@ export function VoicePaymentAgent() {
     setRecordingState('idle');
   };
 
-  // Checking for a Internal wallet for social networks
+  // Checking for a Internal Wallet for social networks
   // Check is performed without showing loading indicator, as DeveloperWalletComponent already shows it
   useEffect(() => {
     const checkSocialWallet = async () => {
@@ -269,7 +269,7 @@ export function VoicePaymentAgent() {
       }
 
       try {
-        // Check for a Internal wallet for linked social networks (without showing loading indicator)
+        // Check for a Internal Wallet for linked social networks (without showing loading indicator)
         const socialPlatforms = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'];
         const blockchain = 'ARC-TESTNET';
         

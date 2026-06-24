@@ -106,7 +106,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
     circle: "/Circle-Mint"
   };
 
-  // Checking for a Internal wallet for social networks
+  // Checking for a Internal Wallet for social networks
   useEffect(() => {
     const checkSocialWallet = async () => {
       // If MetaMask is connected - no need to check a social wallet
@@ -127,7 +127,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
 
       try {
         setCheckingWallet(true);
-        // Check for a Internal wallet for linked social networks
+        // Check for a Internal Wallet for linked social networks
         const socialPlatforms = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'];
         const blockchain = 'ARC-TESTNET';
         
@@ -186,7 +186,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
       return;
     }
     
-    // Do not perform lookup if neither MetaMask nor Internal wallet is available
+    // Do not perform lookup if neither MetaMask nor Internal Wallet is available
     if (!isConnected && !hasDeveloperWallet) {
       return;
     }
@@ -239,7 +239,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
         // Get the original creator of the card
         creator = await web3Service.getCardCreator(tokenId);
       } else {
-        // For Internal wallet use a public RPC for reading
+        // For Internal Wallet use a public RPC for reading
         const { createPublicClient, http } = await import('viem');
         const publicClient = createPublicClient({
           chain: activeChain,
@@ -436,7 +436,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
       let owner: string;
       
       if (useDeveloperWallet) {
-        // For Internal wallet use public RPC for reading
+        // For Internal Wallet use public RPC for reading
         const { createPublicClient, http } = await import('viem');
         const publicClient = createPublicClient({
           chain: activeChain,
@@ -517,7 +517,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
 
       // Redeem gift card on blockchain
       if (useDeveloperWallet) {
-        // Use Internal wallet to redeem
+        // Use Internal Wallet to redeem
         // Determine privyUserId - if wallet was created with user_id = MetaMask address (and no privy_user_id),
         // use MetaMask address instead of Privy ID for verification
         let privyUserId: string | undefined = undefined;
@@ -543,7 +543,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
           throw new Error('Privy user ID not found');
         }
 
-        // Determine the social network for the Internal wallet
+        // Determine the social network for the Internal Wallet
         let socialPlatform: string | null = null;
         let socialUserId: string | null = null;
         
@@ -672,7 +672,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
     navigate('/my');
   };
 
-  // Show the message only if there is neither MetaMask nor a social Internal wallet
+  // Show the message only if there is neither MetaMask nor a social Internal Wallet
   if (!isConnected && !hasDeveloperWallet) {
     if (checkingWallet) {
       return (

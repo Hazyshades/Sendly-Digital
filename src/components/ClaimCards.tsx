@@ -540,7 +540,7 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
     return (account as any)?.subject || (account as any)?.id || null;
   };
 
-  // Handle creating Internal wallet and claiming card
+  // Handle creating Internal Wallet and claiming card
   const handleCreateWalletAndClaim = async () => {
     if (!selectedCardForClaim) return;
 
@@ -669,12 +669,12 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
         return;
       }
 
-      // Check if Internal wallet exists
+      // Check if Internal Wallet exists
       let devWallet = await DeveloperWalletService.getWalletBySocial(platform, socialUserId);
       
       if (!devWallet) {
-        // Create Internal wallet automatically
-        toast.info('Creating internal wallet for receiving donations...');
+        // Create Internal Wallet automatically
+        toast.info('Creating Internal Wallet for receiving donations...');
         const createResult = await DeveloperWalletService.createWalletForSocial(
           platform,
           socialUserId,
@@ -683,11 +683,11 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
         );
         
         if (!createResult.success || !createResult.wallet) {
-          throw new Error('Failed to create Internal wallet');
+          throw new Error('Failed to create Internal Wallet');
         }
         
         devWallet = createResult.wallet;
-        toast.success('Internal wallet created successfully!');
+        toast.success('Internal Wallet created successfully!');
         
         // Request testnet tokens for the new wallet
         try {
@@ -709,8 +709,8 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
         }
       }
 
-      // Claim via Internal wallet
-      toast.info('Claiming card via internal wallet...');
+      // Claim via Internal Wallet
+      toast.info('Claiming card via Internal Wallet...');
       
       const txResult = await DeveloperWalletService.sendTransaction({
         walletId: devWallet.circle_wallet_id,
@@ -725,7 +725,7 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
       });
 
       if (!txResult.success) {
-        throw new Error(txResult.error || 'Failed to claim card via Internal wallet');
+        throw new Error(txResult.error || 'Failed to claim card via Internal Wallet');
       }
 
       // Update Supabase after successful blockchain transaction
@@ -781,7 +781,7 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
       return;
     }
 
-    // If no wallet and not using Internal wallet, show wallet choice modal
+    // If no wallet and not using Internal Wallet, show wallet choice modal
     if (!useDeveloperWallet && (!isConnected || !address)) {
       setSelectedCardForClaim(card);
       setIsWalletChoiceModalOpen(true);
@@ -816,18 +816,18 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
         const privyUserId = user.id;
         const twitterUserId = getSocialUserId('twitter');
 
-        // If no MetaMask or Internal wallet is selected
+        // If no MetaMask or Internal Wallet is selected
         if (useDeveloperWallet || !isConnected || !address) {
           if (!privyUserId || !twitterUserId) {
             throw new Error('Privy user ID or Twitter ID not found. Please ensure you are logged in with Twitter.');
           }
 
-          // Check if Internal wallet exists
+          // Check if Internal Wallet exists
           let devWallet = await DeveloperWalletService.getWalletBySocial('twitter', twitterUserId);
           
           if (!devWallet) {
-            // Create Internal wallet automatically
-            toast.info('Creating internal wallet for receiving donations...');
+            // Create Internal Wallet automatically
+            toast.info('Creating Internal Wallet for receiving donations...');
             const createResult = await DeveloperWalletService.createWalletForSocial(
               'twitter',
               twitterUserId,
@@ -836,15 +836,15 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
             );
             
             if (!createResult.success || !createResult.wallet) {
-              throw new Error('Failed to create Internal wallet');
+              throw new Error('Failed to create Internal Wallet');
             }
             
             devWallet = createResult.wallet;
-            toast.success('Internal wallet created successfully!');
+            toast.success('Internal Wallet created successfully!');
           }
 
-          // Claim via Internal wallet
-          toast.info('Claiming card via internal wallet...');
+          // Claim via Internal Wallet
+          toast.info('Claiming card via Internal Wallet...');
           
           const txResult = await DeveloperWalletService.sendTransaction({
             walletId: devWallet.circle_wallet_id,
@@ -859,7 +859,7 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
           });
 
           if (!txResult.success) {
-            throw new Error(txResult.error || 'Failed to claim card via Internal wallet');
+            throw new Error(txResult.error || 'Failed to claim card via Internal Wallet');
           }
 
           // Update Supabase after successful blockchain transaction
@@ -947,18 +947,18 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
         const privyUserId = user.id;
         const twitchUserId = getSocialUserId('twitch');
 
-        // If no MetaMask or Internal wallet is selected
+        // If no MetaMask or Internal Wallet is selected
         if (useDeveloperWallet || !isConnected || !address) {
           if (!privyUserId || !twitchUserId) {
             throw new Error('Privy user ID or Twitch ID not found. Please ensure you are logged in with Twitch.');
           }
 
-          // Check if Internal wallet exists
+          // Check if Internal Wallet exists
           let devWallet = await DeveloperWalletService.getWalletBySocial('twitch', twitchUserId);
           
           if (!devWallet) {
-            // Create Internal wallet automatically
-            toast.info('Creating internal wallet for receiving donations...');
+            // Create Internal Wallet automatically
+            toast.info('Creating Internal Wallet for receiving donations...');
             const createResult = await DeveloperWalletService.createWalletForSocial(
               'twitch',
               twitchUserId,
@@ -967,15 +967,15 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
             );
             
             if (!createResult.success || !createResult.wallet) {
-              throw new Error('Failed to create Internal wallet');
+              throw new Error('Failed to create Internal Wallet');
             }
             
             devWallet = createResult.wallet;
-            toast.success('Internal wallet created successfully!');
+            toast.success('Internal Wallet created successfully!');
           }
 
-          // Claim via Internal wallet
-          toast.info('Claiming card via internal wallet...');
+          // Claim via Internal Wallet
+          toast.info('Claiming card via Internal Wallet...');
           
           const txResult = await DeveloperWalletService.sendTransaction({
             walletId: devWallet.circle_wallet_id,
@@ -990,7 +990,7 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
           });
 
           if (!txResult.success) {
-            throw new Error(txResult.error || 'Failed to claim card via Internal wallet');
+            throw new Error(txResult.error || 'Failed to claim card via Internal Wallet');
           }
 
           // Update Supabase after successful blockchain transaction
@@ -1071,18 +1071,18 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
         const privyUserId = user.id;
         const telegramUserId = getSocialUserId('telegram');
 
-        // If no MetaMask or Internal wallet is selected
+        // If no MetaMask or Internal Wallet is selected
         if (useDeveloperWallet || !isConnected || !address) {
           if (!privyUserId || !telegramUserId) {
             throw new Error('Privy user ID or Telegram ID not found. Please ensure you are logged in with Telegram.');
           }
 
-          // Check if Internal wallet exists
+          // Check if Internal Wallet exists
           let devWallet = await DeveloperWalletService.getWalletBySocial('telegram', telegramUserId);
           
           if (!devWallet) {
-            // Create Internal wallet automatically
-            toast.info('Creating internal wallet for receiving donations...');
+            // Create Internal Wallet automatically
+            toast.info('Creating Internal Wallet for receiving donations...');
             const createResult = await DeveloperWalletService.createWalletForSocial(
               'telegram',
               telegramUserId,
@@ -1091,15 +1091,15 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
             );
             
             if (!createResult.success || !createResult.wallet) {
-              throw new Error('Failed to create Internal wallet');
+              throw new Error('Failed to create Internal Wallet');
             }
             
             devWallet = createResult.wallet;
-            toast.success('Internal wallet created successfully!');
+            toast.success('Internal Wallet created successfully!');
           }
 
-          // Claim via Internal wallet
-          toast.info('Claiming card via internal wallet...');
+          // Claim via Internal Wallet
+          toast.info('Claiming card via Internal Wallet...');
           
           const txResult = await DeveloperWalletService.sendTransaction({
             walletId: devWallet.circle_wallet_id,
@@ -1114,7 +1114,7 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
           });
 
           if (!txResult.success) {
-            throw new Error(txResult.error || 'Failed to claim card via Internal wallet');
+            throw new Error(txResult.error || 'Failed to claim card via Internal Wallet');
           }
 
           // Update Supabase after successful blockchain transaction
@@ -1200,18 +1200,18 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
         const privyUserId = user.id;
         const tiktokUserId = getSocialUserId('tiktok');
 
-        // If no MetaMask or Internal wallet is selected
+        // If no MetaMask or Internal Wallet is selected
         if (useDeveloperWallet || !isConnected || !address) {
           if (!privyUserId || !tiktokUserId) {
             throw new Error('Privy user ID or TikTok ID not found. Please ensure you are logged in with TikTok.');
           }
 
-          // Check if Internal wallet exists
+          // Check if Internal Wallet exists
           let devWallet = await DeveloperWalletService.getWalletBySocial('tiktok', tiktokUserId);
           
           if (!devWallet) {
-            // Create Internal wallet automatically
-            toast.info('Creating internal wallet for receiving donations...');
+            // Create Internal Wallet automatically
+            toast.info('Creating Internal Wallet for receiving donations...');
             const createResult = await DeveloperWalletService.createWalletForSocial(
               'tiktok',
               tiktokUserId,
@@ -1220,15 +1220,15 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
             );
             
             if (!createResult.success || !createResult.wallet) {
-              throw new Error('Failed to create Internal wallet');
+              throw new Error('Failed to create Internal Wallet');
             }
             
             devWallet = createResult.wallet;
-            toast.success('Internal wallet created successfully!');
+            toast.success('Internal Wallet created successfully!');
           }
 
-          // Claim via Internal wallet
-          toast.info('Claiming card via internal wallet...');
+          // Claim via Internal Wallet
+          toast.info('Claiming card via Internal Wallet...');
           
           const txResult = await DeveloperWalletService.sendTransaction({
             walletId: devWallet.circle_wallet_id,
@@ -1243,7 +1243,7 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
           });
 
           if (!txResult.success) {
-            throw new Error(txResult.error || 'Failed to claim card via Internal wallet');
+            throw new Error(txResult.error || 'Failed to claim card via Internal Wallet');
           }
 
           // Update Supabase after successful blockchain transaction
@@ -1329,18 +1329,18 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
         const privyUserId = user.id;
         const instagramUserId = getSocialUserId('instagram');
 
-        // If no MetaMask or Internal wallet is selected
+        // If no MetaMask or Internal Wallet is selected
         if (useDeveloperWallet || !isConnected || !address) {
           if (!privyUserId || !instagramUserId) {
             throw new Error('Privy user ID or Instagram ID not found. Please ensure you are logged in with Instagram.');
           }
 
-          // Check if Internal wallet exists
+          // Check if Internal Wallet exists
           let devWallet = await DeveloperWalletService.getWalletBySocial('instagram', instagramUserId);
           
           if (!devWallet) {
-            // Create Internal wallet automatically
-            toast.info('Creating internal wallet for receiving donations...');
+            // Create Internal Wallet automatically
+            toast.info('Creating Internal Wallet for receiving donations...');
             const createResult = await DeveloperWalletService.createWalletForSocial(
               'instagram',
               instagramUserId,
@@ -1349,15 +1349,15 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
             );
             
             if (!createResult.success || !createResult.wallet) {
-              throw new Error('Failed to create Internal wallet');
+              throw new Error('Failed to create Internal Wallet');
             }
             
             devWallet = createResult.wallet;
-            toast.success('Internal wallet created successfully!');
+            toast.success('Internal Wallet created successfully!');
           }
 
-          // Claim via Internal wallet
-          toast.info('Claiming card via internal wallet...');
+          // Claim via Internal Wallet
+          toast.info('Claiming card via Internal Wallet...');
           
           const txResult = await DeveloperWalletService.sendTransaction({
             walletId: devWallet.circle_wallet_id,
@@ -1372,7 +1372,7 @@ export function ClaimCards({ onCardClaimed, onPendingCountChange, autoLoad = fal
           });
 
           if (!txResult.success) {
-            throw new Error(txResult.error || 'Failed to claim card via Internal wallet');
+            throw new Error(txResult.error || 'Failed to claim card via Internal Wallet');
           }
 
           // Update Supabase after successful blockchain transaction

@@ -32,7 +32,7 @@ export function WalletChoiceModal({ isOpen, onClose, onCreateWallet }: WalletCho
             Choose Wallet Option
           </DialogTitle>
           <DialogDescription className="text-center text-gray-600 mt-2">
-            Connect an existing wallet or create a new internal wallet to claim your gift card
+            Connect an existing wallet or create a new Internal Wallet to claim your gift card
           </DialogDescription>
         </DialogHeader>
         
@@ -56,7 +56,7 @@ export function WalletChoiceModal({ isOpen, onClose, onCreateWallet }: WalletCho
         </div>
         
         <p className="text-xs text-gray-500 text-center mt-4">
-          Internal wallets are managed by Sendly and allow you to receive gifts without a web3 wallet
+          Internal Wallets are managed by Sendly and allow you to receive gifts without a web3 wallet
         </p>
       </DialogContent>
     </Dialog>
