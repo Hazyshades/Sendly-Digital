@@ -24,12 +24,8 @@ export function InstagramCallbackRoute() {
 
   useEffect(() => {
     if (hasExchangedRef.current) {
-      console.log('[POPUP] Instagram code exchange already completed, skipping...');
       return;
     }
-
-    console.log('[POPUP] InstagramCallbackRoute mounted');
-    console.log('[POPUP] Location:', location.pathname + location.search);
 
     const params = new URLSearchParams(location.search);
 
@@ -108,12 +104,15 @@ export function InstagramCallbackRoute() {
         }
 
         const accessToken = tokenData.accessToken;
-        localStorage.setItem('instagram_oauth', accessToken);
-        localStorage.setItem('instagram_oauth_token', accessToken);
+        const hasOpener = window.opener && !window.opener.closed;
+        if (!hasOpener) {
+          localStorage.setItem('instagram_oauth', accessToken);
+          localStorage.setItem('instagram_oauth_token', accessToken);
+        }
 
         clearInstagramOAuthStorage();
 
-        if (window.opener && !window.opener.closed) {
+        if (hasOpener) {
           window.opener.postMessage(
             {
               type: 'instagram_oauth_token',

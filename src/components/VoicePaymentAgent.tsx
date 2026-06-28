@@ -129,16 +129,11 @@ export function VoicePaymentAgent() {
       setTranscribedText(text);
       toast.success('Speech recognized');
 
-      console.log('Transcribed text:', text);
-      console.log('Contacts:', contacts);
-
       const contactsWithWallet = contacts
         .filter(c => c.wallet)
         .map(c => ({ name: c.name, wallet: c.wallet! }));
       
       const parsed = await aimlapiService.parsePaymentCommand(text, contactsWithWallet);
-      
-      console.log('Parsed command:', parsed);
 
       if (!parsed) {
         throw new Error('Failed to process command');
@@ -152,10 +147,6 @@ export function VoicePaymentAgent() {
 
       const recipientNameLower = parsed.recipientName!.toLowerCase().trim();
       const contact = contacts.find(c => c.name.toLowerCase().trim() === recipientNameLower);
-      
-      console.log('Looking for contact:', parsed.recipientName, 'lowercase:', recipientNameLower);
-      console.log('Available contacts:', contacts.map(c => c.name));
-      console.log('Found contact:', contact);
       
       if (!contact) {
         setError('Contact not found');
@@ -178,11 +169,12 @@ export function VoicePaymentAgent() {
   };
 
   const confirmAndCreate = async () => {
-    if (!parsedCommand || !isConnected || !address) {
+    if (!parsedCommand?.recipientName || !isConnected || !address) {
       return;
     }
 
-    const contact = contacts.find(c => c.name.toLowerCase() === parsedCommand.recipientName.toLowerCase());
+    const recipientName = parsedCommand.recipientName;
+    const contact = contacts.find(c => c.name.toLowerCase() === recipientName.toLowerCase());
     if (!contact) {
       setError('Contact not found');
       return;

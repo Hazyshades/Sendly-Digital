@@ -57,10 +57,10 @@ const getPostMessageTargetOrigin = (): string => {
     try {
       return new URL(document.referrer).origin;
     } catch {
-      // ignore and fallback to wildcard
+      // ignore and fallback to same-origin
     }
   }
-  return '*';
+  return window.location.origin;
 };
 
 const getZkTlsApiUrl = (): string => {
@@ -116,13 +116,17 @@ export function TwitterOAuth1CallbackRoute() {
         const parsed = parseOAuth1AccessTokenResponse(raw);
 
         if (parsed?.oauthToken && parsed.oauthTokenSecret) {
-          localStorage.setItem('twitter_oauth1_token', parsed.oauthToken);
-          localStorage.setItem('twitter_oauth1_secret', parsed.oauthTokenSecret);
-          if (parsed.screenName) {
-            localStorage.setItem('twitter_oauth1_screen_name', parsed.screenName);
+          const hasOpener = window.opener && !window.opener.closed;
+
+          if (!hasOpener) {
+            localStorage.setItem('twitter_oauth1_token', parsed.oauthToken);
+            localStorage.setItem('twitter_oauth1_secret', parsed.oauthTokenSecret);
+            if (parsed.screenName) {
+              localStorage.setItem('twitter_oauth1_screen_name', parsed.screenName);
+            }
           }
 
-          if (window.opener && !window.opener.closed) {
+          if (hasOpener) {
             const targetOrigin = getPostMessageTargetOrigin();
             window.opener.postMessage(
               {

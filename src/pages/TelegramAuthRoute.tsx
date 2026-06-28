@@ -73,10 +73,13 @@ export function TelegramAuthRoute() {
             return;
           }
 
-          localStorage.setItem('telegram_oauth_token', data.accessToken);
-          localStorage.setItem('telegram_oauth', data.accessToken);
+          const hasOpener = window.opener && !(window.opener as Window).closed;
+          if (!hasOpener) {
+            localStorage.setItem('telegram_oauth_token', data.accessToken);
+            localStorage.setItem('telegram_oauth', data.accessToken);
+          }
 
-          if (window.opener && !(window.opener as Window).closed) {
+          if (hasOpener) {
             (window.opener as Window).postMessage(
               { type: 'telegram_oauth_token', accessToken: data.accessToken, username: data.username },
               origin

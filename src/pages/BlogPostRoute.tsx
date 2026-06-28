@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, ArrowLeft, Tag, Clock } from 'lucide-react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { VerificationInfographic } from '@/components/figma/VerificationInfographic';
@@ -26,12 +26,12 @@ const PAYMENTS_SEND_PREVIEW_FALLBACK: SendPaymentPreviewValues = {
   amount: '100',
   token: 'USDC',
   platform: 'twitter',
-  username: 'Arc',
+  username: 'arc',
   balance: '362.347036',
-  suggestionLabel: 'Arc @Arc',
+  suggestionLabel: 'Arc @arc',
 };
 
-const BLOG_PREVIEW_USERNAME = 'Arc';
+const BLOG_PREVIEW_USERNAME = 'arc';
 
 interface BlogPost {
   slug: string;
@@ -57,7 +57,7 @@ interface BlogSection {
 interface BlogImage {
   id: string;
   src?: string;
-  componentId?: 'verification-infographic' | 'zktls-infographic' | 'zktls-Architecture-infographic' | 'privy-oauth-infographic' | 'payments-send-embed' | 'payments-receive-embed' | 'gift-card-create-embed' | 'internal-wallet-dashboard-embed' | 'internal-wallet-create-embed';
+  componentId?: 'verification-infographic' | 'zktls-infographic' | 'zktls-architecture-infographic' | 'privy-oauth-infographic' | 'payments-send-embed' | 'payments-receive-embed' | 'gift-card-create-embed' | 'internal-wallet-dashboard-embed' | 'internal-wallet-create-embed';
   alt: string;
   caption: string;
 }
@@ -171,9 +171,9 @@ const blogPosts: Record<string, BlogPost> = {
         caption: ''
       },
       {
-        id: 'zktls-Architecture',
-        componentId: 'zktls-Architecture-infographic',
-        alt: 'zkTLS Architecture: device, attestor, platform, contract, chain',
+        id: 'zktls-architecture',
+        componentId: 'zktls-architecture-infographic',
+        alt: 'zkTLS architecture: device, attestor, platform, contract, chain',
         caption: ''
       },
   
@@ -207,12 +207,12 @@ const blogPosts: Record<string, BlogPost> = {
         imageId: 'zktls-flow'
       },
       {
-        id: 'Architecture',
+        id: 'architecture',
         title: 'Architecture',
         paragraphs: [
           'Path: your device to the attestor (relay and signer) to the social platform. The attestor validates the TLS session and signs the claim. You submit the claim on-chain; the contract checks the signature and sends funds to the recipient wallet.'
         ],
-        imageId: 'zktls-Architecture'
+        imageId: 'zktls-architecture'
       },
       {
         id: 'how-it-works',
@@ -351,7 +351,7 @@ const blogPosts: Record<string, BlogPost> = {
         paragraphs: [],
         bullets: [
           'Wallet: MetaMask, Rabby, or Circle wallet',
-          'Tokens: USDC or EURC on Arc',
+          'Tokens: USDC or EURC on ARC Testnet',
           'A supported social account (if sending or receiving by username)'
         ]
       },
@@ -361,7 +361,7 @@ const blogPosts: Record<string, BlogPost> = {
         paragraphs: [],
         bullets: [
           'No card: log in with the account that should receive it.',
-          'Claim errors: stay on Arc and keep a little gas for fees.',
+          'Claim errors: stay on ARC Testnet and keep a little gas for fees.',
           'Wrong person: on-chain sends cannot be undone. Check the address or username before you confirm.',
           'Lost password: only whoever set it can help; we do not have it.'
         ]
@@ -370,7 +370,7 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'security',
         title: 'Security notes',
         paragraphs: [
-          'Smart contracts on Arc hold the rules. We do not store private keys.',
+          'Smart contracts on ARC Testnet hold the rules. We do not store private keys.',
           'With Circle, Circle manages keys. Do not sign transactions you do not understand.'
         ]
       }
@@ -379,14 +379,13 @@ const blogPosts: Record<string, BlogPost> = {
   },
   'circle-sdk-wallet-playbook': {
     slug: 'circle-sdk-wallet-playbook',
-    title:
-      'Circle SDK in Sendly: From Social Login to Managed Asset Flow',
+    title: 'Circle SDK in Sendly: Internal Wallet, Asset Flow, and NFT Cards',
     description:
-      'How Sendly uses Circle Developer-Controlled Wallets so social-only users can mint, claim, top up, and redeem NFT gift cards on Arc - without MetaMask.',
-    date: '2026-06-20',
+      'How Sendly uses Circle Developer Wallet: internal-wallet payments, funding and transfers, and minting NFT gift cards.',
+    date: '2026-04-14',
     category: 'Technology',
-    tags: ['Circle', 'Developer Wallets', 'Gateway', 'NFT', 'Arc Testnet', 'Privy'],
-    readTime: '12 min',
+    tags: ['Circle', 'Developer Wallets', 'NFT'],
+    readTime: '9 min',
     images: [
       {
         id: 'circle-create-wallet',
@@ -397,165 +396,90 @@ const blogPosts: Record<string, BlogPost> = {
       {
         id: 'circle-cover',
         componentId: 'internal-wallet-dashboard-embed',
-        alt: 'Internal Wallet dashboard in Sendly',
+        alt: 'Circle wallet flow in Sendly',
         caption: ''
       }
     ],
     sections: [
       {
-        id: 'why-internal-wallet',
-        title: 'Why an Internal Wallet exists',
+        id: 'overview',
+        title: 'What is the Internal Wallet?',
         paragraphs: [
-          'Sendly lets people send value to social identities, not just wallet addresses. That creates a product challenge: what happens when the recipient has a Twitch, X, Telegram, or Privy login, but no MetaMask wallet yet?',
-          <>
-            Sendly solves this with an Internal Wallet powered by{' '}
-            <a
-              href="https://developers.circle.com/wallets/dev-controlled"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-purple-700 underline hover:text-purple-900"
-            >
-              Circle Developer-Controlled Wallets
-            </a>
-            . The user signs in socially, the backend resolves or creates a Circle wallet, and Sendly can mint, claim, top up, or redeem on their behalf while keeping Circle credentials out of the browser.
-          </>,
-          'Circle Developer-Controlled Wallets are the infrastructure layer that lets Sendly serve users who arrive with a social identity first and a wallet later. This is a builder case study for that path-not a generic “Circle SDK” overview.'
+          'Sendly\'s Internal Wallet is Circle Developer Wallet (Circle SDK). If someone signs in with a social account and does not bring their own crypto wallet, they can still get an on-chain address and keep using the app.',
+          'This post describes what we ship: dashboard setup, balances and transfers, and NFT gift cards. The browser calls our API; the backend runs the wallet work.'
+        ],
+        bullets: [
+          'Find or create an internal Circle wallet for the logged-in user.',
+          'Read balances and fund the wallet (top-up or deposit-style flows).',
+          'Mint and claim NFT gift cards to a wallet address or a social handle.'
         ],
         imageId: 'circle-create-wallet'
       },
+      
       {
-        id: 'where-circle-sits',
-        title: 'Where Circle sits in Sendly',
+        id: 'dashboard-wallet',
+        title: 'Internal Wallet Flow',
         paragraphs: [
-          'Sendly is a USDC-first payment app for social identities. On Arc, the flow this article covers is NFT Gift Cards: ERC-721 cards with locked USDC/EURC value until the recipient claims. Internal Wallet, powered by Circle Developer-Controlled Wallets, signs mint, claim, top-up, and redeem when the user picks “Internal Wallet” instead of a browser wallet.',
-          'The system path is: React frontend → Supabase Edge Functions → Circle APIs → Arc contracts → Supabase Postgres. The browser owns UX and browser-wallet signing. Supabase owns privileged server operations. Circle owns wallet custody, Gateway/CCTP infrastructure, and programmatic signing. Arc settles contract calls.',
-          'The browser never talks to Circle for signing. The React app calls Edge Functions. Edge Functions hold Circle API credentials, encrypt the entity secret, execute wallet operations, and persist wallet and payment state in Postgres. Circle submits the transaction; Arc Network settles the contract call.'
-        ]
+          'Opening the wallet screen, the app looks for an existing Internal Wallet first: address, then linked social account, then Privy-related ids.',
+          'If nothing matches, we create a wallet through the backend. On some social claim paths the wallet is created automatically, then the claim tx runs.',
+          'Scenario 1: Social login, no web3 wallet yet. They create an Internal Wallet and can receive a payment to it. Some flows create the wallet right before claim.',
+          'Scenario 2: They already use a web3 wallet. They can still add an Internal Wallet and tie it to socials or to an external address, depending on how you wire identity.'
+        ],
+      
       },
       {
-        id: 'identity-before-wallet',
-        title: 'Identity before wallet',
+        id: 'asset-flow',
+        title: 'Asset flow: balances, top-up, and transfer',
         paragraphs: [
-          'An Internal Wallet is only useful if Sendly knows who owns it. Wallet resolution does not start at Circle-it starts at identity.',
-          'Resolution order: (1) connected browser wallet address, when the user already uses MetaMask, Rabby, or similar; (2) linked social identity-platform, social user ID, and username from OAuth; (3) Privy user ID as the final anchor when social rows are incomplete.',
-          'Once resolved, the backend stores Circle wallet ID, wallet set ID, wallet address, blockchain, account type, state, custody type, and social binding in `developer_wallets` (including `social_platform`, `social_user_id`, `social_username`, and `privy_user_id`).'
-        ]
-      },
-      {
-        id: 'two-wallet-modes',
-        title: 'Two wallet modes',
-        paragraphs: [
-          'Sendly is not “we have a wallet.” It is a fallback signing path for social-only users. Every feature that moves funds asks the same question: who signs this transaction?',
-          <>
-            <div className="overflow-x-auto my-6">
-              <table className="w-full text-left border border-gray-200 rounded-lg text-base">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-4 py-3 font-semibold text-gray-900">Mode</th>
-                    <th className="px-4 py-3 font-semibold text-gray-900">Who signs?</th>
-                    <th className="px-4 py-3 font-semibold text-gray-900">Good for</th>
-                  </tr>
-                </thead>
-                <tbody className="text-gray-700">
-                  <tr className="border-b border-gray-100">
-                    <td className="px-4 py-3 font-medium">External wallet</td>
-                    <td className="px-4 py-3">User signs in MetaMask, Rabby, etc.</td>
-                    <td className="px-4 py-3">Web3-native senders and recipients</td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-3 font-medium">Internal Wallet</td>
-                    <td className="px-4 py-3">
-                      Backend signs through Circle Developer-Controlled Wallets
-                    </td>
-                    <td className="px-4 py-3">
-                      Social-only users, claim without MetaMask, backend-assisted mint and redeem
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </>,
-          'On the wallet screen, the app resolves an existing Internal Wallet before creating a new one. Social claim endpoints may call `create-for-social` immediately before `POST /wallets/send-transaction` so claim and wallet creation feel like one step to the user.'
-        ]
-      },
-      {
-        id: 'balances-top-up-gateway',
-        title: 'Balances, top-up, and Gateway',
-        paragraphs: [
-          'Asset movement here means three separate things: read ERC-20 balances on the Internal Wallet, fund the wallet (top-up from an external wallet), or move USDC across chains. Top-up and spend/redeem are different user stories-do not conflate them in support copy.',
-          'Balances and top-up from an external wallet are part of the shipped internal-wallet dashboard. The UI polls Circle by `transactionId` until a tx hash or terminal state appears; plan for pending states in product UX.',
-          'Circle Gateway / Unified Balance is implemented in frontend and backend but is still in testing-it should be presented as an integration under test, not the primary shipped user mode. The interactive flow uses approve → deposit → EIP-712 burn intent → attestation → mint; server-side flows use Unified Balance Kit on Edge Functions so the entity secret stays off the client.',
-          'Bridge Kit / CCTP is the better fit for direct point-to-point USDC bridging (for example Arc Testnet to Base Sepolia). Gateway is the better fit when the product wants a persistent unified balance and instant cross-chain spending from that balance.'
+          'When people say "pull asset" here, they usually mean one of three things: read balances, send funds into the Internal Wallet, or move value between supported networks or addresses.',
+          'The Internal Wallet screen reads ERC-20 balances and allows top-up from an external wallet. Gateway flows use approve and deposit, then burn intent, attestation, and mint.'
+        ],
+        bullets: [
+          'Gateway client/service modules hold the balance and transfer plumbing.',
+          'Internal Wallet UI includes top-up and test-token requests.',
+          'Transactions are not always synchronous: the UI polls by `transactionId` until it gets a hash or a final state.'
         ],
         imageId: 'circle-cover'
       },
       {
-        id: 'minting-nft-gift-cards',
-        title: 'Minting NFT gift cards',
+        id: 'nft-cards',
+        title: 'Create an NFT card from Circle Internal Wallet',
         paragraphs: [
-          'The sender creates a card with an optional message and USDC or EURC value; value stays locked in the GiftCard contract on Arc until the recipient claims.',
-          'Minting runs through `CreateGiftCard`: check balance and allowance, upload metadata (IPFS), then execute on Arc. Internal Wallet mode sends approve and mint via `DeveloperWalletService` → Circle API. External mode prompts the user\'s browser wallet.',
-          'Circle executes the contract call; the GiftCard contract mints the ERC-721 and locks value. The UI reads `tokenId` from the `Transfer` event. Social-directed cards (X, Twitch, Telegram, and others) stay in platform vaults until the matching username claims.'
+          'Gift cards are minted through `CreateGiftCard`. The app checks balance and allowance, prepares metadata, then calls the contract on whichever path you picked.',
+          'Internal Wallet mode routes the transaction through the backend. External wallet mode asks the user to confirm in their browser wallet.'
         ],
         bullets: [
-          'Sender path: Wallet Source toggle → Browser Wallet or Internal Wallet.',
-          'Recipient by username: card is escrowed until claim succeeds.',
-          'Recipient by address: NFT lands in that wallet after mint.'
+          'After mint, we read `tokenId` from the ERC-721 `Transfer` event.',
+          'X (Twitter), Twitch, Telegram, and similar recipients use separate create/claim paths.',
+          'After claim, the NFT is a normal ERC-721 in the recipient\'s context.'
         ]
       },
       {
-        id: 'claim-and-redeem',
-        title: 'Claim and redeem',
+        id: 'internal-wallet-stats',
+        title: 'Statistics',
         paragraphs: [
-          'Minting is half the lifecycle. When a recipient opens a social-directed card, Sendly validates the identity mapping (pending status, username match), then chooses who signs the claim transaction.',
-          'If the user supplies a browser wallet address, the client signs against the platform vault contract. If the recipient is social-only, Sendly resolves or creates an Internal Wallet (`POST /wallets/create-for-social` when needed), then submits the claim via `POST /wallets/send-transaction` with vault address, `claimCard` args, and the Circle wallet id.',
-          'After a successful claim, the recipient owns the ERC-721 card and can redeem its locked value. Redeem/spend in the app follows the same signing matrix: Internal Wallets use backend-signed contract calls; connected EOAs sign in the browser (for example Spend flow redemption to a selected service).',
-          'Always persist the tx hash before showing success-indexer and subgraph lag can otherwise flash the wrong state.'
-        ]
-      },
-      {
-        id: 'testnet-numbers',
-        title: 'Testnet numbers',
-        paragraphs: [
-          'Figures below count gift cards minted where the sender used Circle Developer-Controlled Wallets (Internal Wallet). Amounts are face value in token units (6 decimals on-chain). EURC is not USD; comparison to total testnet volume is indicative only.',
-          <>
-            Total testnet volume (~$310k) and Privy wallet methodology come from the same reporting window as{' '}
-            <Link to="/blog/privy-results" className="text-purple-700 underline hover:text-purple-900">
-              Privy testnet results
-            </Link>
-            . Re-run analytics before citing these in external decks.
-          </>
+          'Counts and amounts below are gift cards minted through Circle Developer Wallet (Internal Wallet). Balances use 6 decimals; raw is the integer in smallest units.',
+          'Our testnet writeup put total volume around $310k. The percentage is internal-wallet mint face value divided by that $310k number. Treat it as a rough comparison (EURC is not exactly USD).'
         ],
         bullets: [
-          'Users who minted via Internal Wallet: 220',
+          'Users who minted cards via Internal Wallet: 220',
           'Combined face value of those mints: 6,634',
-          'USDC portion: 4,499 · EURC portion: 2,134',
-          'Share of ~$310k total volume: ≈2.14%'
+          'USDC portion: 4,499',
+          'EURC portion: 2,134',
+          'Versus ~$310k total volume:≈ 2.14%.'
         ]
       },
       {
-        id: 'security-and-operations',
-        title: 'Security and operations',
+        id: 'security-and-ops',
+        title: 'Security and operational notes',
         paragraphs: [
-          <>
-            Circle API credentials, entity secrets, and service-role keys stay in Supabase Edge Function secrets. The browser only receives public config and transaction state. Circle&apos;s{' '}
-            <a
-              href="https://developers.circle.com/wallets/dev-controlled/entity-secret-management"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-purple-700 underline hover:text-purple-900"
-            >
-              entity secret
-            </a>{' '}
-            is developer-held; mutating wallet requests send fresh entity secret ciphertext, not the raw secret.
-          </>,
-          'For mutating wallet operations, the backend should use idempotency keys and treat Circle responses as asynchronous until a terminal transaction state or on-chain tx hash is available. Frontend and Edge both poll by `transactionId` (or use webhooks where configured) before showing final success.',
-          'Users should not sign transactions they do not understand. With developer-controlled wallets, Circle custody applies-be explicit in UX when Sendly, not MetaMask, is the signer. Flows in this article are validated on Arc Network; new chains need contract addresses, Circle blockchain config, and re-testing of Gateway and `send-transaction`.'
+          'Circle credentials and entity secrets belong on the server. The browser should keep calling your backend for anything that touches keys or signing.',
+          'Most of this was written for ARC-TESTNET. Other chains need testing and explicit config.'
         ],
         bullets: [
-          'Never embed production API keys or entity secrets in client bundles or scripts.',
-          'Log Edge request id together with Circle transaction ref for support tickets.',
-          'Before mainnet: threat-model social claim auto-create (username takeover → wallet linkage).'
+          'Do not ship production API secrets in scripts or client code.',
+          'Watch for slow finalization; the UI retries polling by `transactionId`.',
+          'Document per-chain switches before you enable Circle in a new environment.'
         ]
       }
     ],
@@ -763,7 +687,7 @@ export function BlogPostRoute() {
       if (img.componentId === 'zktls-infographic') {
         return (<button type="button" onClick={() => setActiveImage(img)} className="w-full text-left rounded-xl overflow-hidden bg-[#FAFAFA]" aria-label={`Open: ${img.caption}`}><ZkTLSInfographic compact />{img.caption && <div className="mt-3 text-sm text-gray-600">{img.caption}</div>}</button>);
       }
-      if (img.componentId === 'zktls-Architecture-infographic') {
+      if (img.componentId === 'zktls-architecture-infographic') {
         return (<button type="button" onClick={() => setActiveImage(img)} className="w-full text-left rounded-xl overflow-hidden bg-[#FAFAFA]" aria-label={`Open: ${img.caption}`}><ZkTLSArchitectureInfographic compact />{img.caption && <div className="mt-3 text-sm text-gray-600">{img.caption}</div>}</button>);
       }
       if (img.componentId === 'privy-oauth-infographic') {
@@ -1076,7 +1000,7 @@ export function BlogPostRoute() {
                   Scroll or pinch to zoom · Double-tap to zoom in
                 </p>
               </div>
-            ) : activeImage.componentId === 'zktls-Architecture-infographic' ? (
+            ) : activeImage.componentId === 'zktls-architecture-infographic' ? (
               <div className="bg-[#FAFAFA] overflow-hidden">
                 <TransformWrapper
                   initialScale={1}

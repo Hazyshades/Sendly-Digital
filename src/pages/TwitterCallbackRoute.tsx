@@ -16,15 +16,8 @@ export function TwitterCallbackRoute() {
 
   useEffect(() => {
     if (hasExchangedRef.current) {
-      console.log('[POPUP] Code exchange already completed, skipping...');
       return;
     }
-
-    console.log('[POPUP] TwitterCallbackRoute mounted');
-    console.log('[POPUP] Location:', location.pathname + location.search);
-    console.log('[POPUP] Location search:', location.search);
-    console.log('[POPUP] Window opener exists:', !!window.opener);
-    console.log('[POPUP] Window opener closed:', window.opener?.closed);
     
     const params = new URLSearchParams(location.search);
     
@@ -35,11 +28,6 @@ export function TwitterCallbackRoute() {
     const redirectUrl = sessionStorage.getItem('twitter_oauth_redirect') || '/dashboard';
     const codeVerifier = sessionStorage.getItem('twitter_code_verifier');
     
-    console.log('[POPUP] Authorization code found:', !!code);
-    console.log('[POPUP] Error:', error);
-    console.log('[POPUP] State:', state);
-    console.log('[POPUP] Stored state:', storedState);
-
     const closeOrRedirect = () => {
       if (window.opener && !window.opener.closed) {
         setTimeout(() => {
@@ -90,7 +78,6 @@ export function TwitterCallbackRoute() {
     }
 
     hasExchangedRef.current = true;
-    console.log('[POPUP] 🔒 Lock set to prevent duplicate code exchange');
 
     const exchangeCodeForToken = async () => {
       
@@ -100,20 +87,11 @@ export function TwitterCallbackRoute() {
         const apiUrl = getZkTlsApiUrl().replace(/\/$/, '');
         const fullUrl = `${apiUrl}/api/twitter/oauth/exchange`;
         
-        console.log('[POPUP] Exchange code for token:');
-        console.log('[POPUP] API URL:', apiUrl);
-        console.log('[POPUP] Full URL:', fullUrl);
-        console.log('[POPUP] Redirect URI:', redirectUri);
-        console.log('[POPUP] Has code verifier:', !!codeVerifier);
-        console.log('[POPUP] Code (first 10 chars):', code?.substring(0, 10) + '...');
-        
         const requestBody = {
           code: code,
           redirectUri: redirectUri,
           codeVerifier: codeVerifier || undefined,
         };
-        
-        console.log('[POPUP] Request body (without code):', { ...requestBody, code: '[REDACTED]' });
         
         const response = await fetch(fullUrl, {
           method: 'POST',
@@ -130,13 +108,6 @@ export function TwitterCallbackRoute() {
           });
           throw err;
         });
-        
-        console.log('[POPUP] Response received:', {
-          status: response.status,
-          statusText: response.statusText,
-          ok: response.ok,
-          headers: Object.fromEntries(response.headers.entries()),
-        });
 
         if (!response.ok) {
           const errorText = await response.text();
@@ -150,36 +121,27 @@ export function TwitterCallbackRoute() {
         }
 
         const accessToken = tokenData.accessToken;
-        console.log('[POPUP] ✅ Code exchange successful! Token received.');
-        console.log('[POPUP] Saving Twitter token to popup localStorage:', accessToken.substring(0, 20) + '...');
-        if (tokenData.tokenType) {
-          console.log('[POPUP] Twitter token type:', tokenData.tokenType);
+        const hasOpener = window.opener && !window.opener.closed;
+
+        if (!hasOpener) {
+          localStorage.setItem('twitter_oauth', accessToken);
+          localStorage.setItem('twitter_oauth_token', accessToken);
+          if (tokenData.tokenType) {
+            localStorage.setItem('twitter_oauth_token_type', tokenData.tokenType);
+          }
+          if (tokenData.scope) {
+            localStorage.setItem('twitter_oauth_scope', tokenData.scope);
+          }
+          if (tokenData.refreshToken) {
+            localStorage.setItem('twitter_refresh_token', tokenData.refreshToken);
+          }
         }
-        if (tokenData.scope) {
-          console.log('[POPUP] Twitter token scopes:', tokenData.scope);
-        }
-        localStorage.setItem('twitter_oauth', accessToken);
-        localStorage.setItem('twitter_oauth_token', accessToken);
-        if (tokenData.tokenType) {
-          localStorage.setItem('twitter_oauth_token_type', tokenData.tokenType);
-        }
-        if (tokenData.scope) {
-          localStorage.setItem('twitter_oauth_scope', tokenData.scope);
-        }
-        
-        if (tokenData.refreshToken) {
-          localStorage.setItem('twitter_refresh_token', tokenData.refreshToken);
-        }
-        
-        console.log('[POPUP] Token saved in popup. Verifying:', localStorage.getItem('twitter_oauth') ? 'Token found (key: twitter_oauth)' : 'Token NOT found!');
         
         sessionStorage.removeItem('twitter_oauth_state');
         sessionStorage.removeItem('twitter_oauth_redirect');
         sessionStorage.removeItem('twitter_code_challenge');
 
-        if (window.opener && !window.opener.closed) {
-          console.log('[POPUP] Sending token to parent window via postMessage...');
-          
+        if (hasOpener) {
           const messageData = {
             type: 'twitter_oauth_token',
             accessToken: accessToken
@@ -187,9 +149,8 @@ export function TwitterCallbackRoute() {
           
           try {
             window.opener.postMessage(messageData, window.location.origin);
-            console.log('[POPUP] ✅ postMessage sent successfully to:', window.location.origin);
           } catch (error) {
-            console.error('[POPUP] ❌ Error sending postMessage:', error);
+            console.error('[POPUP] Error sending postMessage:', error);
           }
         }
 

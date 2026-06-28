@@ -127,7 +127,7 @@
     const info = {
       frontend: {
         title: "sendly-frontend",
-        body: "Client-side wallet management & transaction construction. Direct Circle Gateway & Bridge integration for instant fiat and cross-chain operations.",
+        body: "UI, Internal vs Browser wallet toggle, tx building, Gateway and Bridge in the client.",
         paths: [
           "src/lib/circle/developerWalletService.ts",
           "src/lib/circle/gateway/*",
@@ -137,7 +137,7 @@
       },
       supabase: {
         title: "sendly-supabase",
-        body: "Edge-powered orchestration: Wallet management, smart contract execution, and Unified Balance Kit for seamless multi-chain operations.",
+        body: "API keys and entity secret never leave the Edge layer. Wallets, contractExecution, Gateway UBK.",
         paths: [
           "functions/arc/server/index.tsx - /wallets/*",
           "functions/arc/server/gateway-*/",

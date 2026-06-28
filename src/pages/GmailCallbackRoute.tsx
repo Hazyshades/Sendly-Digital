@@ -28,12 +28,8 @@ export function GmailCallbackRoute() {
 
   useEffect(() => {
     if (hasExchangedRef.current) {
-      console.log('[POPUP] Gmail code exchange already completed, skipping...');
       return;
     }
-
-    console.log('[POPUP] GmailCallbackRoute mounted');
-    console.log('[POPUP] Location:', location.pathname + location.search);
 
     const params = new URLSearchParams(location.search);
 
@@ -140,15 +136,18 @@ export function GmailCallbackRoute() {
         }
 
         const accessToken = tokenData.accessToken;
-        localStorage.setItem('gmail_oauth', accessToken);
-        localStorage.setItem('gmail_oauth_token', accessToken);
-        if (tokenData.scope) {
-          localStorage.setItem('gmail_oauth_scope', tokenData.scope);
+        const hasOpener = window.opener && !window.opener.closed;
+        if (!hasOpener) {
+          localStorage.setItem('gmail_oauth', accessToken);
+          localStorage.setItem('gmail_oauth_token', accessToken);
+          if (tokenData.scope) {
+            localStorage.setItem('gmail_oauth_scope', tokenData.scope);
+          }
         }
 
         clearGmailOAuthStorage();
 
-        if (window.opener && !window.opener.closed) {
+        if (hasOpener) {
           window.opener.postMessage(
             {
               type: 'gmail_oauth_token',

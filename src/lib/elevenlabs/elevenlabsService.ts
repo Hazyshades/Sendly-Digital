@@ -12,10 +12,19 @@ export interface TranscriptionResult {
 }
 
 export class ElevenLabsService {
-  private apiKey: string;
+  private transcribeEndpoint: string;
 
   constructor() {
-    this.apiKey = import.meta.env.VITE_ELEVENLABS_API_KEY || 'sk_e93b8144735060aaf5df2e8fd49e75d51fb6571a05663001';
+    this.transcribeEndpoint = (import.meta.env.VITE_AUDIO_TRANSCRIBE_FUNCTION_URL || '').trim();
+  }
+
+  private getTranscribeEndpoint(): string {
+    if (!this.transcribeEndpoint) {
+      throw new Error(
+        'Audio transcription requires a backend endpoint. Set VITE_AUDIO_TRANSCRIBE_FUNCTION_URL to a server route that keeps ElevenLabs credentials off the client.'
+      );
+    }
+    return this.transcribeEndpoint;
   }
 
   async transcribeAudio(audioBlob: Blob): Promise<TranscriptionResult> {
@@ -29,17 +38,14 @@ export class ElevenLabsService {
     formData.append('language_code', 'en');
 
     try {
-      const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+      const response = await fetch(this.getTranscribeEndpoint(), {
         method: 'POST',
-        headers: {
-          'xi-api-key': this.apiKey,
-        },
         body: formData,
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`ElevenLabs API error: ${response.status} - ${errorText}`);
+        throw new Error(`Audio transcription error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();

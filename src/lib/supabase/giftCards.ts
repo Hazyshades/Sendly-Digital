@@ -96,7 +96,8 @@ export class GiftCardsService {
       let q = supabase
         .from('gift_cards')
         .select('*')
-        .eq('recipient_address', recipientAddress.toLowerCase());
+        .eq('recipient_address', recipientAddress.toLowerCase())
+        .eq('recipient_type', 'address');
       if (chainId != null) q = q.eq('chain_id', chainId);
       let { data, error } = await q.order('created_at', { ascending: false });
       if (error && isChainIdSchemaError(error) && chainId != null) {
@@ -104,6 +105,7 @@ export class GiftCardsService {
           .from('gift_cards')
           .select('*')
           .eq('recipient_address', recipientAddress.toLowerCase())
+          .eq('recipient_type', 'address')
           .order('created_at', { ascending: false });
         data = r.data;
         error = r.error;
@@ -258,13 +260,14 @@ export class GiftCardsService {
     }
   }
 
-  /** Cards where `recipient_address` is this wallet (incl. claimed social if row still has platform `recipient_type`). */
+  /** Received cards (address recipient) from gift_cards_graph. */
   static async getGraphCardsByRecipientAddress(recipientAddress: string, chainId?: number): Promise<GiftCardRecord[]> {
     try {
       let q = supabase
         .from('gift_cards_graph')
         .select('*')
-        .eq('recipient_address', recipientAddress.toLowerCase());
+        .eq('recipient_address', recipientAddress.toLowerCase())
+        .eq('recipient_type', 'address');
       if (chainId != null) q = q.eq('chain_id', chainId);
       let { data, error } = await q.order('created_at', { ascending: false });
       if (error && isChainIdSchemaError(error) && chainId != null) {
@@ -272,6 +275,7 @@ export class GiftCardsService {
           .from('gift_cards_graph')
           .select('*')
           .eq('recipient_address', recipientAddress.toLowerCase())
+          .eq('recipient_type', 'address')
           .order('created_at', { ascending: false });
         data = r.data;
         error = r.error;

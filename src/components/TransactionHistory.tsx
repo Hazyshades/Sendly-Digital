@@ -14,7 +14,8 @@ import { createWalletClient, custom } from 'viem';
 import { arcTestnet, chains } from '@/lib/web3/wagmiConfig';
 import { getExplorerTxUrl, getContractsForChain, ARC_CHAIN_ID } from '@/lib/web3/constants';
 import web3Service from '@/lib/web3/web3Service';
-import { GiftCardsService } from '@/lib/supabase/giftCards';
+import { GiftCardsService, getMyCardsDataSource } from '@/lib/supabase/giftCards';
+import { formatDisplayAmount, formatTokenAmountString } from '@/lib/tokenAmount';
 import { isZkHost } from '@/lib/runtime/zkHost';
 import {
   getZkSendPaymentsBySender,
@@ -63,6 +64,15 @@ function normalizePlatform(p?: string | null): SocialPlatform {
   return '';
 }
 
+function AnalyticsAmount({ value, className }: { value: string; className?: string }) {
+  const rounded = formatDisplayAmount(value);
+  return (
+    <div className={`tabular-nums ${className ?? ''}`}>
+      ${rounded}
+    </div>
+  );
+}
+
 function toTransactionFromSent(row: ZkSendPaymentRow): Transaction {
   const counterpart =
     row.recipient_username ?? row.recipient_username_raw ?? row.recipient_identity_hash ?? '-';
@@ -74,7 +84,7 @@ function toTransactionFromSent(row: ZkSendPaymentRow): Transaction {
   return {
     id: `zksend_sent_${row.chain_id}_${row.contract_address}_${row.payment_id}`,
     type: 'sent',
-    amount: row.amount ?? '0',
+    amount: formatTokenAmountString(row.amount ?? '0', { unit: 'human' }),
     currency,
     counterpart,
     message: '',
@@ -111,7 +121,7 @@ function toTransactionFromReceived(row: ZkSendPaymentRow): Transaction {
   return {
     id: `zksend_recv_${row.chain_id}_${row.contract_address}_${row.payment_id}`,
     type: row.claimed ? 'redeemed' : 'received',
-    amount: row.amount ?? '0',
+    amount: formatTokenAmountString(row.amount ?? '0', { unit: 'human' }),
     currency,
     counterpart,
     message: '',
@@ -391,6 +401,7 @@ export function TransactionHistory() {
         const supa = supabaseReceivedMap.get(card.tokenId);
         return {
           ...card,
+          amount: formatTokenAmountString(card.amount, { unit: 'human' }),
           type: 'received' as const,
           txHash: supa?.tx_hash || (card as any).txHash || null,
           createdAt: supa?.created_at || null
@@ -401,10 +412,12 @@ export function TransactionHistory() {
       console.log('Loading sent gift cards from Supabase...');
       const supabaseSentCards = await GiftCardsService.getCardsBySenderForMyCards(address, activeChainId);
       
+      const sentAmountUnit = getMyCardsDataSource() === 'graph' ? 'micro' : 'human';
+
       // Transform Supabase sent cards to match blockchain format
       const sentCards = supabaseSentCards.map(card => ({
         tokenId: card.token_id,
-        amount: card.amount,
+        amount: formatTokenAmountString(card.amount, { unit: sentAmountUnit }),
         token: card.currency,
         recipient: card.recipient_username || card.recipient_address || 'Unknown',
         sender: card.sender_address,
@@ -814,7 +827,7 @@ export function TransactionHistory() {
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Sent</span>
               <ArrowUpRight className="h-3.5 w-3.5 text-red-500" />
             </div>
-            <div className="text-lg font-bold text-red-600 dark:text-red-400">${analytics.totalSent}</div>
+            <AnalyticsAmount value={analytics.totalSent} className="text-lg font-bold text-red-600 dark:text-red-400" />
             <p className="text-xs text-slate-500 dark:text-slate-400">{analytics.cardsSent} payments</p>
           </div>
           <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
@@ -822,7 +835,7 @@ export function TransactionHistory() {
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Received</span>
               <ArrowDownLeft className="h-3.5 w-3.5 text-blue-500" />
             </div>
-            <div className="text-lg font-bold text-blue-600 dark:text-blue-400">${analytics.totalReceived}</div>
+            <AnalyticsAmount value={analytics.totalReceived} className="text-lg font-bold text-blue-600 dark:text-blue-400" />
             <p className="text-xs text-slate-500 dark:text-slate-400">{analytics.cardsReceived} payments</p>
           </div>
           <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
@@ -853,12 +866,18 @@ export function TransactionHistory() {
                 </button>
               </div>
             </div>
-            <div className={`text-lg font-bold relative -top-[14px] ${avgMode === 'sent' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-              $
-              {avgMode === 'sent'
-                ? (analytics.cardsSent > 0 ? (parseFloat(analytics.totalSent) / analytics.cardsSent).toFixed(2) : '0.00')
-                : (analytics.cardsReceived > 0 ? (parseFloat(analytics.totalReceived) / analytics.cardsReceived).toFixed(2) : '0.00')}
-            </div>
+            <AnalyticsAmount
+              value={
+                avgMode === 'sent'
+                  ? (analytics.cardsSent > 0
+                      ? formatDisplayAmount(parseFloat(analytics.totalSent) / analytics.cardsSent)
+                      : '0.00')
+                  : (analytics.cardsReceived > 0
+                      ? formatDisplayAmount(parseFloat(analytics.totalReceived) / analytics.cardsReceived)
+                      : '0.00')
+              }
+              className={`text-lg font-bold relative -top-[14px] ${avgMode === 'sent' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}
+            />
             <p className="text-xs text-slate-500 dark:text-slate-400 relative -top-[14px]">
               {avgMode === 'sent' ? 'per sent payment' : 'per received payment'}
             </p>
@@ -996,7 +1015,7 @@ export function TransactionHistory() {
               <ArrowUpRight className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">${analytics.totalSent}</div>
+              <AnalyticsAmount value={analytics.totalSent} className="text-2xl font-bold text-red-600" />
               <p className="text-xs text-muted-foreground">{analytics.cardsSent} payments sent</p>
             </CardContent>
           </Card>
@@ -1006,7 +1025,7 @@ export function TransactionHistory() {
               <ArrowDownLeft className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">${analytics.totalReceived}</div>
+              <AnalyticsAmount value={analytics.totalReceived} className="text-2xl font-bold text-green-600" />
               <p className="text-xs text-muted-foreground">{analytics.cardsReceived} payments received</p>
             </CardContent>
           </Card>
@@ -1016,7 +1035,7 @@ export function TransactionHistory() {
               <Gift className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">${analytics.totalRedeemed}</div>
+              <AnalyticsAmount value={analytics.totalRedeemed} className="text-2xl font-bold text-blue-600" />
               <p className="text-xs text-muted-foreground">claimed</p>
             </CardContent>
           </Card>
@@ -1026,7 +1045,7 @@ export function TransactionHistory() {
               <TrendingUp className="h-4 w-4 text-purple-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-purple-600">${analytics.averageAmount}</div>
+              <AnalyticsAmount value={analytics.averageAmount} className="text-2xl font-bold text-purple-600" />
               <p className="text-xs text-muted-foreground">Per payment</p>
             </CardContent>
           </Card>

@@ -19,12 +19,8 @@ export function LinkedInCallbackRoute() {
 
   useEffect(() => {
     if (hasExchangedRef.current) {
-      console.log('[POPUP] LinkedIn code exchange already completed, skipping...');
       return;
     }
-
-    console.log('[POPUP] LinkedInCallbackRoute mounted');
-    console.log('[POPUP] Location:', location.pathname + location.search);
 
     const params = new URLSearchParams(location.search);
 
@@ -116,10 +112,13 @@ export function LinkedInCallbackRoute() {
         }
 
         const accessToken = tokenData.accessToken;
-        localStorage.setItem('linkedin_oauth', accessToken);
-        localStorage.setItem('linkedin_oauth_token', accessToken);
-        if (tokenData.scope) {
-          localStorage.setItem('linkedin_oauth_scope', tokenData.scope);
+        const hasOpener = window.opener && !window.opener.closed;
+        if (!hasOpener) {
+          localStorage.setItem('linkedin_oauth', accessToken);
+          localStorage.setItem('linkedin_oauth_token', accessToken);
+          if (tokenData.scope) {
+            localStorage.setItem('linkedin_oauth_scope', tokenData.scope);
+          }
         }
 
         localStorage.removeItem('linkedin_oauth_state');
@@ -129,7 +128,7 @@ export function LinkedInCallbackRoute() {
         sessionStorage.removeItem('linkedin_oauth_redirect');
         sessionStorage.removeItem('linkedin_code_verifier');
 
-        if (window.opener && !window.opener.closed) {
+        if (hasOpener) {
           window.opener.postMessage(
             {
               type: 'linkedin_oauth_token',

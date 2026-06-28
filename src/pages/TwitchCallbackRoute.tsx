@@ -6,12 +6,6 @@ export function TwitchCallbackRoute() {
   const location = useLocation();
 
   useEffect(() => {
-    console.log('[POPUP] TwitchCallbackRoute mounted');
-    console.log('[POPUP] Location:', window.location.href);
-    console.log('[POPUP] Location hash:', location.hash);
-    console.log('[POPUP] Window opener exists:', !!window.opener);
-    console.log('[POPUP] Window opener closed:', window.opener?.closed);
-    
     const hash = location.hash.substring(1);
     const params = new URLSearchParams(hash);
     
@@ -20,11 +14,6 @@ export function TwitchCallbackRoute() {
     const state = params.get('state');
     const storedState = sessionStorage.getItem('twitch_oauth_state');
     const redirectUrl = sessionStorage.getItem('twitch_oauth_redirect') || '/dashboard';
-    
-    console.log('[POPUP] Access token found:', !!accessToken);
-    console.log('[POPUP] Error:', error);
-    console.log('[POPUP] State:', state);
-    console.log('[POPUP] Stored state:', storedState);
 
     if (error) {
       console.error('Twitch OAuth error:', error);
@@ -50,13 +39,11 @@ export function TwitchCallbackRoute() {
       return;
     }
 
-    // Save token to localStorage in popup window (will be copied to main window via postMessage)
-    // Use key 'twitch_oauth' as user suggested
-    console.log('[POPUP] Saving Twitch token to popup localStorage:', accessToken.substring(0, 20) + '...');
-    localStorage.setItem('twitch_oauth', accessToken);
-    // Also save with standard key for compatibility
-    localStorage.setItem('twitch_oauth_token', accessToken);
-    console.log('[POPUP] Token saved in popup. Verifying:', localStorage.getItem('twitch_oauth') ? 'Token found (key: twitch_oauth)' : 'Token NOT found!');
+    const hasOpener = window.opener && !window.opener.closed;
+    if (!hasOpener) {
+      localStorage.setItem('twitch_oauth', accessToken);
+      localStorage.setItem('twitch_oauth_token', accessToken);
+    }
     
     // Clean up temporary OAuth flow data
     sessionStorage.removeItem('twitch_oauth_state');
@@ -64,35 +51,23 @@ export function TwitchCallbackRoute() {
 
     // Notify parent window about successful authorization
     // IMPORTANT: This must happen BEFORE window.close() to ensure message is received
-    if (window.opener && !window.opener.closed) {
-      console.log('[POPUP] Sending token to parent window via postMessage...');
-      console.log('[POPUP] Parent window origin:', window.opener.location.origin);
-      console.log('[POPUP] Current window origin:', window.location.origin);
-      console.log('[POPUP] Token to send:', accessToken.substring(0, 20) + '...');
-      
+    if (hasOpener) {
       const messageData = {
         type: 'twitch_oauth_token',
         accessToken: accessToken
       };
-      
-      console.log('[POPUP] Message data:', messageData);
-      
+
       try {
         window.opener.postMessage(messageData, window.location.origin);
-        console.log('[POPUP] ✅ postMessage sent successfully to:', window.location.origin);
       } catch (error) {
-        console.error('[POPUP] ❌ Error sending postMessage:', error);
+        console.error('[POPUP] Error sending postMessage:', error);
       }
-      
-      console.log('[POPUP] Waiting 1 second before closing to ensure message is received...');
-      
+
       // Give parent window time to receive and save the token
       setTimeout(() => {
-        console.log('[POPUP] Closing popup window...');
         window.close();
       }, 1000);
     } else {
-      console.log('[POPUP] No window.opener or opener is closed, navigating instead...');
       navigate(redirectUrl);
     }
   }, [location, navigate]);

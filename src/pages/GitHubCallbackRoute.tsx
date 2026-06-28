@@ -33,12 +33,8 @@ export function GitHubCallbackRoute() {
 
   useEffect(() => {
     if (hasExchangedRef.current) {
-      console.log('[POPUP] GitHub code exchange already completed, skipping...');
       return;
     }
-
-    console.log('[POPUP] GitHubCallbackRoute mounted');
-    console.log('[POPUP] Location:', location.pathname + location.search);
 
     const params = new URLSearchParams(location.search);
 
@@ -131,10 +127,13 @@ export function GitHubCallbackRoute() {
         }
 
         const accessToken = tokenData.accessToken;
-        localStorage.setItem('github_oauth', accessToken);
-        localStorage.setItem('github_oauth_token', accessToken);
-        if (tokenData.scope) {
-          localStorage.setItem('github_oauth_scope', tokenData.scope);
+        const hasOpener = window.opener && !window.opener.closed;
+        if (!hasOpener) {
+          localStorage.setItem('github_oauth', accessToken);
+          localStorage.setItem('github_oauth_token', accessToken);
+          if (tokenData.scope) {
+            localStorage.setItem('github_oauth_scope', tokenData.scope);
+          }
         }
 
         localStorage.removeItem('github_oauth_state');
@@ -144,7 +143,7 @@ export function GitHubCallbackRoute() {
         sessionStorage.removeItem('github_oauth_redirect');
         sessionStorage.removeItem('github_code_verifier');
 
-        if (window.opener && !window.opener.closed) {
+        if (hasOpener) {
           window.opener.postMessage(
             {
               type: 'github_oauth_token',
