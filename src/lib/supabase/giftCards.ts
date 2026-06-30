@@ -91,13 +91,13 @@ export class GiftCardsService {
     }
   }
 
+  /** Received cards owned by wallet address (includes social cards after claim). */
   static async getCardsByRecipientAddress(recipientAddress: string, chainId?: number): Promise<GiftCardRecord[]> {
     try {
       let q = supabase
         .from('gift_cards')
         .select('*')
-        .eq('recipient_address', recipientAddress.toLowerCase())
-        .eq('recipient_type', 'address');
+        .eq('recipient_address', recipientAddress.toLowerCase());
       if (chainId != null) q = q.eq('chain_id', chainId);
       let { data, error } = await q.order('created_at', { ascending: false });
       if (error && isChainIdSchemaError(error) && chainId != null) {
@@ -105,7 +105,6 @@ export class GiftCardsService {
           .from('gift_cards')
           .select('*')
           .eq('recipient_address', recipientAddress.toLowerCase())
-          .eq('recipient_type', 'address')
           .order('created_at', { ascending: false });
         data = r.data;
         error = r.error;
@@ -260,14 +259,13 @@ export class GiftCardsService {
     }
   }
 
-  /** Received cards (address recipient) from gift_cards_graph. */
+  /** Received cards owned by wallet address from gift_cards_graph (includes social cards after claim). */
   static async getGraphCardsByRecipientAddress(recipientAddress: string, chainId?: number): Promise<GiftCardRecord[]> {
     try {
       let q = supabase
         .from('gift_cards_graph')
         .select('*')
-        .eq('recipient_address', recipientAddress.toLowerCase())
-        .eq('recipient_type', 'address');
+        .eq('recipient_address', recipientAddress.toLowerCase());
       if (chainId != null) q = q.eq('chain_id', chainId);
       let { data, error } = await q.order('created_at', { ascending: false });
       if (error && isChainIdSchemaError(error) && chainId != null) {
@@ -275,7 +273,6 @@ export class GiftCardsService {
           .from('gift_cards_graph')
           .select('*')
           .eq('recipient_address', recipientAddress.toLowerCase())
-          .eq('recipient_type', 'address')
           .order('created_at', { ascending: false });
         data = r.data;
         error = r.error;
