@@ -1099,4 +1099,3 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
     </Card>
   );
 }
-

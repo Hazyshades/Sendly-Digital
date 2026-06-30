@@ -524,7 +524,3 @@ export function ClaimTwitchCards() {
     </div>
   );
 }
-
-
-
-

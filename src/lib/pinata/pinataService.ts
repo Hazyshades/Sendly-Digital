@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+import { supabase } from '@/lib/supabase/client';
+
 export interface PinataMetadata {
   name: string;
   description: string;
@@ -11,66 +13,69 @@ export interface PinataMetadata {
 }
 
 export class PinataService {
-  private apiKey: string;
-  private secretKey: string;
+  private uploadEndpoint: string;
 
   constructor() {
-    // Load environment variables from Vite
-    this.apiKey = import.meta.env.VITE_PINATA_API_KEY || '8edb81ceca8d03963ee4';
-    this.secretKey = import.meta.env.VITE_PINATA_SECRET_API_KEY || '1c0a0f721f587b961ff33da1636746ad086d206638ae7302327dc7b339de0a89';
+    this.uploadEndpoint = (import.meta.env.VITE_PINATA_UPLOAD_FUNCTION_URL || '').trim();
+  }
+
+  private ensureEndpoint(): string {
+    if (!this.uploadEndpoint) {
+      throw new Error(
+        'Pinata uploads require a backend endpoint. Set VITE_PINATA_UPLOAD_FUNCTION_URL to a server route that keeps Pinata credentials off the client.'
+      );
+    }
+    return this.uploadEndpoint;
+  }
+
+  private async getAuthHeaders(): Promise<Record<string, string>> {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
   async uploadImage(imageBlob: Blob): Promise<string> {
-    try {
-      if (!this.apiKey || !this.secretKey) throw new Error('Pinata API keys are not configured. Please check your .env file.');
-      if (typeof this.apiKey !== 'string' || typeof this.secretKey !== 'string') throw new Error('Pinata API keys must be strings.');
-      const formData = new FormData();
-      formData.append('file', imageBlob);
+    const formData = new FormData();
+    formData.append('file', imageBlob);
 
-      const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
-        method: 'POST',
-        headers: {
-          'pinata_api_key': this.apiKey,
-          'pinata_secret_api_key': this.secretKey,
-        },
-        body: formData,
-      });
+    const response = await fetch(`${this.ensureEndpoint().replace(/\/$/, '')}/image`, {
+      method: 'POST',
+      headers: await this.getAuthHeaders(),
+      body: formData,
+    });
 
-      if (!response.ok) throw new Error(`Failed to upload image to Pinata: ${response.status} ${await response.text()}`);
+    if (!response.ok) throw new Error(`Failed to upload image: ${response.status} ${await response.text()}`);
 
-      const result = await response.json();
+    const result = await response.json();
+    const uri = result.uri || result.imageUri || (result.IpfsHash ? `ipfs://${result.IpfsHash}` : '');
 
-      return `ipfs://${result.IpfsHash}`;
-    } catch (error) {
-      throw error;
+    if (!uri) {
+      throw new Error('Pinata upload endpoint did not return an IPFS URI.');
     }
+
+    return uri;
   }
 
   async uploadMetadata(metadata: PinataMetadata): Promise<string> {
-    try {
-      const response = await fetch('https://api.pinata.cloud/pinning/pinJSONToIPFS', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'pinata_api_key': this.apiKey,
-          'pinata_secret_api_key': this.secretKey,
-        },
-        body: JSON.stringify({
-          pinataMetadata: {
-            name: metadata.name,
-          },
-          pinataContent: metadata,
-        }),
-      });
+    const response = await fetch(`${this.ensureEndpoint().replace(/\/$/, '')}/metadata`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(await this.getAuthHeaders()),
+      },
+      body: JSON.stringify({ metadata }),
+    });
 
-      if (!response.ok) throw new Error(`Failed to upload metadata to Pinata: ${response.status} ${await response.text()}`);
+    if (!response.ok) throw new Error(`Failed to upload metadata: ${response.status} ${await response.text()}`);
 
-      const result = await response.json();
+    const result = await response.json();
+    const uri = result.uri || result.metadataUri || (result.IpfsHash ? `ipfs://${result.IpfsHash}` : '');
 
-      return `ipfs://${result.IpfsHash}`;
-    } catch (error) {
-      throw error;
+    if (!uri) {
+      throw new Error('Pinata metadata endpoint did not return an IPFS URI.');
     }
+
+    return uri;
   }
 
   async createGiftCardNFT(
@@ -80,35 +85,31 @@ export class PinataService {
     design: string,
     imageBlob: Blob
   ): Promise<string> {
-    try {
-      const imageUri = await this.uploadImage(imageBlob);
-      const metadata: PinataMetadata = {
-        name: `Gift Card - ${amount} ${currency}`,
-        description: `A digital gift card worth ${amount} ${currency}. ${message}`,
-        image: imageUri,
-        attributes: [
-          {
-            trait_type: 'Amount',
-            value: amount,
-          },
-          {
-            trait_type: 'Currency',
-            value: currency,
-          },
-          {
-            trait_type: 'Design',
-            value: design,
-          },
-          {
-            trait_type: 'Message',
-            value: message,
-          },
-        ],
-      };
-      return this.uploadMetadata(metadata);
-    } catch (error) {
-      throw error;
-    }
+    const imageUri = await this.uploadImage(imageBlob);
+    const metadata: PinataMetadata = {
+      name: `Gift Card - ${amount} ${currency}`,
+      description: `A digital gift card worth ${amount} ${currency}. ${message}`,
+      image: imageUri,
+      attributes: [
+        {
+          trait_type: 'Amount',
+          value: amount,
+        },
+        {
+          trait_type: 'Currency',
+          value: currency,
+        },
+        {
+          trait_type: 'Design',
+          value: design,
+        },
+        {
+          trait_type: 'Message',
+          value: message,
+        },
+      ],
+    };
+    return this.uploadMetadata(metadata);
   }
 }
 

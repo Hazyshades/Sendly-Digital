@@ -91,6 +91,7 @@ export class GiftCardsService {
     }
   }
 
+  /** Received cards owned by wallet address (includes social cards after claim). */
   static async getCardsByRecipientAddress(recipientAddress: string, chainId?: number): Promise<GiftCardRecord[]> {
     try {
       let q = supabase
@@ -258,7 +259,7 @@ export class GiftCardsService {
     }
   }
 
-  /** Cards where `recipient_address` is this wallet (incl. claimed social if row still has platform `recipient_type`). */
+  /** Received cards owned by wallet address from gift_cards_graph (includes social cards after claim). */
   static async getGraphCardsByRecipientAddress(recipientAddress: string, chainId?: number): Promise<GiftCardRecord[]> {
     try {
       let q = supabase

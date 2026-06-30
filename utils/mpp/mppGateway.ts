@@ -1,4 +1,4 @@
-import { getApiUrl, supabase } from '../supabase/client';
+import { getApiUrl, supabase } from '../../src/lib/supabase/client';
 
 type PaidCallResult<T> =
   | { ok: true; data: T; receipt: string | null }

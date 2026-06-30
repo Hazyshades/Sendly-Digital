@@ -7,6 +7,9 @@ const contractAddressInput = document.getElementById('contractAddress');
 const redeemAmountInput = document.getElementById('redeemAmount');
 const bankAccountSelect = document.getElementById('bankAccount');
 
+// Demo-only helper for the Arc Testnet Circle Mint route. Production cash-out
+// must use a backend-controlled off-ramp flow with real KYC/account checks.
+
 let provider;
 let signer;
 
