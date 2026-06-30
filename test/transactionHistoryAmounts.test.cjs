@@ -48,3 +48,12 @@ test('no double conversion for already formatted blockchain amounts', async () =
   const human = formatTokenAmountString('12.34', { unit: 'human' });
   assert.equal(normalizeTokenAmount(human, { unit: 'human' }), 12.34);
 });
+
+test('gift_cards_graph sent amounts stay human (no micro division)', async () => {
+  const { normalizeTokenAmount, formatTokenAmountString } = await loadTokenAmount();
+  const storedAmount = '25';
+  const displayed = formatTokenAmountString(storedAmount, { unit: 'human' });
+  assert.equal(displayed, '25');
+  assert.equal(normalizeTokenAmount(displayed, { unit: 'human' }), 25);
+  assert.notEqual(normalizeTokenAmount(storedAmount, { unit: 'micro' }), 25);
+});

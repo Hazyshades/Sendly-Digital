@@ -14,7 +14,7 @@ import { createWalletClient, custom } from 'viem';
 import { arcTestnet, chains } from '@/lib/web3/wagmiConfig';
 import { getExplorerTxUrl, getContractsForChain, ARC_CHAIN_ID } from '@/lib/web3/constants';
 import web3Service from '@/lib/web3/web3Service';
-import { GiftCardsService, getMyCardsDataSource } from '@/lib/supabase/giftCards';
+import { GiftCardsService } from '@/lib/supabase/giftCards';
 import { formatDisplayAmount, formatTokenAmountString } from '@/lib/tokenAmount';
 import { isZkHost } from '@/lib/runtime/zkHost';
 import {
@@ -412,12 +412,10 @@ export function TransactionHistory() {
       console.log('Loading sent gift cards from Supabase...');
       const supabaseSentCards = await GiftCardsService.getCardsBySenderForMyCards(address, activeChainId);
       
-      const sentAmountUnit = getMyCardsDataSource() === 'graph' ? 'micro' : 'human';
-
       // Transform Supabase sent cards to match blockchain format
       const sentCards = supabaseSentCards.map(card => ({
         tokenId: card.token_id,
-        amount: formatTokenAmountString(card.amount, { unit: sentAmountUnit }),
+        amount: formatTokenAmountString(card.amount, { unit: 'human' }),
         token: card.currency,
         recipient: card.recipient_username || card.recipient_address || 'Unknown',
         sender: card.sender_address,
