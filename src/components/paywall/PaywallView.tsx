@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { PaywallArticleView } from '@/components/paywall/PaywallArticleView';
 import { useCircleWallet } from '@/hooks/useCircleWallet';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
+import { useZkOAuthIdentity, buildZkOAuthPrivyUserId } from '@/lib/zk-oauth';
 import {
   fetchPaywall,
   type PaywallPaymentInstructions,
@@ -18,6 +19,7 @@ export function PaywallView() {
   const slug = (params['*'] ?? params.slug ?? '').replace(/^\/+/, '');
   const { address } = useAccount();
   const { user: privyUser } = usePrivySafe();
+  const { identity: zkOAuthIdentity } = useZkOAuthIdentity();
   const { developerWallet, hasDeveloperWallet, checkingWallet } = useCircleWallet();
 
   const [loading, setLoading] = useState(true);
@@ -71,7 +73,11 @@ export function PaywallView() {
         instructions,
         developerWallet,
         connectedAddress: address,
-        privyUserId: privyUser?.id,
+        privyUserId:
+          privyUser?.id ??
+          (zkOAuthIdentity
+            ? buildZkOAuthPrivyUserId(zkOAuthIdentity.platform, zkOAuthIdentity.socialUserId)
+            : undefined),
       });
       const result = await fetchPaywall(slug, { paymentId, txHash, source: 'human' });
       if (result.status === 'unlocked') {

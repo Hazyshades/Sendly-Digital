@@ -13,7 +13,7 @@ const firstString = (...values: unknown[]): string | undefined => {
 
 const parseOAuth1AccessTokenResponse = (
   raw: unknown
-): { oauthToken: string; oauthTokenSecret: string; screenName?: string } | null => {
+): { oauthToken: string; oauthTokenSecret: string; screenName?: string; userId?: string } | null => {
   const root = asRecord(raw);
   if (!root) return null;
 
@@ -47,9 +47,10 @@ const parseOAuth1AccessTokenResponse = (
     nested?.screen_name,
     nested?.username
   );
+  const userId = firstString(root.userId, root.user_id, nested?.userId, nested?.user_id);
 
   if (!token || !secret) return null;
-  return { oauthToken: token, oauthTokenSecret: secret, screenName };
+  return { oauthToken: token, oauthTokenSecret: secret, screenName, userId };
 };
 
 const getPostMessageTargetOrigin = (): string => {
@@ -123,6 +124,9 @@ export function TwitterOAuth1CallbackRoute() {
             localStorage.setItem('twitter_oauth1_secret', parsed.oauthTokenSecret);
             if (parsed.screenName) {
               localStorage.setItem('twitter_oauth1_screen_name', parsed.screenName);
+            }
+            if (parsed.userId) {
+              localStorage.setItem('twitter_oauth1_user_id', parsed.userId);
             }
           }
 

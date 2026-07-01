@@ -34,6 +34,7 @@ export type TwitterOAuth1Tokens = {
   oauthToken: string;
   oauthTokenSecret: string;
   screenName?: string;
+  userId?: string;
 };
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
@@ -80,10 +81,11 @@ const parseOAuth1AccessTokenResponse = (raw: unknown): TwitterOAuth1Tokens | nul
     nested?.screen_name,
     nested?.username
   );
+  const userId = firstString(root.userId, root.user_id, nested?.userId, nested?.user_id);
 
   if (!oauthToken || !oauthTokenSecret) return null;
 
-  return { oauthToken, oauthTokenSecret, screenName };
+  return { oauthToken, oauthTokenSecret, screenName, userId };
 };
 
 const isCallbackNotApprovedError = (status: number, bodyText: string): boolean => {
@@ -396,6 +398,9 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
                     if (tokens.screenName) {
                       localStorage.setItem('twitter_oauth1_screen_name', tokens.screenName);
                     }
+                    if (tokens.userId) {
+                      localStorage.setItem('twitter_oauth1_user_id', tokens.userId);
+                    }
                     settle(tokens);
                     return;
                   }
@@ -450,6 +455,9 @@ export const connectTwitter = async (): Promise<string | null> => {
     if (tokens.screenName) {
       localStorage.setItem('twitter_oauth1_screen_name', tokens.screenName);
     }
+    if (tokens.userId) {
+      localStorage.setItem('twitter_oauth1_user_id', tokens.userId);
+    }
 
     toast.success('Twitter connected');
     return tokens.oauthToken;
@@ -468,6 +476,7 @@ export const clearTwitterToken = (): void => {
     localStorage.removeItem('twitter_oauth1_token');
     localStorage.removeItem('twitter_oauth1_secret');
     localStorage.removeItem('twitter_oauth1_screen_name');
+    localStorage.removeItem('twitter_oauth1_user_id');
     localStorage.removeItem('twitter_oauth1_redirect');
   } catch (error) {
     console.error('[zkSEND] Failed to clear Twitter token:', error);

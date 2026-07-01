@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
 import { DeveloperWalletService, type DeveloperWallet } from '@/lib/circle/developerWalletService';
+import { useZkOAuthIdentity } from '@/lib/zk-oauth';
 
 const BLOCKCHAIN = 'ARC-TESTNET';
 const SOCIAL_PLATFORMS = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'] as const;
@@ -25,6 +26,9 @@ export function getCircleWalletPrivyUserIdForTx(
 
   if (walletCreatedWithAddress && connectedAddress) {
     return connectedAddress.toLowerCase();
+  }
+  if (developerWallet.privy_user_id?.startsWith('zk-oauth:')) {
+    return developerWallet.privy_user_id;
   }
   if (privyUserId) {
     return privyUserId.startsWith('did:privy:') ? privyUserId.replace('did:privy:', '') : privyUserId;
@@ -50,12 +54,20 @@ export type UseCircleWalletResult = {
 export function useCircleWallet(): UseCircleWalletResult {
   const { address, isConnected } = useAccount();
   const { authenticated, user: privyUser } = usePrivySafe();
+  const { identity: zkOAuthIdentity, loading: zkOAuthLoading, isZkHost: zk } = useZkOAuthIdentity();
   const [developerWallet, setDeveloperWallet] = useState<DeveloperWallet | null>(null);
   const [checkingWallet, setCheckingWallet] = useState(true);
 
   useEffect(() => {
     const check = async () => {
-      if (!isConnected && (!authenticated || !privyUser)) {
+      if (zk && zkOAuthLoading) {
+        return;
+      }
+
+      const hasZkSocial = zk && !!zkOAuthIdentity;
+      const hasPrivySocial = authenticated && !!privyUser;
+
+      if (!isConnected && !hasZkSocial && !hasPrivySocial) {
         setDeveloperWallet(null);
         setCheckingWallet(false);
         return;
@@ -70,6 +82,19 @@ export function useCircleWallet(): UseCircleWalletResult {
           try {
             const wallets = await DeveloperWalletService.getWallets(normalized);
             found = wallets.find((w) => w.blockchain === BLOCKCHAIN) ?? wallets[0] ?? null;
+          } catch {
+            // ignore
+          }
+        }
+
+        if (!found && zkOAuthIdentity) {
+          try {
+            const w = await DeveloperWalletService.getWalletBySocial(
+              zkOAuthIdentity.platform,
+              zkOAuthIdentity.socialUserId,
+              BLOCKCHAIN,
+            );
+            if (w) found = w;
           } catch {
             // ignore
           }
@@ -126,7 +151,7 @@ export function useCircleWallet(): UseCircleWalletResult {
     };
 
     void check();
-  }, [isConnected, address, authenticated, privyUser]);
+  }, [isConnected, address, authenticated, privyUser, zk, zkOAuthIdentity, zkOAuthLoading]);
 
   return {
     developerWallet,
