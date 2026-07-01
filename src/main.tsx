@@ -13,16 +13,15 @@ import App from './App.tsx'
 import '@/styles/globals.css'
 import '@rainbow-me/rainbowkit/styles.css'
 import { config } from '@/lib/web3/wagmiConfig'
-import { isZkLocalhost } from '@/lib/runtime/zkHost'
+import { isZkHost } from '@/lib/runtime/zkHost'
 import { getPrivyAuthMode, normalizePrivyAuthMode, PRIVY_AUTH_MODE_CHANGED_EVENT, PRIVY_AUTH_MODE_STORAGE_KEY, type PrivyAuthMode } from '@/lib/privy/authMode'
 import { getPrivyAppIdByMode } from '@/lib/privy'
 
 const queryClient = new QueryClient()
 
-const disablePrivy = isZkLocalhost()
+const disablePrivy = isZkHost()
 
-// Lazy load PrivyProvider only when not on zk.localhost to prevent SDK initialization
-// This ensures Privy SDK is never loaded for zk.localhost, preventing OAuth interception
+// Lazy load PrivyProvider only when not on zk host (Privy disabled; zk uses direct OAuth)
 const PrivyProviderWrapper = disablePrivy 
   ? null 
   : lazy(async () => {

@@ -5,14 +5,14 @@ import { Toaster } from '@/components/ui/sonner';
 import { NewsPanel } from '@/components/NewsPanel';
 import { FeedbackPanel } from '@/components/FeedbackPanel';
 import { useState, lazy, Suspense } from 'react';
-import { isZkHost, isZkLocalhost } from '@/lib/runtime/zkHost';
+import { isZkHost } from '@/lib/runtime/zkHost';
 
-// Lazy load Privy components only when not on zk.localhost to prevent SDK loading
-const PrivyAuthModal = isZkLocalhost() 
-  ? null 
+// Privy UI only on non-zk hosts (zk uses direct OAuth for GitHub etc.)
+const PrivyAuthModal = isZkHost()
+  ? null
   : lazy(() => import('@/components/PrivyAuthModal').then(m => ({ default: m.PrivyAuthModal })));
 
-const PrivyConnectedAccounts = isZkLocalhost()
+const PrivyConnectedAccounts = isZkHost()
   ? null
   : lazy(() => import('@/components/PrivyConnectedAccounts').then(m => ({ default: m.PrivyConnectedAccounts })));
 
@@ -37,7 +37,7 @@ export function Layout({ children }: LayoutProps) {
   const [isPrivyModalOpen, setIsPrivyModalOpen] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const zk = isZkHost();
-  const zkLocal = isZkLocalhost();
+  const zkNoPrivy = zk;
   const showMaintenanceBanner = readMaintenanceBannerFlag();
 
   const navigationItems = zk
@@ -99,12 +99,12 @@ export function Layout({ children }: LayoutProps) {
               headerCollapsed ? 'opacity-0 -translate-x-2 pointer-events-none w-0 ml-0' : 'opacity-100 translate-x-0 ml-2'
             }`}
           >
-            {!zkLocal && PrivyConnectedAccounts ? (
+            {!zkNoPrivy && PrivyConnectedAccounts ? (
               <Suspense fallback={null}>
                 <PrivyConnectedAccounts />
               </Suspense>
             ) : null}
-            {!zkLocal ? (
+            {!zkNoPrivy ? (
               <button
                 type="button"
                 onClick={() => setIsPrivyModalOpen(true)}
@@ -128,7 +128,7 @@ export function Layout({ children }: LayoutProps) {
         </div>
       </header>
       
-      {!zkLocal && PrivyAuthModal ? (
+      {!zkNoPrivy && PrivyAuthModal ? (
         <Suspense fallback={null}>
           <PrivyAuthModal isOpen={isPrivyModalOpen} onClose={() => setIsPrivyModalOpen(false)} />
         </Suspense>

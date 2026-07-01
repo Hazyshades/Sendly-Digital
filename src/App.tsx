@@ -25,6 +25,8 @@ import { BlogRoute } from '@/pages/BlogRoute';
 import { BlogPostRoute } from '@/pages/BlogPostRoute';
 import { ReclaimCallbackRoute } from '@/pages/ReclaimCallbackRoute';
 import { ZkSendRoute } from '@/pages/ZkSendRoute';
+import { CreatePaywallRoute } from '@/pages/CreatePaywallRoute';
+import { PaywallRoute } from '@/pages/PaywallRoute';
 import { ArchitectureRoute } from '@/pages/ArchitectureRoute';
 import { isZkHost, toZkUrl } from '@/lib/runtime/zkHost';
 
@@ -53,6 +55,8 @@ function SharedAppRoutes({ zkMode }: { zkMode: boolean }) {
       <Route path="/auth/telegram" element={<TelegramAuthRoute />} />
       <Route path="/reclaim/callback" element={<ReclaimCallbackRoute />} />
       <Route path="/payments" element={zkMode ? <ZkSendRoute /> : <ZkHostRedirect />} />
+      <Route path="/paywall/create" element={zkMode ? <CreatePaywallRoute /> : <ZkHostRedirect />} />
+      <Route path="/pay/*" element={zkMode ? <PaywallRoute /> : <ZkHostRedirect />} />
       <Route path="/zksend" element={<Navigate to="/payments" replace />} />
       <Route path="/Circle-Mint" element={<CircleMintRoute />} />
       <Route path="/blog" element={<BlogRoute />} />
