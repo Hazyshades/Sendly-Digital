@@ -2,15 +2,17 @@ import { useRef, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
+import { SectionHeader } from "./section-header"
+import { landingBody, landingCard, landingSection } from "./landing-styles"
 import { scrollRevealOnce, useMotionSafe } from "@/hooks/useMotionSafe"
 
 gsap.registerPlugin(ScrollTrigger)
 
 const signals = [
-  { title: "Customize", note: "Design your own gift card with a custom amount and design." },
-  { title: "Send", note: "Send the gift card to your recipient with main social networks." },
-  { title: "Claim", note: "Claim the gift card with your recipient's address." },
-  { title: "Redeem", note: "Redeem the gift card with your recipient's address." },
+  { title: "Customize", note: "Pick an amount and design. The card holds USDC on Arc." },
+  { title: "Send", note: "Deliver it to their @handle on X, Twitch, GitHub, or Gmail." },
+  { title: "Claim", note: "They sign in with that social account to claim — no address to copy." },
+  { title: "Redeem", note: "USDC moves to their wallet after Sendly verifies they own the account." },
 ]
 
 export function SignalsSection() {
@@ -25,11 +27,11 @@ export function SignalsSection() {
     const ctx = gsap.context(() => {
       gsap.fromTo(
         headerRef.current,
-        { x: -60, opacity: 0 },
+        { y: 20, opacity: 0 },
         {
-          x: 0,
+          y: 0,
           opacity: 1,
-          duration: 0.7,
+          duration: 0.6,
           ease: "power3.out",
           scrollTrigger: {
             trigger: headerRef.current,
@@ -43,11 +45,11 @@ export function SignalsSection() {
       if (cards) {
         gsap.fromTo(
           cards,
-          { x: -60, opacity: 0 },
+          { y: 16, opacity: 0 },
           {
-            x: 0,
+            y: 0,
             opacity: 1,
-            duration: 0.6,
+            duration: 0.5,
             stagger: 0.08,
             ease: "power3.out",
             scrollTrigger: {
@@ -64,22 +66,28 @@ export function SignalsSection() {
   }, [motionSafe])
 
   return (
-    <section id="signals" ref={sectionRef} className="relative py-24 md:py-32 px-6 md:px-16 lg:px-24">
-      <div ref={headerRef} className="mb-16 md:mb-24">
-        <h2 className="font-jakarta font-bold text-3xl md:text-5xl text-gray-900 tracking-tight">
-          NFT Gift Cards
-        </h2>
-        <p className="font-cormorant italic text-xl md:text-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] bg-clip-text text-transparent mt-2">
-          Spendable gift card with custom amount and design.
-        </p>
+    <section
+      id="signals"
+      ref={sectionRef}
+      className={landingSection}
+      aria-labelledby="signals-heading"
+    >
+      <div ref={headerRef}>
+        <SectionHeader
+          titleId="signals-heading"
+          title="NFT gift cards"
+          description="Another way to send: wrap USDC in a custom card and route it to someone's @handle — same identity layer as direct payments."
+        />
       </div>
+
+      <p className="sr-only">Swipe horizontally to see all steps.</p>
 
       <div
         ref={containerRef}
-        className="flex gap-6 md:gap-8 overflow-x-auto pb-8 no-scrollbar"
+        className="flex gap-4 md:gap-6 overflow-x-auto pb-4 snap-x snap-mandatory scroll-pl-6 md:scroll-pl-16 [-webkit-overflow-scrolling:touch]"
       >
-        {signals.map((signal, index) => (
-          <SignalCard key={index} signal={signal} index={index} />
+        {signals.map((signal) => (
+          <SignalCard key={signal.title} signal={signal} />
         ))}
       </div>
     </section>
@@ -88,35 +96,20 @@ export function SignalsSection() {
 
 function SignalCard({
   signal,
-  index,
 }: {
   signal: { title: string; note: string }
-  index: number
 }) {
   return (
     <article
       className={cn(
-        "group relative flex-shrink-0 w-72 md:w-80",
-        "transition-transform duration-200 ease-[var(--ease-out)] motion-reduce:transition-none",
-        "[@media(hover:hover)_and_(pointer:fine)]:hover:-translate-y-2"
+        "snap-start shrink-0 w-[min(100%,18rem)] md:w-80",
       )}
     >
-      <div className="relative bg-white/90 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 overflow-hidden shadow-circle-card">
-        <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-[#6366f1]/10 to-[#8b5cf6]/10 rounded-full blur-2xl" />
-
-        <div className="flex items-center justify-between mb-6 relative z-10">
-          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-gray-500">
-            No. {String(index + 1).padStart(2, "0")}
-          </span>
-        </div>
-
-        <h3 className="font-jakarta font-bold text-2xl md:text-3xl text-gray-900 mb-3 group-hover:text-[#6366f1] transition-colors duration-300">
+      <div className={cn(landingCard, "p-6 h-full")}>
+        <h3 className="font-jakarta font-semibold text-xl text-gray-900 mb-2">
           {signal.title}
         </h3>
-
-        <div className="w-12 h-0.5 bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] mb-4 group-hover:w-full transition-[width] duration-300 ease-[var(--ease-out)] motion-reduce:transition-none" />
-
-        <p className="font-mono text-xs text-gray-600 leading-relaxed">{signal.note}</p>
+        <p className={cn(landingBody, "text-sm")}>{signal.note}</p>
       </div>
     </article>
   )

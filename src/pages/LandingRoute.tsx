@@ -27,13 +27,13 @@ export function LandingRoute() {
 
   return (
     <SmoothScroll>
-      <main className="relative min-h-screen circle-gradient-bg">
+      <main className="relative min-h-screen circle-gradient-bg landing-scroll">
         <div className="abstract-shape" />
         <SideNav />
         <div className="relative z-10">
           <HeroSection />
-          <SignalsSection />
           <WorkSection />
+          <SignalsSection />
           <PrinciplesSection />
           <ColophonSection />
         </div>

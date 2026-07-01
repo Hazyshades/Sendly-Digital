@@ -3,6 +3,8 @@ import { cn } from "@/lib/utils"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
 import { SocialLogos } from "./SocialLogos"
+import { SectionHeader } from "./section-header"
+import { landingAccent, landingBody } from "./landing-styles"
 import { scrollRevealOnce, useMotionSafe } from "@/hooks/useMotionSafe"
 
 gsap.registerPlugin(ScrollTrigger)
@@ -10,35 +12,33 @@ gsap.registerPlugin(ScrollTrigger)
 const experiments = [
   {
     title: "Connect",
-    medium: "Social layer",
-    description: "A witness layer attests the session, deriving only the necessary identity.",
+    medium: "Step 1",
+    description: "Link the social account you already use to your Sendly wallet.",
     span: "col-span-2 row-span-2",
   },
   {
-    title: "Attestor",
-    medium: "Proxy layer",
-    description: "Proxy stands between the device and the platform, attests the TLS session",
+    title: "Verify session",
+    medium: "Step 2",
+    description: "An attestor confirms your login to X, GitHub, or Twitch — without sharing your password.",
+    span: "col-span-1 row-span-1",
+  },
+  {
+    title: "Prove ownership",
+    medium: "Step 3",
+    description: "zkTLS turns that session into a private proof — you control the account, nothing else leaks.",
     span: "col-span-1 row-span-1",
   },
   {
     title: "Receive",
-    medium: "Payment layer",
-    description: "Contract verifies your proof and pays you.",
+    medium: "Step 4",
+    description: "USDC settles on Arc once Sendly confirms you own the account.",
     span: "col-span-1 row-span-2",
-    number: 4,
     typedAddresses: [
-      "100 USDC on X",
-      "20$ tips on GitHub",
-      "$15 donation on Twitch",
-      "50 EURC on Gmail",
+      "100 USDC on X → @ZachXBT",
+      "Tips on GitHub → @steipete",
+      "$15 on Twitch → @Trainwreckstv",
+      "50 USDC via Gmail → caroline@gmail.com",
     ],
-  },
-  {
-    title: "Prove",
-    medium: "zkTLS layer",
-    description: "Create a ZK proof from the attested session - asserting account ownership.",
-    span: "col-span-1 row-span-1",
-    number: 3,
   },
 ]
 
@@ -54,11 +54,11 @@ export function WorkSection() {
     const ctx = gsap.context(() => {
       gsap.fromTo(
         headerRef.current,
-        { x: -60, opacity: 0 },
+        { y: 20, opacity: 0 },
         {
-          x: 0,
+          y: 0,
           opacity: 1,
-          duration: 0.7,
+          duration: 0.6,
           ease: "power3.out",
           scrollTrigger: {
             trigger: headerRef.current,
@@ -70,11 +70,11 @@ export function WorkSection() {
 
       const cards = gridRef.current?.querySelectorAll("article")
       if (cards && cards.length > 0) {
-        gsap.set(cards, { y: 40, opacity: 0 })
+        gsap.set(cards, { y: 16, opacity: 0 })
         gsap.to(cards, {
           y: 0,
           opacity: 1,
-          duration: 0.6,
+          duration: 0.5,
           stagger: 0.08,
           ease: "power3.out",
           scrollTrigger: {
@@ -90,25 +90,33 @@ export function WorkSection() {
   }, [motionSafe])
 
   return (
-    <section ref={sectionRef} id="work" className="relative py-24 md:py-32 px-6 md:px-16 lg:px-24">
-      <div ref={headerRef} className="mb-16 md:mb-24">
-        <h2 className="font-jakarta font-bold text-3xl md:text-5xl text-gray-900 tracking-tight">
-          zkTLS-powered payments
-        </h2>
-        <p className="font-cormorant italic text-xl md:text-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] bg-clip-text text-transparent mt-2">
-          Seamless and secure.
-        </p>
+    <section
+      ref={sectionRef}
+      id="work"
+      className="relative py-24 md:py-32 px-6 md:px-16 lg:px-24"
+      aria-labelledby="work-heading"
+    >
+      <div ref={headerRef}>
+        <SectionHeader
+          titleId="work-heading"
+          title="Send to social accounts"
+          description={
+            <>
+              Type a @handle or email. Sendly resolves the wallet, verifies ownership with{' '}
+              <span className={landingAccent}>zkTLS</span>, and settles in USDC on Arc.
+            </>
+          }
+        />
       </div>
 
       <div
         ref={gridRef}
-        className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 auto-rows-[160px] md:auto-rows-[180px]"
+        className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 auto-rows-[minmax(160px,auto)] md:auto-rows-[minmax(180px,auto)]"
       >
         {experiments.map((experiment, index) => (
           <WorkCard
-            key={index}
+            key={experiment.title}
             experiment={experiment}
-            index={index}
             persistHover={index === 0}
           >
             {index === 0 && <SocialLogos />}
@@ -121,7 +129,6 @@ export function WorkSection() {
 
 function WorkCard({
   experiment,
-  index,
   persistHover = false,
   children,
 }: {
@@ -130,10 +137,8 @@ function WorkCard({
     medium: string
     description: string
     span: string
-    number?: number
     typedAddresses?: string[]
   }
-  index: number
   persistHover?: boolean
   children?: React.ReactNode
 }) {
@@ -154,7 +159,7 @@ function WorkCard({
       return
     }
     if (!isHovered) {
-      setTypedText("")
+      setTypedText(experiment.typedAddresses[0])
       if (typingRef.current) {
         clearTimeout(typingRef.current)
       }
@@ -218,37 +223,21 @@ function WorkCard({
     <article
       ref={cardRef}
       className={cn(
-        "group relative rounded-2xl p-5 flex flex-col justify-between transition-[border-color,box-shadow] duration-200 ease-[var(--ease-out)] cursor-pointer overflow-hidden",
+        "group relative rounded-xl p-5 flex flex-col justify-between gap-3 transition-[border-color] duration-200 ease-[var(--ease-out)] overflow-hidden",
         experiment.span,
-        children ? "bg-[#F4F2FD]" : "bg-white/90 backdrop-blur-sm",
-        "border border-gray-200 shadow-circle-card",
-        isActive && "border-[#6366f1]/60"
+        children ? "bg-[#f5f4ff]" : "bg-white",
+        "border border-gray-200",
+        isActive && "border-[color:var(--sendly-indigo)]/40",
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div
-        className={cn(
-          "absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-[#6366f1]/10 to-[#8b5cf6]/10 rounded-full blur-2xl transition-opacity duration-500",
-          isActive ? "opacity-100" : "opacity-0"
-        )}
-      />
-
-      <div
-        className={cn(
-          "absolute inset-0 bg-[#6366f1]/5 transition-opacity duration-500",
-          isActive && !children ? "opacity-100" : "opacity-0"
-        )}
-      />
-
       <div className="relative z-10">
-        <span className="font-mono text-[10px] uppercase tracking-widest text-gray-500">
-          {experiment.medium}
-        </span>
+        <span className="font-mono text-xs text-gray-500">{experiment.medium}</span>
         <h3
           className={cn(
-            "mt-3 font-jakarta font-bold text-2xl md:text-3xl tracking-tight transition-colors duration-300",
-            isActive ? "text-[#6366f1]" : "text-gray-900"
+            "mt-2 font-jakarta font-semibold text-xl md:text-2xl tracking-tight transition-colors duration-200",
+            isActive ? landingAccent : "text-gray-900",
           )}
         >
           {experiment.title}
@@ -256,48 +245,25 @@ function WorkCard({
       </div>
 
       {children && (
-        <div className="relative z-10 flex-1 flex items-center justify-center min-h-0 w-full" style={{ top: -27 }}>
+        <div className="relative z-10 flex flex-1 items-center justify-center min-h-[4rem] w-full -mt-2">
           {children}
         </div>
       )}
 
       {experiment.typedAddresses && (
-        <div className={cn("relative z-10 flex-1 flex items-center justify-center")}>
-          <div
-            className={cn(
-              "transition-[opacity,transform] duration-200 ease-[var(--ease-out)] flex justify-center",
-              isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
-            )}
-          >
-            <div className="font-mono text-xs text-gray-600 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-xl border border-gray-200 shadow-sm max-w-[240px]">
-              {typedText}
-              {isHovered && (
-                <span className="animate-cursor-blink inline-block w-0.5 h-3.5 ml-0.5 bg-[#6366f1] align-middle" />
-              )}
-            </div>
+        <div className="relative z-10 flex justify-center">
+          <div className="font-mono text-xs text-gray-700 bg-white px-3 py-2 rounded-lg border border-gray-200 max-w-[280px]">
+            {typedText || experiment.typedAddresses[0]}
+            {isHovered && motionSafe ? (
+              <span className="animate-cursor-blink inline-block w-0.5 h-3.5 ml-0.5 bg-[var(--sendly-indigo)] align-middle" aria-hidden />
+            ) : null}
           </div>
         </div>
       )}
 
-      <div className="relative z-10">
-        <p
-          className={cn(
-            "font-mono text-xs text-gray-600 leading-relaxed transition-[opacity,transform] duration-200 ease-[var(--ease-out)] max-w-[280px]",
-            isActive ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
-          )}
-        >
-          {experiment.description}
-        </p>
-      </div>
-
-      <span
-        className={cn(
-          "absolute bottom-4 right-4 font-mono text-[10px] transition-colors duration-300",
-          isActive ? "text-[#6366f1]" : "text-gray-400"
-        )}
-      >
-        {String(experiment.number ?? index + 1).padStart(2, "0")}
-      </span>
+      <p className={cn("relative z-10", landingBody, "text-xs md:text-sm max-w-[280px]")}>
+        {experiment.description}
+      </p>
     </article>
   )
 }

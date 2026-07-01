@@ -1,6 +1,8 @@
 import { useRef, useEffect } from "react"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
+import { SectionHeader } from "./section-header"
+import { landingBody, landingSection } from "./landing-styles"
 import { scrollRevealOnce, useMotionSafe } from "@/hooks/useMotionSafe"
 
 gsap.registerPlugin(ScrollTrigger)
@@ -18,9 +20,9 @@ export function ColophonSection() {
     const ctx = gsap.context(() => {
       if (headerRef.current) {
         gsap.from(headerRef.current, {
-          x: -60,
+          y: 20,
           opacity: 0,
-          duration: 0.7,
+          duration: 0.6,
           ease: "power3.out",
           scrollTrigger: {
             trigger: headerRef.current,
@@ -33,7 +35,7 @@ export function ColophonSection() {
       if (gridRef.current) {
         const columns = gridRef.current.querySelectorAll(":scope > div")
         gsap.from(columns, {
-          y: 30,
+          y: 20,
           opacity: 0,
           duration: 0.6,
           stagger: 0.08,
@@ -68,61 +70,52 @@ export function ColophonSection() {
     <section
       ref={sectionRef}
       id="colophon"
-      className="relative py-24 md:py-32 px-6 md:px-16 lg:px-24 border-t border-gray-200"
+      className={`${landingSection} border-t border-gray-200`}
+      aria-labelledby="colophon-heading"
     >
-      <div ref={headerRef} className="mb-16">
-        <h2 className="font-jakarta font-bold text-3xl md:text-5xl text-gray-900 tracking-tight">
-          Sendly
-        </h2>
-        <p className="font-cormorant italic text-xl md:text-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] bg-clip-text text-transparent mt-2">
-          Tranfers to anyone.
-        </p>
+      <div ref={headerRef}>
+        <SectionHeader
+          titleId="colophon-heading"
+          title="Sendly"
+          description="Social payment identity on Arc. Settled in USDC."
+          className="mb-16 max-w-2xl"
+        />
       </div>
 
       <div ref={gridRef} className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
-        <div className="col-span-1">
-          <h4 className="font-mono text-[9px] uppercase tracking-[0.2em] text-gray-500 mb-4">Design</h4>
-          <ul className="space-y-2">
-            <li className="font-mono text-xs text-gray-600">Sendly Digital</li>
-          </ul>
+        <div>
+          <h3 className="font-jakarta text-sm font-medium text-gray-900 mb-3">Built by</h3>
+          <p className={landingBody}>Sendly Digital</p>
         </div>
 
-        <div className="col-span-1">
-          <h4 className="font-mono text-[9px] uppercase tracking-[0.2em] text-gray-500 mb-4">Stack</h4>
-          <ul className="space-y-2">
-            <li className="font-mono text-xs text-gray-600">Reclaim Protocol</li>
-          </ul>
+        <div>
+          <h3 className="font-jakarta text-sm font-medium text-gray-900 mb-3">Verification</h3>
+          <p className={landingBody}>Reclaim Protocol (zkTLS)</p>
         </div>
 
-        <div className="col-span-1">
-          <h4 className="font-mono text-[9px] uppercase tracking-[0.2em] text-gray-500 mb-4">Location</h4>
-          <ul className="space-y-2">
-            <li className="font-mono text-xs text-gray-600">Arc Network</li>
-          </ul>
+        <div>
+          <h3 className="font-jakarta text-sm font-medium text-gray-900 mb-3">Network</h3>
+          <p className={landingBody}>Arc — USDC native gas</p>
         </div>
 
-        <div className="col-span-1">
-          <h4 className="font-mono text-[9px] uppercase tracking-[0.2em] text-gray-500 mb-4">Contact</h4>
-          <ul className="space-y-2">
-            <li className="font-mono text-xs text-gray-600">
-              <a
-                href="https://x.com/SendlyDigital"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-[#6366f1] transition-colors duration-200"
-              >
-                Twitter/X
-              </a>
-            </li>
-          </ul>
+        <div>
+          <h3 className="font-jakarta text-sm font-medium text-gray-900 mb-3">Contact</h3>
+          <a
+            href="https://x.com/SendlyDigital"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${landingBody} hover:text-[color:var(--sendly-indigo)] transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[var(--sendly-indigo)] focus-visible:ring-offset-2 rounded-sm`}
+          >
+            @SendlyDigital on X
+          </a>
         </div>
       </div>
 
       <div
         ref={footerRef}
-        className="mt-24 pt-8 border-t border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+        className="mt-20 pt-8 border-t border-gray-200"
       >
-        <p className="font-mono text-[10px] text-gray-500 uppercase tracking-widest">
+        <p className="font-mono text-xs text-gray-500">
           © 2026 Sendly. All rights reserved.
         </p>
       </div>

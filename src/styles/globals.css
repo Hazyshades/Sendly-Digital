@@ -536,6 +536,19 @@ html {
   }
 }
 
+/* Landing: light scrollbar matches marketing surface */
+.landing-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.landing-scroll::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.35);
+}
+
+.landing-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.55);
+}
+
 /* RainbowKit: remove shadow from the wallet button (rk-account-button) */
 [data-rk] [data-testid="rk-account-button"],
 [data-rk] .ju367vei {

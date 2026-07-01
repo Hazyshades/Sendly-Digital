@@ -1,6 +1,8 @@
 import { useRef, useEffect } from "react"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
+import { SectionHeader } from "./section-header"
+import { landingAccent, landingBody, landingSection } from "./landing-styles"
 import { scrollRevealOnce, useMotionSafe } from "@/hooks/useMotionSafe"
 
 gsap.registerPlugin(ScrollTrigger)
@@ -12,43 +14,39 @@ export function PrinciplesSection() {
 
   const principles = [
     {
-      number: "01",
-      label: "ACCESS",
+      label: "Access",
       titleParts: [
-        { text: "SEAMLESS", highlight: true },
-        { text: " ENTRY", highlight: false },
+        { text: "Use accounts", highlight: true },
+        { text: " you already have", highlight: false },
       ],
-      description: "Security without friction. Onboarding that disappears into the experience.",
+      description: "Sign in with X, GitHub, Twitch, or Gmail. No new username to remember.",
       align: "left",
     },
     {
-      number: "02",
-      label: "LINK",
+      label: "Link",
       titleParts: [
-        { text: "SOCIAL", highlight: true },
-        { text: " BRIDGE", highlight: false },
+        { text: "Your @handle", highlight: true },
+        { text: " is the address", highlight: false },
       ],
-      description: "Your online identity becomes your financial address. No new namespaces.",
+      description: "Sendly maps social identities to wallets. Senders type a handle, not a 0x string.",
       align: "right",
     },
     {
-      number: "03",
-      label: "SEND",
+      label: "Send",
       titleParts: [
-        { text: "DIRECT", highlight: true },
-        { text: " INTENT", highlight: false },
+        { text: "Pay people", highlight: true },
+        { text: ", not hashes", highlight: false },
       ],
-      description: "Type a username, not a hash. Money flows to people, not addresses.",
+      description: "Tips, gifts, and agent payouts go to the person behind the profile.",
       align: "left",
     },
     {
-      number: "04",
-      label: "VERIFY",
+      label: "Verify",
       titleParts: [
-        { text: "ZERO-KNOWLEDGE", highlight: true },
-        { text: " TRUST", highlight: false },
+        { text: "Prove ownership", highlight: true },
+        { text: " privately", highlight: false },
       ],
-      description: "Prove control without revealing data. Privacy preserved, certainty absolute.",
+      description: "zkTLS confirms you control the account without exposing session data or passwords.",
       align: "right",
     },
   ]
@@ -60,9 +58,9 @@ export function PrinciplesSection() {
 
     const ctx = gsap.context(() => {
       gsap.from(headerRef.current, {
-        x: -60,
+        y: 20,
         opacity: 0,
-        duration: 0.7,
+        duration: 0.6,
         ease: "power3.out",
         scrollTrigger: {
           trigger: headerRef.current,
@@ -75,9 +73,9 @@ export function PrinciplesSection() {
       articles?.forEach((article, index) => {
         const isRight = principles[index].align === "right"
         gsap.from(article, {
-          x: isRight ? 50 : -50,
+          x: isRight ? 16 : -16,
           opacity: 0,
-          duration: 0.7,
+          duration: 0.6,
           ease: "power3.out",
           scrollTrigger: {
             trigger: article,
@@ -92,32 +90,37 @@ export function PrinciplesSection() {
   }, [motionSafe])
 
   return (
-    <section ref={sectionRef} id="principles" className="relative py-24 md:py-32 px-6 md:px-16 lg:px-24">
-      <div ref={headerRef} className="mb-16 md:mb-24">
-        <h2 className="font-jakarta font-bold text-3xl md:text-5xl text-gray-900 tracking-tight">
-          Sendly
-        </h2>
-        <p className="font-cormorant italic text-xl md:text-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] bg-clip-text text-transparent mt-2">
-          A global payment identity layer for managing funds through social accounts
-        </p>
+    <section
+      ref={sectionRef}
+      id="principles"
+      className={landingSection}
+      aria-labelledby="principles-heading"
+    >
+      <div ref={headerRef} className="max-w-2xl">
+        <SectionHeader
+          titleId="principles-heading"
+          title="Why social payments"
+          description="Wallets are hard to share. Usernames are not."
+          className="mb-16 md:mb-24"
+        />
       </div>
 
-      <div ref={principlesRef} className="space-y-16 md:space-y-24">
-        {principles.map((principle, index) => (
+      <div ref={principlesRef} className="space-y-16 md:space-y-20">
+        {principles.map((principle) => (
           <article
-            key={index}
+            key={principle.label}
             className={`flex flex-col ${
               principle.align === "right" ? "items-end text-right" : "items-start text-left"
             }`}
           >
-            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-4">
-              {principle.number} / {principle.label}
+            <span className="font-mono text-xs text-gray-500 mb-3">
+              {principle.label}
             </span>
 
-            <h3 className="font-jakarta font-bold text-4xl md:text-6xl lg:text-7xl tracking-tight leading-none">
+            <h3 className="font-jakarta font-semibold text-3xl md:text-5xl lg:text-[3.5rem] tracking-[-0.03em] leading-tight text-balance">
               {principle.titleParts.map((part, i) =>
                 part.highlight ? (
-                  <span key={i} className="bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] bg-clip-text text-transparent">
+                  <span key={i} className={landingAccent}>
                     {part.text}
                   </span>
                 ) : (
@@ -126,11 +129,9 @@ export function PrinciplesSection() {
               )}
             </h3>
 
-            <p className="mt-6 max-w-md font-mono text-sm text-gray-600 leading-relaxed">
+            <p className={`mt-5 max-w-md ${landingBody}`}>
               {principle.description}
             </p>
-
-            <div className={`mt-8 h-[1px] bg-gradient-to-r from-[#6366f1]/50 to-transparent w-24 md:w-48 ${principle.align === "right" ? "mr-0" : "ml-0"}`} />
           </article>
         ))}
       </div>
