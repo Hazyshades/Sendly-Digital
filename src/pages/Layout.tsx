@@ -2,8 +2,8 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Link, useLocation } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Toaster } from '@/components/ui/sonner';
-import { NewsPanel } from '@/components/NewsPanel';
 import { FeedbackPanel } from '@/components/FeedbackPanel';
+import { ZkAppShell } from '@/components/zk-accounts/ZkAppShell';
 import { useState, lazy, Suspense } from 'react';
 import { isZkHost } from '@/lib/runtime/zkHost';
 
@@ -36,6 +36,7 @@ export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const [isPrivyModalOpen, setIsPrivyModalOpen] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const [zkAccountsSheetOpen, setZkAccountsSheetOpen] = useState(false);
   const zk = isZkHost();
   const zkNoPrivy = zk;
   const showMaintenanceBanner = readMaintenanceBannerFlag();
@@ -57,6 +58,36 @@ export function Layout({ children }: LayoutProps) {
       ];
 
   const isActive = (path: string) => location.pathname === path;
+
+  const pageCard = (
+    <Card className="bg-white shadow-circle-card rounded-2xl backdrop-blur-sm">
+      {children}
+    </Card>
+  );
+
+  const mainContent = (
+    <>
+      <nav className="mb-4">
+        <div className="flex gap-2">
+          {navigationItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex-1 px-3 py-2 rounded-2xl text-center text-sm font-medium transition-[background-color,color,box-shadow] duration-200 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 ${
+                isActive(item.path)
+                  ? 'bg-white text-blue-600 shadow-circle-card'
+                  : 'bg-white/70 text-gray-700 hover:bg-white/90 backdrop-blur-sm'
+              }`}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      </nav>
+
+      {pageCard}
+    </>
+  );
 
   return (
     <div className="min-h-screen circle-gradient-bg">
@@ -99,6 +130,15 @@ export function Layout({ children }: LayoutProps) {
               headerCollapsed ? 'opacity-0 -translate-x-2 pointer-events-none w-0 ml-0' : 'opacity-100 translate-x-0 ml-2'
             }`}
           >
+            {zk ? (
+              <button
+                type="button"
+                onClick={() => setZkAccountsSheetOpen(true)}
+                className="lg:hidden bg-white border border-gray-200 text-gray-900 hover:bg-gray-50 px-4 py-2 rounded-2xl transition-[transform,background-color] duration-200 ease-[var(--ease-out)] active:scale-[0.97] font-medium motion-reduce:transition-none motion-reduce:active:scale-100"
+              >
+                Social
+              </button>
+            ) : null}
             {!zkNoPrivy && PrivyConnectedAccounts ? (
               <Suspense fallback={null}>
                 <PrivyConnectedAccounts />
@@ -135,32 +175,20 @@ export function Layout({ children }: LayoutProps) {
       ) : null}
 
       <div className="container mx-auto px-6 pb-6 relative z-10">
-        <div className="max-w-2xl mx-auto">
-          <nav className="mb-4">
-            <div className="flex gap-2">
-              {navigationItems.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex-1 px-3 py-2 rounded-2xl text-center text-sm font-medium transition-[background-color,color,box-shadow] duration-200 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 ${
-                    isActive(item.path)
-                      ? 'bg-white text-blue-600 shadow-circle-card'
-                      : 'bg-white/70 text-gray-700 hover:bg-white/90 backdrop-blur-sm'
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-          </nav>
-
-          <Card className="bg-white shadow-circle-card rounded-2xl backdrop-blur-sm">
+        {zk ? (
+          <ZkAppShell
+            navigationItems={navigationItems}
+            isActive={isActive}
+            mobileSheetOpen={zkAccountsSheetOpen}
+            onMobileSheetOpenChange={setZkAccountsSheetOpen}
+          >
             {children}
-          </Card>
-        </div>
+          </ZkAppShell>
+        ) : (
+          <div className="max-w-2xl mx-auto">{mainContent}</div>
+        )}
       </div>
       <Toaster />
-      {location.pathname !== '/' && <NewsPanel />}
       <FeedbackPanel />
     </div>
   );

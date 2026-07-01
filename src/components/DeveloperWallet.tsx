@@ -17,9 +17,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Loader2, Wallet, Copy, Check, ExternalLink, ArrowUpCircle, ChevronUp, ChevronDown, Coins, Send } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
-import { Link } from 'react-router-dom';
 import { isZkHost } from '@/lib/runtime/zkHost';
-import { useZkOAuthIdentity, buildZkOAuthPrivyUserId } from '@/lib/zk-oauth';
+import { useZkOAuthIdentity, buildZkOAuthPrivyUserId, readZkOAuthAccessTokenForPlatform, readTwitterOAuth1Secret } from '@/lib/zk-oauth';
 
 interface DeveloperWalletProps {
   blockchain?: string;
@@ -361,6 +360,11 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
           username,
           privyUserId,
           blockchain,
+          {
+            accessToken: readZkOAuthAccessTokenForPlatform(platform) ?? undefined,
+            oauth1TokenSecret:
+              platform === 'twitter' ? readTwitterOAuth1Secret() ?? undefined : undefined,
+          },
         );
 
         if (response.success && response.wallet) {
@@ -1128,7 +1132,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
       <CardDescription className="text-left text-sm text-gray-600 -mt-1">
         {shouldShowConnectMessage
           ? zk
-            ? 'Connect Twitter, Twitch, or Telegram on Payments to create an Internal Wallet.'
+            ? 'Connect Twitter, Twitch, Telegram, GitHub, Gmail, or LinkedIn in the Accounts panel to create an Internal Wallet.'
             : 'Please connect your wallet or social account to use platform functionality.'
           : zkOAuthIdentity
             ? `Connected as ${zkOAuthIdentity.displayLabel}. Create an Internal Wallet to use the platform seamlessly.`
@@ -1138,9 +1142,6 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
   </CardHeader>
       {shouldShowConnectMessage && zk ? (
         <CardContent className="pt-2">
-          <Button asChild variant="outline" className="w-full">
-            <Link to="/payments">Go to Payments to connect</Link>
-          </Button>
         </CardContent>
       ) : null}
       {!showCreateWalletUi && zk && zkOAuthLoading ? (

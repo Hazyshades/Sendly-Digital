@@ -36,14 +36,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import type { SendRecipientType } from './ZkSendPanel';
-import { connectTwitter } from './Oauth/twitter';
-import { connectTwitch } from './Oauth/twitch';
-import { connectGithub } from './Oauth/github';
-import { connectTelegram } from './Oauth/telegram';
-import { connectInstagram } from './Oauth/instagram';
-// import { connectTiktok } from './Oauth/tiktok';
-import { connectGmail } from './Oauth/gmail';
-import { connectLinkedIn } from './Oauth/linkedin';
+import { ZkAccountsConnectHint } from '@/components/zk-accounts/ZkAccountsConnectHint';
 
 const TOKEN_SYMBOL_BY_ADDRESS: Record<string, string> = {
   '0x89b50855aa3be2f677cd6303cec089b5f319d72a': 'EURC',
@@ -106,6 +99,15 @@ function toUserFacingErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+function ReceiveOAuthStatus({ connected, platformLabel }: { connected: boolean; platformLabel: string }) {
+  if (!connected) return <ZkAccountsConnectHint />;
+  return (
+    <p className="text-sm text-muted-foreground">
+      {platformLabel} connected. Enter your username above to load pending payments.
+    </p>
+  );
+}
+
 export function PendingPayments({
   platform,
   username,
@@ -154,14 +156,6 @@ export function PendingPayments({
   const [gmailAccessToken, setGmailAccessToken] = useState('');
   const [linkedinAccessToken, setLinkedinAccessToken] = useState('');
   const [privyAccessToken, setPrivyAccessToken] = useState<string | null>(null);
-  const [connectingTwitter, setConnectingTwitter] = useState(false);
-  const [connectingTwitch, setConnectingTwitch] = useState(false);
-  const [connectingGithub, setConnectingGithub] = useState(false);
-  const [connectingTelegram, setConnectingTelegram] = useState(false);
-  const [connectingInstagram, setConnectingInstagram] = useState(false);
-  // const [connectingTiktok, setConnectingTiktok] = useState(false);
-  const [connectingGmail, setConnectingGmail] = useState(false);
-  const [connectingLinkedIn, setConnectingLinkedIn] = useState(false);
   const [reclaimProofs, setReclaimProofs] = useState<ReclaimProof[] | null>(null);
   const [proofLoading, setProofLoading] = useState(false);
   const [proofError, setProofError] = useState<string | null>(null);
@@ -321,6 +315,61 @@ export function PendingPayments({
   }, [linkedinAccessToken]);
 
   useEffect(() => {
+    const syncOAuthFromPanel = () => {
+      try {
+        const twitterStored = localStorage.getItem('twitter_oauth_token') || localStorage.getItem('twitter_oauth');
+        if (twitterStored) {
+          let token = twitterStored;
+          if (twitterStored.trim().startsWith('{')) {
+            const parsed = JSON.parse(twitterStored) as { access_token?: string; token?: string };
+            token = parsed.access_token || parsed.token || twitterStored;
+          }
+          if (token) setAccessToken(token);
+        }
+        const oauth1 = localStorage.getItem('twitter_oauth1_token');
+        const oauth1Secret = localStorage.getItem('twitter_oauth1_secret');
+        if (oauth1 && oauth1Secret) {
+          setOauth1Token(oauth1);
+          setOauth1TokenSecret(oauth1Secret);
+        }
+        const twitch =
+          localStorage.getItem('twitch_oauth_token') ||
+          localStorage.getItem('twitch_oauth') ||
+          localStorage.getItem('twitch_access_token');
+        if (twitch) setTwitchAccessToken(twitch);
+        const github =
+          localStorage.getItem('github_oauth_token') ||
+          localStorage.getItem('github_oauth') ||
+          localStorage.getItem('github_access_token');
+        if (github) setGithubAccessToken(github);
+        const telegram =
+          localStorage.getItem('telegram_oauth_token') || localStorage.getItem('telegram_oauth');
+        if (telegram) setTelegramAccessToken(telegram);
+        const instagram =
+          localStorage.getItem('instagram_oauth_token') ||
+          localStorage.getItem('instagram_oauth') ||
+          localStorage.getItem('instagram_access_token');
+        if (instagram) setInstagramAccessToken(instagram);
+        const gmail =
+          localStorage.getItem('gmail_oauth_token') ||
+          localStorage.getItem('gmail_oauth') ||
+          localStorage.getItem('gmail_access_token');
+        if (gmail) setGmailAccessToken(gmail);
+        const linkedin =
+          localStorage.getItem('linkedin_oauth_token') ||
+          localStorage.getItem('linkedin_oauth') ||
+          localStorage.getItem('linkedin_access_token');
+        if (linkedin) setLinkedinAccessToken(linkedin);
+      } catch (error) {
+        console.warn('[zkSEND] Failed to sync OAuth tokens from Accounts panel:', error);
+      }
+    };
+
+    window.addEventListener('identity-updated', syncOAuthFromPanel);
+    return () => window.removeEventListener('identity-updated', syncOAuthFromPanel);
+  }, []);
+
+  useEffect(() => {
     // Privy is disabled for zk.localhost to prevent OAuth interception
     if (isZkLocalhost()) {
       setPrivyAccessToken(null);
@@ -452,118 +501,6 @@ export function PendingPayments({
       });
     } finally {
       setProofLoading(false);
-    }
-  };
-
-  const handleConnectTwitter = async () => {
-    setConnectingTwitter(true);
-    try {
-      const token = await connectTwitter();
-      if (token) {
-        const secret = localStorage.getItem('twitter_oauth1_secret');
-        if (secret) {
-          setOauth1Token(token);
-          setOauth1TokenSecret(secret);
-        } else {
-          setAccessToken(token);
-        }
-      }
-    } finally {
-      setConnectingTwitter(false);
-    }
-  };
-
-  const handleConnectTwitch = async () => {
-    setConnectingTwitch(true);
-    try {
-      const token = await connectTwitch();
-      if (token) {
-        setTwitchAccessToken(token);
-      }
-    } finally {
-      setConnectingTwitch(false);
-    }
-  };
-
-  const handleConnectGithub = async () => {
-    setConnectingGithub(true);
-    try {
-      const token = await connectGithub();
-      if (token) {
-        setGithubAccessToken(token);
-      }
-    } finally {
-      setConnectingGithub(false);
-    }
-  };
-
-  const handleConnectTelegram = async () => {
-    setConnectingTelegram(true);
-    try {
-      const token = await connectTelegram();
-      if (token) {
-        setTelegramAccessToken(token);
-      }
-    } finally {
-      setConnectingTelegram(false);
-    }
-  };
-
-  const handleConnectInstagram = async () => {
-    setConnectingInstagram(true);
-    try {
-      const token = await connectInstagram();
-      if (token) {
-        setInstagramAccessToken(token);
-      }
-    } finally {
-      setConnectingInstagram(false);
-    }
-  };
-
-  // const handleConnectTiktok = async () => {
-  //   setConnectingTiktok(true);
-  //   try {
-  //     const token = await connectTiktok();
-  //     if (token) {
-  //       setTiktokAccessToken(token);
-  //     }
-  //   } finally {
-  //     setConnectingTiktok(false);
-  //   }
-  // };
-
-  // const handleClearTiktokToken = () => {
-  //   setClearingToken(true);
-  //   try {
-  //     clearTiktokToken();
-  //     setTiktokAccessToken('');
-  //   } finally {
-  //     setClearingToken(false);
-  //   }
-  // };
-
-  const handleConnectGmail = async () => {
-    setConnectingGmail(true);
-    try {
-      const token = await connectGmail();
-      if (token) {
-        setGmailAccessToken(token);
-      }
-    } finally {
-      setConnectingGmail(false);
-    }
-  };
-
-  const handleConnectLinkedIn = async () => {
-    setConnectingLinkedIn(true);
-    try {
-      const token = await connectLinkedIn();
-      if (token) {
-        setLinkedinAccessToken(token);
-      }
-    } finally {
-      setConnectingLinkedIn(false);
     }
   };
 
@@ -1376,93 +1313,22 @@ export function PendingPayments({
             deposits.
           </p>
         ) : platform === 'twitter' ? (
-          <div className="space-y-3">
-            <Button
-              type="button"
-              size="lg"
-              onClick={handleConnectTwitter}
-              disabled={connectingTwitter || !isIdentityValid}
-              className="w-full"
-            >
-              {connectingTwitter
-                ? 'Connecting...'
-                : oauth1Token || accessToken
-                  ? 'Reconnect Twitter / X'
-                  : 'Connect Twitter / X'}
-            </Button>
-          </div>
+          <ReceiveOAuthStatus
+            connected={Boolean((oauth1Token && oauth1TokenSecret) || accessToken || privyAccessToken)}
+            platformLabel="Twitter / X"
+          />
         ) : platform === 'twitch' ? (
-          <div className="space-y-3">
-            <Button
-              type="button"
-              size="lg"
-              onClick={handleConnectTwitch}
-              disabled={connectingTwitch || !isIdentityValid}
-              className="w-full"
-            >
-              {connectingTwitch ? 'Connecting...' : twitchAccessToken ? 'Reconnect Twitch' : 'Connect Twitch'}
-            </Button>
-          </div>
+          <ReceiveOAuthStatus connected={Boolean(twitchAccessToken)} platformLabel="Twitch" />
         ) : platform === 'github' ? (
-          <div className="space-y-3">
-            <Button
-              type="button"
-              size="lg"
-              onClick={handleConnectGithub}
-              disabled={connectingGithub || !isIdentityValid}
-              className="w-full"
-            >
-              {connectingGithub ? 'Connecting...' : githubAccessToken ? 'Reconnect GitHub' : 'Connect GitHub'}
-            </Button>
-          </div>
+          <ReceiveOAuthStatus connected={Boolean(githubAccessToken)} platformLabel="GitHub" />
         ) : platform === 'telegram' ? (
-          <div className="space-y-3">
-            <Button
-              type="button"
-              size="lg"
-              onClick={handleConnectTelegram}
-              disabled={connectingTelegram || !isIdentityValid}
-              className="w-full"
-            >
-              {connectingTelegram ? 'Connecting...' : telegramAccessToken ? 'Reconnect Telegram' : 'Connect Telegram'}
-            </Button>
-          </div>
+          <ReceiveOAuthStatus connected={Boolean(telegramAccessToken)} platformLabel="Telegram" />
         ) : platform === 'instagram' ? (
-          <div className="space-y-3">
-            <Button
-              type="button"
-              size="lg"
-              onClick={handleConnectInstagram}
-              disabled={connectingInstagram || !isIdentityValid}
-              className="w-full"
-            >
-              {connectingInstagram ? 'Connecting...' : instagramAccessToken ? 'Reconnect Instagram' : 'Connect Instagram'}
-            </Button>
-          </div>
+          <ReceiveOAuthStatus connected={Boolean(instagramAccessToken)} platformLabel="Instagram" />
         ) : platform === 'gmail' ? (
-          <div className="space-y-3">
-            <Button
-              type="button"
-              size="lg"
-              onClick={handleConnectGmail}
-              disabled={connectingGmail || !isIdentityValid}
-              className="w-full"
-            >
-              {connectingGmail ? 'Connecting...' : gmailAccessToken ? 'Reconnect Gmail' : 'Connect Gmail'}
-            </Button>
-          </div>
+          <ReceiveOAuthStatus connected={Boolean(gmailAccessToken)} platformLabel="Gmail" />
         ) : platform === 'linkedin' ? (
-          <div className="space-y-3">
-            <Button
-              type="button"
-              size="lg"
-              onClick={handleConnectLinkedIn}
-              disabled={connectingLinkedIn || !isIdentityValid}
-              className="w-full"
-            >
-              {connectingLinkedIn ? 'Connecting...' : linkedinAccessToken ? 'Reconnect LinkedIn' : 'Connect LinkedIn'}
-            </Button>
-          </div>
+          <ReceiveOAuthStatus connected={Boolean(linkedinAccessToken)} platformLabel="LinkedIn" />
         ) : (
           <div className="space-y-2 rounded-xl border bg-background p-3">
             <div className="text-sm font-medium">Reclaim proof</div>

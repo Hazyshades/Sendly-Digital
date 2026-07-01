@@ -44,7 +44,10 @@ export function useZkOAuthIdentity() {
       if (
         event.key?.includes('twitter_oauth') ||
         event.key?.includes('twitch_oauth') ||
-        event.key?.includes('telegram_oauth')
+        event.key?.includes('telegram_oauth') ||
+        event.key?.includes('github_oauth') ||
+        event.key?.includes('gmail_oauth') ||
+        event.key?.includes('linkedin_oauth')
       ) {
         refresh();
       }
