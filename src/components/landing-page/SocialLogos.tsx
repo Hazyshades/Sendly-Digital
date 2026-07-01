@@ -166,7 +166,7 @@ export function SocialLogos({
                     className="basis-1/3 pl-0 pr-0 flex items-center justify-center"
                   >
                     <div className="flex items-center justify-center h-20 w-full px-1">
-                      <div className="transform hover:scale-110 transition-transform duration-300 cursor-pointer flex items-center justify-center">
+                      <div className="transition-transform duration-200 ease-[var(--ease-out)] [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110 cursor-pointer flex items-center justify-center">
                         {logo.element || (
                           <img
                             src={logo.image}

@@ -671,7 +671,7 @@ export function Leaderboard() {
             <Button
               variant={metricView === 'total' ? 'default' : 'outline'}
               onClick={() => setMetricView('total')}
-              className={`transition-all duration-200 ${
+              className={`transition-[background-color,color,box-shadow,border-color] duration-200 ease-[var(--ease-out)] ${
                 metricView === 'total'
                   ? 'bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white border-transparent shadow-md'
                   : 'bg-white hover:bg-gray-50'
@@ -682,7 +682,7 @@ export function Leaderboard() {
             <Button
               variant={metricView === 'twitter' ? 'default' : 'outline'}
               onClick={() => setMetricView('twitter')}
-              className={`transition-all duration-200 ${
+              className={`transition-[background-color,color,box-shadow,border-color] duration-200 ease-[var(--ease-out)] ${
                 metricView === 'twitter'
                   ? 'bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white border-transparent shadow-md'
                   : 'bg-white hover:bg-gray-50'
@@ -694,7 +694,7 @@ export function Leaderboard() {
             <Button
               variant={metricView === 'twitch' ? 'default' : 'outline'}
               onClick={() => setMetricView('twitch')}
-              className={`transition-all duration-200 ${
+              className={`transition-[background-color,color,box-shadow,border-color] duration-200 ease-[var(--ease-out)] ${
                 metricView === 'twitch'
                   ? 'bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white border-transparent shadow-md'
                   : 'bg-white hover:bg-gray-50'
@@ -706,7 +706,7 @@ export function Leaderboard() {
             <Button
               variant={metricView === 'telegram' ? 'default' : 'outline'}
               onClick={() => setMetricView('telegram')}
-              className={`transition-all duration-200 ${
+              className={`transition-[background-color,color,box-shadow,border-color] duration-200 ease-[var(--ease-out)] ${
                 metricView === 'telegram'
                   ? 'bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white border-transparent shadow-md'
                   : 'bg-white hover:bg-gray-50'
@@ -718,7 +718,7 @@ export function Leaderboard() {
             <Button
               variant={metricView === 'gas' ? 'default' : 'outline'}
               onClick={() => setMetricView('gas')}
-              className={`transition-all duration-200 ${
+              className={`transition-[background-color,color,box-shadow,border-color] duration-200 ease-[var(--ease-out)] ${
                 metricView === 'gas'
                   ? 'bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white border-transparent shadow-md'
                   : 'bg-white hover:bg-gray-50'
@@ -730,7 +730,7 @@ export function Leaderboard() {
             <Button
               variant={metricView === 'tvl' ? 'default' : 'outline'}
               onClick={() => setMetricView('tvl')}
-              className={`transition-all duration-200 ${
+              className={`transition-[background-color,color,box-shadow,border-color] duration-200 ease-[var(--ease-out)] ${
                 metricView === 'tvl'
                   ? 'bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white border-transparent shadow-md'
                   : 'bg-white hover:bg-gray-50'
@@ -749,7 +749,7 @@ export function Leaderboard() {
             >
             {metricView === 'total' && (
               <>
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100 transition-all duration-300 hover:shadow-lg">
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100 transition-[box-shadow] duration-200 ease-[var(--ease-out)] hover:shadow-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Users className="h-5 w-5 text-blue-600" />
                     <span className="text-sm font-medium text-gray-600">Total Addresses</span>
@@ -759,7 +759,7 @@ export function Leaderboard() {
                     <span className="text-sm text-gray-500">addresses</span>
                   </div>
                 </div>
-                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100 transition-all duration-300 hover:shadow-lg">
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100 transition-[box-shadow] duration-200 ease-[var(--ease-out)] hover:shadow-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Trophy className="h-5 w-5 text-purple-600" />
                     <span className="text-sm font-medium text-gray-600">Total {terminology.itemCapitalized}</span>
@@ -774,7 +774,7 @@ export function Leaderboard() {
             
             {metricView === 'twitter' && (
               <>
-                <div className="bg-gradient-to-br from-sky-50 to-blue-50 rounded-xl p-4 border border-sky-100 transition-all duration-300 hover:shadow-lg">
+                <div className="bg-gradient-to-br from-sky-50 to-blue-50 rounded-xl p-4 border border-sky-100 transition-[box-shadow] duration-200 ease-[var(--ease-out)] hover:shadow-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Twitter className="h-5 w-5 text-sky-600" />
                     <span className="text-sm font-medium text-gray-600">Twitter {terminology.itemCapitalized}</span>
@@ -784,7 +784,7 @@ export function Leaderboard() {
                     <span className="text-sm text-gray-500">{terminology.itemSent}</span>
                   </div>
                 </div>
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100 transition-all duration-300 hover:shadow-lg">
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100 transition-[box-shadow] duration-200 ease-[var(--ease-out)] hover:shadow-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Users className="h-5 w-5 text-blue-600" />
                     <span className="text-sm font-medium text-gray-600">Twitter Addresses</span>
@@ -799,7 +799,7 @@ export function Leaderboard() {
             
             {metricView === 'twitch' && (
               <>
-                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100 transition-all duration-300 hover:shadow-lg">
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100 transition-[box-shadow] duration-200 ease-[var(--ease-out)] hover:shadow-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Twitch className="h-5 w-5 text-purple-600" />
                     <span className="text-sm font-medium text-gray-600">Twitch {terminology.itemCapitalized}</span>
@@ -809,7 +809,7 @@ export function Leaderboard() {
                     <span className="text-sm text-gray-500">{terminology.itemSent}</span>
                   </div>
                 </div>
-                <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl p-4 border border-pink-100 transition-all duration-300 hover:shadow-lg">
+                <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl p-4 border border-pink-100 transition-[box-shadow] duration-200 ease-[var(--ease-out)] hover:shadow-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Users className="h-5 w-5 text-pink-600" />
                     <span className="text-sm font-medium text-gray-600">Twitch Addresses</span>
@@ -824,7 +824,7 @@ export function Leaderboard() {
             
             {metricView === 'telegram' && (
               <>
-                <div className="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-xl p-4 border border-cyan-100 transition-all duration-300 hover:shadow-lg">
+                <div className="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-xl p-4 border border-cyan-100 transition-[box-shadow] duration-200 ease-[var(--ease-out)] hover:shadow-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Send className="h-5 w-5 text-cyan-600" />
                     <span className="text-sm font-medium text-gray-600">Telegram {terminology.itemCapitalized}</span>
@@ -834,7 +834,7 @@ export function Leaderboard() {
                     <span className="text-sm text-gray-500">{terminology.itemSent}</span>
                   </div>
                 </div>
-                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-100 transition-all duration-300 hover:shadow-lg">
+                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-100 transition-[box-shadow] duration-200 ease-[var(--ease-out)] hover:shadow-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Users className="h-5 w-5 text-blue-600" />
                     <span className="text-sm font-medium text-gray-600">Telegram Addresses</span>
@@ -849,7 +849,7 @@ export function Leaderboard() {
             
             {metricView === 'gas' && (
               <>
-                <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-100 transition-all duration-300 hover:shadow-lg">
+                <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-100 transition-[box-shadow] duration-200 ease-[var(--ease-out)] hover:shadow-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Zap className="h-5 w-5 text-orange-600" />
                     <span className="text-sm font-medium text-gray-600">Gas Spent</span>
@@ -868,7 +868,7 @@ export function Leaderboard() {
                     )}
                   </div>
                 </div>
-                <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-xl p-4 border border-amber-100 transition-all duration-300 hover:shadow-lg">
+                <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-xl p-4 border border-amber-100 transition-[box-shadow] duration-200 ease-[var(--ease-out)] hover:shadow-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <TrendingUp className="h-5 w-5 text-amber-600" />
                     <span className="text-sm font-medium text-gray-600">Transactions</span>
@@ -896,7 +896,7 @@ export function Leaderboard() {
             
             {metricView === 'tvl' && (
               <>
-                <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-100 transition-all duration-300 hover:shadow-lg">
+                <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-100 transition-[box-shadow] duration-200 ease-[var(--ease-out)] hover:shadow-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Wallet className="h-5 w-5 text-emerald-600" />
                     <span className="text-sm font-medium text-gray-600">Total Value Locked</span>
@@ -1049,7 +1049,7 @@ export function Leaderboard() {
               return (
                 <div
                   key={entry.id}
-                  className={`group flex flex-col gap-3 rounded-2xl border p-3 md:p-4 transition-all hover:shadow-lg hover:scale-[1.01] ${
+                  className={`group flex flex-col gap-3 rounded-2xl border p-3 md:p-4 transition-[box-shadow,transform] duration-200 ease-[var(--ease-out)] hover:shadow-lg [@media(hover:hover)_and_(pointer:fine)]:hover:scale-[1.01] ${
                     isCurrentUser 
                       ? 'bg-[#f0f9ff] border-[#bae6fd] ring-2 ring-blue-200' 
                       : globalRank <= 3

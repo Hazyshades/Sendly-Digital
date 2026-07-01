@@ -819,13 +819,13 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          className={`flex flex-col items-center transition-all duration-200 focus:outline-none ${
-                            isTechGiantsSelected ? 'scale-110' : 'hover:scale-105'
+                          className={`flex flex-col items-center transition-transform duration-200 ease-[var(--ease-out)] active:scale-[0.97] focus:outline-none ${
+                            isTechGiantsSelected ? 'scale-110' : '[@media(hover:hover)_and_(pointer:fine)]:hover:scale-105'
                           }`}
                           aria-label="Open Tech Giants options"
                         >
                           <div
-                            className={`w-16 h-16 rounded-lg overflow-hidden shadow-sm mb-2 border-2 transition-all duration-200 ${
+                            className={`w-16 h-16 rounded-lg overflow-hidden shadow-sm mb-2 border-2 transition-[border-color,box-shadow] duration-200 ease-[var(--ease-out)] ${
                               isTechGiantsSelected
                                 ? 'border-sky-500 shadow-lg'
                                 : 'border-gray-200 hover:border-sky-300'
@@ -858,8 +858,8 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
                           {/* Airbnb */}
                           <button
                             type="button"
-                            className={`flex flex-col items-center transition-all duration-200 focus:outline-none ${
-                              selectedService === 'airbnb' ? 'scale-110' : 'hover:scale-105'
+                            className={`flex flex-col items-center transition-transform duration-200 ease-[var(--ease-out)] active:scale-[0.97] focus:outline-none ${
+                              selectedService === 'airbnb' ? 'scale-110' : '[@media(hover:hover)_and_(pointer:fine)]:hover:scale-105'
                             }`}
                             onClick={() => {
                               setSelectedService('airbnb');
@@ -867,7 +867,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
                             }}
                           >
                             <div
-                              className={`w-16 h-16 rounded-lg overflow-hidden shadow-sm mb-2 border-2 transition-all duration-200 ${
+                              className={`w-16 h-16 rounded-lg overflow-hidden shadow-sm mb-2 border-2 transition-[border-color,box-shadow] duration-200 ease-[var(--ease-out)] ${
                                 selectedService === 'airbnb'
                                   ? 'border-blue-500 shadow-lg'
                                   : 'border-gray-200 hover:border-blue-300'
@@ -891,8 +891,8 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
                           {/* Amazon */}
                           <button
                             type="button"
-                            className={`flex flex-col items-center transition-all duration-200 focus:outline-none ${
-                              selectedService === 'amazon' ? 'scale-110' : 'hover:scale-105'
+                            className={`flex flex-col items-center transition-transform duration-200 ease-[var(--ease-out)] active:scale-[0.97] focus:outline-none ${
+                              selectedService === 'amazon' ? 'scale-110' : '[@media(hover:hover)_and_(pointer:fine)]:hover:scale-105'
                             }`}
                             onClick={() => {
                               setSelectedService('amazon');
@@ -900,7 +900,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
                             }}
                           >
                             <div
-                              className={`w-16 h-16 rounded-lg overflow-hidden shadow-sm mb-2 border-2 transition-all duration-200 ${
+                              className={`w-16 h-16 rounded-lg overflow-hidden shadow-sm mb-2 border-2 transition-[border-color,box-shadow] duration-200 ease-[var(--ease-out)] ${
                                 selectedService === 'amazon'
                                   ? 'border-orange-500 shadow-lg'
                                   : 'border-gray-200 hover:border-orange-300'
@@ -924,8 +924,8 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
                           {/* Apple */}
                           <button
                             type="button"
-                            className={`flex flex-col items-center transition-all duration-200 focus:outline-none ${
-                              selectedService === 'apple' ? 'scale-110' : 'hover:scale-105'
+                            className={`flex flex-col items-center transition-transform duration-200 ease-[var(--ease-out)] active:scale-[0.97] focus:outline-none ${
+                              selectedService === 'apple' ? 'scale-110' : '[@media(hover:hover)_and_(pointer:fine)]:hover:scale-105'
                             }`}
                             onClick={() => {
                               setSelectedService('apple');
@@ -933,7 +933,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
                             }}
                           >
                             <div
-                              className={`w-16 h-16 rounded-lg overflow-hidden shadow-sm mb-2 border-2 transition-all duration-200 ${
+                              className={`w-16 h-16 rounded-lg overflow-hidden shadow-sm mb-2 border-2 transition-[border-color,box-shadow] duration-200 ease-[var(--ease-out)] ${
                                 selectedService === 'apple'
                                   ? 'border-gray-500 shadow-lg'
                                   : 'border-gray-200 hover:border-gray-400'
@@ -960,8 +960,8 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
 
                   {/* USDC Withdraw */}
                   <div
-                    className={`flex flex-col items-center cursor-pointer transition-all duration-200 ${
-                      selectedService === 'usdc-withdraw' ? 'scale-110' : 'hover:scale-105'
+                    className={`flex flex-col items-center cursor-pointer transition-transform duration-200 ease-[var(--ease-out)] active:scale-[0.97] ${
+                      selectedService === 'usdc-withdraw' ? 'scale-110' : '[@media(hover:hover)_and_(pointer:fine)]:hover:scale-105'
                     }`}
                     onClick={() => setSelectedService('usdc-withdraw')}
                     role="button"
@@ -973,7 +973,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
                     }}
                   >
                     <div
-                      className={`w-16 h-16 rounded-lg overflow-hidden shadow-sm mb-2 border-2 transition-all duration-200 ${
+                      className={`w-16 h-16 rounded-lg overflow-hidden shadow-sm mb-2 border-2 transition-[border-color,box-shadow] duration-200 ease-[var(--ease-out)] ${
                         selectedService === 'usdc-withdraw'
                           ? 'border-cyan-500 shadow-lg'
                           : 'border-gray-200 hover:border-cyan-300'
@@ -1000,13 +1000,13 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
                         <button
                           type="button"
                           disabled
-                          className={`flex flex-col items-center transition-all duration-200 focus:outline-none ${
-                            isUsdWithdrawSelected ? 'scale-110' : 'hover:scale-105'
+                          className={`flex flex-col items-center transition-transform duration-200 ease-[var(--ease-out)] active:scale-[0.97] focus:outline-none ${
+                            isUsdWithdrawSelected ? 'scale-110' : '[@media(hover:hover)_and_(pointer:fine)]:hover:scale-105'
                           } disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100`}
                           aria-label="Open USD Withdraw options"
                         >
                           <div
-                            className={`w-16 h-16 rounded-lg overflow-hidden shadow-sm mb-2 border-2 transition-all duration-200 ${
+                            className={`w-16 h-16 rounded-lg overflow-hidden shadow-sm mb-2 border-2 transition-[border-color,box-shadow] duration-200 ease-[var(--ease-out)] ${
                               isUsdWithdrawSelected
                                 ? 'border-emerald-500 shadow-lg'
                                 : 'border-gray-200 hover:border-emerald-300'
@@ -1033,8 +1033,8 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
 
                   {/* Stripe */}
                   <div 
-                    className={`flex flex-col items-center cursor-pointer transition-all duration-200 ${
-                      selectedService === 'stripe' ? 'scale-110' : 'hover:scale-105'
+                    className={`flex flex-col items-center cursor-pointer transition-transform duration-200 ease-[var(--ease-out)] active:scale-[0.97] ${
+                      selectedService === 'stripe' ? 'scale-110' : '[@media(hover:hover)_and_(pointer:fine)]:hover:scale-105'
                     }`}
                     onClick={() => setSelectedService('stripe')}
                     role="button"
@@ -1045,7 +1045,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
                       }
                     }}
                   >
-                    <div className={`w-16 h-16 rounded-lg overflow-hidden shadow-sm mb-2 border-2 transition-all duration-200 ${
+                    <div className={`w-16 h-16 rounded-lg overflow-hidden shadow-sm mb-2 border-2 transition-[border-color,box-shadow] duration-200 ease-[var(--ease-out)] ${
                       selectedService === 'stripe' ? 'border-purple-500 shadow-lg' : 'border-gray-200 hover:border-purple-300'
                     }`}>
                       <div className="w-full h-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">

@@ -492,7 +492,7 @@ export function LitepaperRoute() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <a
                 href="/create"
-                className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-4 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2"
+                className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-4 rounded-xl font-semibold transition-[background-color,box-shadow,transform] duration-200 ease-[var(--ease-out)] shadow-lg hover:shadow-xl active:scale-[0.97] [@media(hover:hover)_and_(pointer:fine)]:hover:scale-105 flex items-center gap-2"
               >
                 Create Card
                 <ArrowRight className="w-5 h-5" />

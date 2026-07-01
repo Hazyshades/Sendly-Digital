@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
+import { scrollRevealOnce, useMotionSafe } from "@/hooks/useMotionSafe"
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -9,21 +10,22 @@ export function ColophonSection() {
   const headerRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
   const footerRef = useRef<HTMLDivElement>(null)
+  const motionSafe = useMotionSafe()
 
   useEffect(() => {
-    if (!sectionRef.current) return
+    if (!motionSafe || !sectionRef.current) return
 
     const ctx = gsap.context(() => {
       if (headerRef.current) {
         gsap.from(headerRef.current, {
           x: -60,
           opacity: 0,
-          duration: 1,
+          duration: 0.7,
           ease: "power3.out",
           scrollTrigger: {
             trigger: headerRef.current,
             start: "top 85%",
-            toggleActions: "play none none reverse",
+            ...scrollRevealOnce,
           },
         })
       }
@@ -31,36 +33,36 @@ export function ColophonSection() {
       if (gridRef.current) {
         const columns = gridRef.current.querySelectorAll(":scope > div")
         gsap.from(columns, {
-          y: 40,
+          y: 30,
           opacity: 0,
-          duration: 0.8,
-          stagger: 0.1,
+          duration: 0.6,
+          stagger: 0.08,
           ease: "power3.out",
           scrollTrigger: {
             trigger: gridRef.current,
             start: "top 85%",
-            toggleActions: "play none none reverse",
+            ...scrollRevealOnce,
           },
         })
       }
 
       if (footerRef.current) {
         gsap.from(footerRef.current, {
-          y: 20,
+          y: 16,
           opacity: 0,
-          duration: 0.8,
+          duration: 0.6,
           ease: "power3.out",
           scrollTrigger: {
             trigger: footerRef.current,
             start: "top 95%",
-            toggleActions: "play none none reverse",
+            ...scrollRevealOnce,
           },
         })
       }
     }, sectionRef)
 
     return () => ctx.revert()
-  }, [])
+  }, [motionSafe])
 
   return (
     <section

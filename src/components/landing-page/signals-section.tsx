@@ -2,6 +2,7 @@ import { useRef, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
+import { scrollRevealOnce, useMotionSafe } from "@/hooks/useMotionSafe"
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -16,9 +17,10 @@ export function SignalsSection() {
   const containerRef = useRef<HTMLDivElement>(null)
   const sectionRef = useRef<HTMLElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
+  const motionSafe = useMotionSafe()
 
   useEffect(() => {
-    if (!sectionRef.current || !headerRef.current || !containerRef.current) return
+    if (!motionSafe || !sectionRef.current || !headerRef.current || !containerRef.current) return
 
     const ctx = gsap.context(() => {
       gsap.fromTo(
@@ -27,12 +29,12 @@ export function SignalsSection() {
         {
           x: 0,
           opacity: 1,
-          duration: 1,
+          duration: 0.7,
           ease: "power3.out",
           scrollTrigger: {
             trigger: headerRef.current,
             start: "top 85%",
-            toggleActions: "play none play reverse",
+            ...scrollRevealOnce,
           },
         },
       )
@@ -41,17 +43,17 @@ export function SignalsSection() {
       if (cards) {
         gsap.fromTo(
           cards,
-          { x: -100, opacity: 0 },
+          { x: -60, opacity: 0 },
           {
             x: 0,
             opacity: 1,
-            duration: 0.8,
-            stagger: 0.2,
+            duration: 0.6,
+            stagger: 0.08,
             ease: "power3.out",
             scrollTrigger: {
               trigger: containerRef.current,
               start: "top 90%",
-              toggleActions: "play none play reverse",
+              ...scrollRevealOnce,
             },
           },
         )
@@ -59,7 +61,7 @@ export function SignalsSection() {
     }, sectionRef)
 
     return () => ctx.revert()
-  }, [])
+  }, [motionSafe])
 
   return (
     <section id="signals" ref={sectionRef} className="relative py-24 md:py-32 px-6 md:px-16 lg:px-24">
@@ -95,8 +97,8 @@ function SignalCard({
     <article
       className={cn(
         "group relative flex-shrink-0 w-72 md:w-80",
-        "transition-transform duration-500 ease-out",
-        "hover:-translate-y-2"
+        "transition-transform duration-200 ease-[var(--ease-out)] motion-reduce:transition-none",
+        "[@media(hover:hover)_and_(pointer:fine)]:hover:-translate-y-2"
       )}
     >
       <div className="relative bg-white/90 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 overflow-hidden shadow-circle-card">
@@ -112,7 +114,7 @@ function SignalCard({
           {signal.title}
         </h3>
 
-        <div className="w-12 h-0.5 bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] mb-4 group-hover:w-full transition-all duration-500" />
+        <div className="w-12 h-0.5 bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] mb-4 group-hover:w-full transition-[width] duration-300 ease-[var(--ease-out)] motion-reduce:transition-none" />
 
         <p className="font-mono text-xs text-gray-600 leading-relaxed">{signal.note}</p>
       </div>

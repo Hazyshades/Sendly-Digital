@@ -47,7 +47,7 @@ export function BlogRoute() {
               key={category}
               type="button"
               onClick={() => setSelectedCategory(category)}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+              className={`px-6 py-2 rounded-full text-sm font-medium transition-[background-color,color,box-shadow,border-color] duration-200 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 ${
                 selectedCategory === category
                   ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
                   : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
@@ -61,7 +61,7 @@ export function BlogRoute() {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
           {filteredPosts.map((post) => (
             <Link key={post.slug} to={`/blog/${post.slug}`} className="group">
-              <article className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden h-full flex flex-col border border-gray-100">
+              <article className="bg-white rounded-2xl shadow-md [@media(hover:hover)_and_(pointer:fine)]:hover:shadow-xl transition-[box-shadow] duration-200 ease-[var(--ease-out)] overflow-hidden h-full flex flex-col border border-gray-100">
                 {post.coverImage ? (
                   <div className="w-full h-48 overflow-hidden bg-gray-100">
                     <img
@@ -114,9 +114,9 @@ export function BlogRoute() {
                           </span>
                         ))}
                       </div>
-                      <span className="text-purple-600 text-sm font-medium flex items-center gap-1 group-hover:gap-2 transition-all">
+                      <span className="text-purple-600 text-sm font-medium flex items-center gap-1">
                         Read
-                        <ArrowRight className="w-4 h-4" />
+                        <ArrowRight className="w-4 h-4 transition-transform duration-200 ease-[var(--ease-out)] group-hover:translate-x-0.5" />
                       </span>
                     </div>
                   </div>

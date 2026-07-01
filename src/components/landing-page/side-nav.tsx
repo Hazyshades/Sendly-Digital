@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useLenisScroll } from '@/components/landing-page/smooth-scroll'
+import { useMotionSafe } from '@/hooks/useMotionSafe'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -22,8 +23,11 @@ export function SideNav() {
   const navRef = useRef<HTMLDivElement>(null)
   const [launchAppOpen, setLaunchAppOpen] = useState(false)
   const lenisScrollTo = useLenisScroll()
+  const motionSafe = useMotionSafe()
 
   useEffect(() => {
+    if (!motionSafe) return
+
     const ctx = gsap.context(() => {
       const nav = navRef.current
       if (!nav) return
@@ -54,7 +58,7 @@ export function SideNav() {
     }, navRef)
 
     return () => ctx.revert()
-  }, [])
+  }, [motionSafe])
 
   const scrollToSection = (id: string) => {
     if (lenisScrollTo) {
@@ -69,7 +73,7 @@ export function SideNav() {
     <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-6 pointer-events-none">
       <nav
         ref={navRef}
-        className="pointer-events-auto flex items-center gap-2 px-2 py-3 rounded-2xl border border-white/30 transition-all duration-500"
+        className="pointer-events-auto flex items-center gap-2 px-2 py-3 rounded-2xl border border-white/30 transition-[box-shadow,border-color] duration-200 ease-[var(--ease-out)]"
         style={{
           backgroundColor: 'rgba(255, 255, 255, 0.7)',
           backdropFilter: 'blur(20px)',
@@ -81,7 +85,7 @@ export function SideNav() {
               <Link
                 key={id}
                 to={href}
-                className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] font-medium text-sm hover:shadow-lg hover:shadow-[#6366f1]/25 transition-all duration-300 !text-white hover:!text-white"
+                className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] font-medium text-sm hover:shadow-lg hover:shadow-[#6366f1]/25 transition-[box-shadow] duration-200 ease-[var(--ease-out)] !text-white hover:!text-white"
               >
                 {label}
               </Link>
@@ -89,7 +93,7 @@ export function SideNav() {
               <button
                 key={id}
                 onClick={() => scrollToSection(id)}
-                className="nav-text px-4 py-2 rounded-xl text-sm font-medium text-gray-700 hover:bg-white/90 backdrop-blur-sm transition-all duration-300"
+                className="nav-text px-4 py-2 rounded-xl text-sm font-medium text-gray-700 hover:bg-white/90 backdrop-blur-sm transition-[background-color,color] duration-200 ease-[var(--ease-out)]"
               >
                 {label}
               </button>
@@ -100,7 +104,7 @@ export function SideNav() {
         <Dialog open={launchAppOpen} onOpenChange={setLaunchAppOpen}>
           <button
             onClick={() => setLaunchAppOpen(true)}
-            className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-medium text-sm hover:shadow-lg hover:shadow-[#6366f1]/25 transition-all duration-300"
+            className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-medium text-sm hover:shadow-lg hover:shadow-[#6366f1]/25 transition-[box-shadow,transform] duration-200 ease-[var(--ease-out)] active:scale-[0.97]"
           >
             Launch App
           </button>
@@ -117,7 +121,7 @@ export function SideNav() {
               <button
                 type="button"
                 disabled
-                className="relative flex flex-col items-center justify-center gap-3 p-5 rounded-2xl bg-white/60 backdrop-blur-sm border-2 border-[#6366f1]/40 shadow-circle-card cursor-not-allowed opacity-60 transition-all duration-300"
+                className="relative flex flex-col items-center justify-center gap-3 p-5 rounded-2xl bg-white/60 backdrop-blur-sm border-2 border-[#6366f1]/40 shadow-circle-card cursor-not-allowed opacity-60"
                 aria-disabled="true"
               >
                 <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-[10px] font-semibold text-white uppercase tracking-wide">
@@ -127,7 +131,7 @@ export function SideNav() {
               </button>
               <Link
                 to="/create"
-                className="flex flex-col items-center justify-center gap-3 p-5 rounded-2xl bg-white/80 backdrop-blur-sm border border-gray-200 shadow-circle-card hover:shadow-lg hover:shadow-[#6366f1]/20 hover:scale-[1.02] transition-all duration-300"
+                className="flex flex-col items-center justify-center gap-3 p-5 rounded-2xl bg-white/80 backdrop-blur-sm border border-gray-200 shadow-circle-card hover:shadow-lg hover:shadow-[#6366f1]/20 transition-[box-shadow,transform] duration-200 ease-[var(--ease-out)] active:scale-[0.97] [@media(hover:hover)_and_(pointer:fine)]:hover:scale-[1.02]"
               >
                 <span className="font-medium text-gray-800">NFT</span>
               </Link>

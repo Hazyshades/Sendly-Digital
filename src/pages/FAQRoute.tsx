@@ -215,7 +215,7 @@ export function FAQRoute() {
                 href="https://x.com/Leonissx"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-white text-blue-600 hover:bg-blue-50 px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="bg-white text-blue-600 hover:bg-blue-50 px-6 py-3 rounded-xl font-semibold transition-[background-color,box-shadow,transform] duration-200 ease-[var(--ease-out)] shadow-lg hover:shadow-xl active:scale-[0.97] [@media(hover:hover)_and_(pointer:fine)]:hover:scale-105"
               >
                 Contact on Twitter
               </a>

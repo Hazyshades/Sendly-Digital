@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
+import { scrollRevealOnce, useMotionSafe } from "@/hooks/useMotionSafe"
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -52,19 +53,21 @@ export function PrinciplesSection() {
     },
   ]
 
+  const motionSafe = useMotionSafe()
+
   useEffect(() => {
-    if (!sectionRef.current || !headerRef.current || !principlesRef.current) return
+    if (!motionSafe || !sectionRef.current || !headerRef.current || !principlesRef.current) return
 
     const ctx = gsap.context(() => {
       gsap.from(headerRef.current, {
         x: -60,
         opacity: 0,
-        duration: 1,
+        duration: 0.7,
         ease: "power3.out",
         scrollTrigger: {
           trigger: headerRef.current,
           start: "top 85%",
-          toggleActions: "play none none reverse",
+          ...scrollRevealOnce,
         },
       })
 
@@ -72,21 +75,21 @@ export function PrinciplesSection() {
       articles?.forEach((article, index) => {
         const isRight = principles[index].align === "right"
         gsap.from(article, {
-          x: isRight ? 80 : -80,
+          x: isRight ? 50 : -50,
           opacity: 0,
-          duration: 1,
+          duration: 0.7,
           ease: "power3.out",
           scrollTrigger: {
             trigger: article,
             start: "top 85%",
-            toggleActions: "play none none reverse",
+            ...scrollRevealOnce,
           },
         })
       })
     }, sectionRef)
 
     return () => ctx.revert()
-  }, [])
+  }, [motionSafe])
 
   return (
     <section ref={sectionRef} id="principles" className="relative py-24 md:py-32 px-6 md:px-16 lg:px-24">
@@ -95,7 +98,7 @@ export function PrinciplesSection() {
           Sendly
         </h2>
         <p className="font-cormorant italic text-xl md:text-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] bg-clip-text text-transparent mt-2">
-          Dispatch funds by nickname on any social network.
+          A global payment identity layer for managing funds through social accounts
         </p>
       </div>
 

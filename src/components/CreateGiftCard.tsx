@@ -347,7 +347,7 @@ export function CreateGiftCard() {
               onValueChange={(value: 'metamask' | 'developer') => setWalletSource(value)}
               className="mt-2 space-y-2 rounded-lg border border-gray-200 bg-gray-50/50 p-3"
             >
-              <div className={`flex items-center space-x-3 rounded-md p-2.5 transition-all duration-200 ${
+              <div className={`flex items-center space-x-3 rounded-md p-2.5 transition-[background-color,box-shadow,border-color] duration-200 ease-[var(--ease-out)] ${
                 walletSource === 'metamask' 
                   ? 'bg-white shadow-sm border border-gray-300' 
                   : 'hover:bg-white/60'
@@ -368,7 +368,7 @@ export function CreateGiftCard() {
                   </Label>
                 </div>
               </div>
-              <div className={`flex items-center space-x-3 rounded-md p-2.5 transition-all duration-200 ${
+              <div className={`flex items-center space-x-3 rounded-md p-2.5 transition-[background-color,box-shadow,border-color] duration-200 ease-[var(--ease-out)] ${
                 walletSource === 'developer' 
                   ? 'bg-white shadow-sm border border-gray-300' 
                   : 'hover:bg-white/60'
@@ -405,7 +405,7 @@ export function CreateGiftCard() {
                 
                 const content = (
                   <div 
-                    className={`flex items-center space-x-3 rounded-md p-2.5 transition-all duration-200 ${
+                    className={`flex items-center space-x-3 rounded-md p-2.5 transition-[background-color,box-shadow,border-color] duration-200 ease-[var(--ease-out)] ${
                       isSelected 
                         ? 'bg-white shadow-sm border border-gray-300' 
                         : 'hover:bg-white/60'
@@ -486,7 +486,7 @@ export function CreateGiftCard() {
                   }
                   updateFormData('recipientUsername', username);
                 }}
-                className={`mt-2 transition-all duration-500 ${
+                className={`mt-2 transition-[background-color,box-shadow,border-color] duration-200 ease-[var(--ease-out)] ${
                   highlightField === 'twitter' 
                     ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-300 shadow-md' 
                     : ''
@@ -507,7 +507,7 @@ export function CreateGiftCard() {
                   const username = e.target.value.trim();
                   updateFormData('recipientUsername', username);
                 }}
-                className={`mt-2 transition-all duration-500 ${
+                className={`mt-2 transition-[background-color,box-shadow,border-color] duration-200 ease-[var(--ease-out)] ${
                   highlightField === 'twitch' 
                     ? 'bg-purple-50 border-purple-400 ring-2 ring-purple-300 shadow-md' 
                     : ''
@@ -531,7 +531,7 @@ export function CreateGiftCard() {
                   }
                   updateFormData('recipientUsername', username);
                 }}
-                className={`mt-2 transition-all duration-500 ${
+                className={`mt-2 transition-[background-color,box-shadow,border-color] duration-200 ease-[var(--ease-out)] ${
                   highlightField === 'telegram'
                     ? 'bg-sky-50 border-sky-400 ring-2 ring-sky-300 shadow-md'
                     : ''
@@ -555,7 +555,7 @@ export function CreateGiftCard() {
                   }
                   updateFormData('recipientUsername', username);
                 }}
-                className={`mt-2 transition-all duration-500 ${
+                className={`mt-2 transition-[background-color,box-shadow,border-color] duration-200 ease-[var(--ease-out)] ${
                   highlightField === 'tiktok'
                     ? 'bg-neutral-900/10 border-black ring-2 ring-neutral-400 shadow-md'
                     : ''
@@ -579,7 +579,7 @@ export function CreateGiftCard() {
                   }
                   updateFormData('recipientUsername', username);
                 }}
-                className={`mt-2 transition-all duration-500 ${
+                className={`mt-2 transition-[background-color,box-shadow,border-color] duration-200 ease-[var(--ease-out)] ${
                   highlightField === 'instagram'
                     ? 'bg-pink-50 border-pink-400 ring-2 ring-pink-300 shadow-md'
                     : ''

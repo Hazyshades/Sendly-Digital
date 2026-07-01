@@ -72,6 +72,14 @@
   --sendly-success: #10b981;
   --sendly-warning: #f59e0b;
   --sendly-error: #ef4444;
+
+  /* Motion tokens (animations.dev) */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --duration-press: 140ms;
+  --duration-ui: 200ms;
+  --duration-modal: 250ms;
 }
 
 .dark {
@@ -506,7 +514,26 @@ html {
 }
 
 .cursor-blink {
-  animation: cursor-blink 1s ease-in-out infinite;
+  animation: cursor-blink 1s step-end infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .circle-gradient-bg::before,
+  .circle-gradient-bg::after,
+  .circle-gradient-bg .abstract-shape {
+    animation: none;
+  }
+
+  .cursor-blink,
+  .animate-cursor-blink,
+  .animate-pulse-dot {
+    animation: none;
+    opacity: 1;
+  }
 }
 
 /* RainbowKit: remove shadow from the wallet button (rk-account-button) */

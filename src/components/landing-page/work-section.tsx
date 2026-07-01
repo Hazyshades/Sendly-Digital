@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
 import { SocialLogos } from "./SocialLogos"
+import { scrollRevealOnce, useMotionSafe } from "@/hooks/useMotionSafe"
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -45,9 +46,10 @@ export function WorkSection() {
   const sectionRef = useRef<HTMLElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
+  const motionSafe = useMotionSafe()
 
   useEffect(() => {
-    if (!sectionRef.current || !headerRef.current || !gridRef.current) return
+    if (!motionSafe || !sectionRef.current || !headerRef.current || !gridRef.current) return
 
     const ctx = gsap.context(() => {
       gsap.fromTo(
@@ -56,36 +58,36 @@ export function WorkSection() {
         {
           x: 0,
           opacity: 1,
-          duration: 1,
+          duration: 0.7,
           ease: "power3.out",
           scrollTrigger: {
             trigger: headerRef.current,
             start: "top 90%",
-            toggleActions: "play none none reverse",
+            ...scrollRevealOnce,
           },
         },
       )
 
       const cards = gridRef.current?.querySelectorAll("article")
       if (cards && cards.length > 0) {
-        gsap.set(cards, { y: 60, opacity: 0 })
+        gsap.set(cards, { y: 40, opacity: 0 })
         gsap.to(cards, {
           y: 0,
           opacity: 1,
-          duration: 0.8,
-          stagger: 0.1,
+          duration: 0.6,
+          stagger: 0.08,
           ease: "power3.out",
           scrollTrigger: {
             trigger: gridRef.current,
             start: "top 90%",
-            toggleActions: "play none none reverse",
+            ...scrollRevealOnce,
           },
         })
       }
     }, sectionRef)
 
     return () => ctx.revert()
-  }, [])
+  }, [motionSafe])
 
   return (
     <section ref={sectionRef} id="work" className="relative py-24 md:py-32 px-6 md:px-16 lg:px-24">
@@ -135,6 +137,7 @@ function WorkCard({
   persistHover?: boolean
   children?: React.ReactNode
 }) {
+  const motionSafe = useMotionSafe()
   const [isHovered, setIsHovered] = useState(false)
   const [typedText, setTypedText] = useState("")
   const typingRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -142,7 +145,15 @@ function WorkCard({
   const [isScrollActive, setIsScrollActive] = useState(false)
 
   useEffect(() => {
-    if (!experiment.typedAddresses || !isHovered) {
+    if (!experiment.typedAddresses) {
+      setTypedText("")
+      return
+    }
+    if (!motionSafe) {
+      setTypedText(experiment.typedAddresses[0])
+      return
+    }
+    if (!isHovered) {
       setTypedText("")
       if (typingRef.current) {
         clearTimeout(typingRef.current)
@@ -185,10 +196,10 @@ function WorkCard({
     return () => {
       if (typingRef.current) clearTimeout(typingRef.current)
     }
-  }, [experiment.typedAddresses, isHovered])
+  }, [experiment.typedAddresses, isHovered, motionSafe])
 
   useEffect(() => {
-    if (!persistHover || !cardRef.current) return
+    if (!motionSafe || !persistHover || !cardRef.current) return
 
     const ctx = gsap.context(() => {
       ScrollTrigger.create({
@@ -199,7 +210,7 @@ function WorkCard({
     }, cardRef)
 
     return () => ctx.revert()
-  }, [persistHover])
+  }, [persistHover, motionSafe])
 
   const isActive = isHovered || isScrollActive
 
@@ -207,7 +218,7 @@ function WorkCard({
     <article
       ref={cardRef}
       className={cn(
-        "group relative rounded-2xl p-5 flex flex-col justify-between transition-all duration-500 cursor-pointer overflow-hidden",
+        "group relative rounded-2xl p-5 flex flex-col justify-between transition-[border-color,box-shadow] duration-200 ease-[var(--ease-out)] cursor-pointer overflow-hidden",
         experiment.span,
         children ? "bg-[#F4F2FD]" : "bg-white/90 backdrop-blur-sm",
         "border border-gray-200 shadow-circle-card",
@@ -254,7 +265,7 @@ function WorkCard({
         <div className={cn("relative z-10 flex-1 flex items-center justify-center")}>
           <div
             className={cn(
-              "transition-all duration-500 flex justify-center",
+              "transition-[opacity,transform] duration-200 ease-[var(--ease-out)] flex justify-center",
               isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
             )}
           >
@@ -271,7 +282,7 @@ function WorkCard({
       <div className="relative z-10">
         <p
           className={cn(
-            "font-mono text-xs text-gray-600 leading-relaxed transition-all duration-500 max-w-[280px]",
+            "font-mono text-xs text-gray-600 leading-relaxed transition-[opacity,transform] duration-200 ease-[var(--ease-out)] max-w-[280px]",
             isActive ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
           )}
         >

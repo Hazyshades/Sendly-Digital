@@ -208,7 +208,7 @@ const SocialLogos = ({
                   >
                     <div className="flex items-center justify-center h-20 w-full px-1">
                       <BlurText delay={600 + index * 100} duration={1200}>
-                        <div className="transform hover:scale-110 transition-transform duration-300 cursor-pointer flex items-center justify-center">
+                        <div className="transition-transform duration-200 ease-[var(--ease-out)] [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110 cursor-pointer flex items-center justify-center">
                           {logo.element || (
                             <img
                               src={logo.image}

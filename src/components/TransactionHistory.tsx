@@ -755,7 +755,7 @@ export function TransactionHistory() {
               <Search className="w-4 h-4 text-slate-400 group-focus-within:text-primary transition-colors" />
             </div>
             <input
-              className="block w-full pl-10 pr-3 py-2.5 border-none rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary/50 text-sm transition-all"
+              className="block w-full pl-10 pr-3 py-2.5 border-none rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary/50 text-sm transition-[box-shadow,background-color] duration-200 ease-[var(--ease-out)]"
               placeholder="Search by @username, address, or transaction ID..."
               type="text"
               value={searchQuery}
@@ -767,7 +767,7 @@ export function TransactionHistory() {
               <button
                 key={tab}
                 onClick={() => setStatusTab(tab)}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-all ${
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-[background-color,color,box-shadow] duration-200 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 ${
                   statusTab === tab
                     ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm font-semibold'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/5'
@@ -843,7 +843,7 @@ export function TransactionHistory() {
                 <button
                   type="button"
                   onClick={() => setAvgMode('sent')}
-                  className={`px-2 py-0.5 rounded-md text-xs font-medium transition-all ${
+                  className={`px-2 py-0.5 rounded-md text-xs font-medium transition-[background-color,color,box-shadow] duration-200 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 ${
                     avgMode === 'sent'
                       ? 'bg-white dark:bg-slate-600 text-red-600 dark:text-red-400 shadow-sm'
                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
@@ -854,7 +854,7 @@ export function TransactionHistory() {
                 <button
                   type="button"
                   onClick={() => setAvgMode('received')}
-                  className={`px-2 py-0.5 rounded-md text-xs font-medium transition-all ${
+                  className={`px-2 py-0.5 rounded-md text-xs font-medium transition-[background-color,color,box-shadow] duration-200 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:active:scale-100 ${
                     avgMode === 'received'
                       ? 'bg-white dark:bg-slate-600 text-green-600 dark:text-green-400 shadow-sm'
                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'

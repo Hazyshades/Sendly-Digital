@@ -81,11 +81,11 @@ export function Layout({ children }: LayoutProps) {
         <div className="flex items-center">
           <button
             onClick={() => setHeaderCollapsed(c => !c)}
-            className="p-1.5 rounded-xl transition-all duration-300 shrink-0"
+            className="p-1.5 rounded-xl transition-transform duration-200 ease-[var(--ease-out)] active:scale-[0.97] shrink-0 motion-reduce:transition-none motion-reduce:active:scale-100"
             aria-label={headerCollapsed ? 'Show panel' : 'Hide panel'}
           >
             <svg
-              className={`w-4 h-4 text-gray-500 transition-transform duration-300 ${headerCollapsed ? 'rotate-180' : ''}`}
+              className={`w-4 h-4 text-gray-500 transition-transform duration-200 ease-[var(--ease-out)] ${headerCollapsed ? 'rotate-180' : ''}`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -95,8 +95,8 @@ export function Layout({ children }: LayoutProps) {
             </svg>
           </button>
           <div
-            className={`flex items-center gap-4 overflow-hidden transition-all duration-300 ease-in-out shadow-none [box-shadow:none] ${
-              headerCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-[800px] opacity-100 ml-2'
+            className={`flex items-center gap-4 overflow-hidden transition-[opacity,transform] duration-200 ease-[var(--ease-out)] shadow-none [box-shadow:none] motion-reduce:transition-none ${
+              headerCollapsed ? 'opacity-0 -translate-x-2 pointer-events-none w-0 ml-0' : 'opacity-100 translate-x-0 ml-2'
             }`}
           >
             {!zkLocal && PrivyConnectedAccounts ? (
@@ -108,7 +108,7 @@ export function Layout({ children }: LayoutProps) {
               <button
                 type="button"
                 onClick={() => setIsPrivyModalOpen(true)}
-                className="bg-white border border-gray-200 text-gray-900 hover:bg-gray-50 px-4 py-2 rounded-2xl transition-all duration-200 flex items-center gap-2 font-medium"
+                className="bg-white border border-gray-200 text-gray-900 hover:bg-gray-50 px-4 py-2 rounded-2xl transition-[transform,background-color] duration-200 ease-[var(--ease-out)] active:scale-[0.97] flex items-center gap-2 font-medium motion-reduce:transition-none motion-reduce:active:scale-100"
               >
                 Social
               </button>
@@ -118,7 +118,7 @@ export function Layout({ children }: LayoutProps) {
                 type="button"
                 disabled
                 aria-disabled="true"
-                className="bg-white/70 border border-gray-200 text-gray-400 px-4 py-2 rounded-2xl transition-all duration-200 flex items-center gap-2 font-medium cursor-not-allowed"
+                className="bg-white/70 border border-gray-200 text-gray-400 px-4 py-2 rounded-2xl flex items-center gap-2 font-medium cursor-not-allowed"
               >
                 Payments
               </button>
@@ -142,7 +142,7 @@ export function Layout({ children }: LayoutProps) {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex-1 px-3 py-2 rounded-2xl text-center text-sm font-medium transition-all duration-200 ${
+                  className={`flex-1 px-3 py-2 rounded-2xl text-center text-sm font-medium transition-[background-color,color,box-shadow] duration-200 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 ${
                     isActive(item.path)
                       ? 'bg-white text-blue-600 shadow-circle-card'
                       : 'bg-white/70 text-gray-700 hover:bg-white/90 backdrop-blur-sm'
