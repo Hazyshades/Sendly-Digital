@@ -456,7 +456,7 @@ export function ZkSocialNavToggle({
       aria-expanded={expanded}
       aria-label={`${expanded ? 'Collapse' : 'Expand'} linked identities panel`}
     >
-      Identities
+      Accounts
     </button>
   );
 }

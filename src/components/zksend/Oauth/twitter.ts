@@ -218,6 +218,8 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
 
         toast.info('Opening Twitter authorization...');
 
+        sessionStorage.setItem('twitter_oauth1_opener_origin', originUrl.origin);
+
         const popup = createPopupWindow(authorizeUrl, 'Twitter OAuth 1.0a');
 
         if (!popup) {
@@ -236,6 +238,7 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
         let fallbackExchangeAttemptKey: string | null = null;
         let lastSeenOauthToken: string | null = null;
         let lastSeenOauthVerifier: string | null = null;
+        let sawCallbackRoute = false;
         let popupCloseRescueAttempted = false;
         let popupClosedAtMs: number | null = null;
 
@@ -265,6 +268,7 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
             clearTimeout(flowTimeout);
             flowTimeout = null;
           }
+          sessionStorage.removeItem('twitter_oauth1_opener_origin');
         };
 
         const settle = (value: TwitterOAuth1Tokens | null, closePopup = false) => {
@@ -282,6 +286,8 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
         };
 
         const messageHandler = (event: MessageEvent) => {
+          if (event.origin !== originUrl.origin) return;
+
           if (event.data?.target === 'metamask-inpage' || event.data?.name === 'metamask-provider') {
             return;
           }
@@ -329,7 +335,10 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
             if (oauthToken && oauthVerifier) {
               // When popup is already on callback route, that route performs exchange itself.
               // Avoid duplicate access-token exchange from parent, it causes 400 "Unknown oauthToken".
-              if (isCallbackRoute) return;
+              if (isCallbackRoute) {
+                sawCallbackRoute = true;
+                return;
+              }
 
               const attemptKey = `${oauthToken}:${oauthVerifier}`;
               if (fallbackExchangeInFlight || fallbackExchangeAttemptKey === attemptKey) return;
@@ -388,7 +397,7 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
               return;
             }
 
-            if (!popupCloseRescueAttempted && lastSeenOauthToken && lastSeenOauthVerifier) {
+            if (!popupCloseRescueAttempted && !sawCallbackRoute && lastSeenOauthToken && lastSeenOauthVerifier) {
               popupCloseRescueAttempted = true;
               void exchangeTwitterOAuth1AccessToken(apiUrl, lastSeenOauthToken, lastSeenOauthVerifier)
                 .then((tokens) => {
@@ -407,6 +416,17 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
                   settle(null);
                 })
                 .catch((error) => {
+                  const message = error instanceof Error ? error.message : String(error);
+                  const stored = readStoredOAuth1Tokens();
+                  if (stored) {
+                    settle(stored);
+                    return;
+                  }
+                  if (message.includes('Unknown oauthToken')) {
+                    console.warn('[Twitter OAuth1] Ignoring popup-close rescue after callback exchange:', message);
+                    settle(null);
+                    return;
+                  }
                   console.error('[Twitter OAuth1] popup-close rescue exchange error:', error);
                   settle(null);
                 });
