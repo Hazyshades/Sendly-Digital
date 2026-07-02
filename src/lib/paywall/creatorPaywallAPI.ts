@@ -71,6 +71,9 @@ export async function fetchPaywall(
     txHash?: string | null;
     source?: 'human' | 'agent';
     githubAccessToken?: string;
+    ownerPlatform?: string;
+    ownerOAuthToken?: string;
+    ownerOAuthUsername?: string;
   },
 ): Promise<
   | { status: 'locked'; instructions: PaywallPaymentInstructions }
@@ -88,6 +91,13 @@ export async function fetchPaywall(
   }
   if (proof?.githubAccessToken) {
     headers['X-Sendly-Github-Token'] = proof.githubAccessToken;
+  }
+  if (proof?.ownerPlatform && proof?.ownerOAuthToken) {
+    headers['X-Sendly-Oauth-Platform'] = proof.ownerPlatform;
+    headers['X-Sendly-Oauth-Token'] = proof.ownerOAuthToken;
+    if (proof.ownerOAuthUsername) {
+      headers['X-Sendly-Oauth-Username'] = proof.ownerOAuthUsername;
+    }
   }
 
   const response = await fetch(paywallUrl(slug), { method: 'GET', headers });

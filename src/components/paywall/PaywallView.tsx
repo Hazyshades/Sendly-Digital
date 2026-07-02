@@ -15,6 +15,7 @@ import {
 import { payPaywallViaDeveloperWallet } from '@/lib/paywall/paywallPayment';
 import { getStoredEntitlement, storeEntitlement } from '@/lib/paywall/paywallEntitlements';
 import { getStoredGithubAccessToken } from '@/lib/paywall/githubSession';
+import { buildOwnerOAuthProof } from '@/lib/paywall/ownerOAuthProof';
 
 export function PaywallView() {
   const params = useParams();
@@ -36,10 +37,14 @@ export function PaywallView() {
       setLoading(true);
       setNotFound(false);
       try {
-        // Replay a prior purchase (this device) or authenticate as the owner (github).
         const stored = proof ?? getStoredEntitlement(slug) ?? undefined;
         const githubAccessToken = getStoredGithubAccessToken() ?? undefined;
-        const result = await fetchPaywall(slug, { ...stored, githubAccessToken });
+        const ownerProof = buildOwnerOAuthProof(zkOAuthIdentity);
+        const result = await fetchPaywall(slug, {
+          ...stored,
+          githubAccessToken,
+          ...ownerProof,
+        });
         if (result.status === 'not_found') {
           setNotFound(true);
           setInstructions(null);
@@ -59,7 +64,7 @@ export function PaywallView() {
         setLoading(false);
       }
     },
-    [slug],
+    [slug, zkOAuthIdentity],
   );
 
   useEffect(() => {

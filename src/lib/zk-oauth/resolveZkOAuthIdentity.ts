@@ -1,4 +1,5 @@
 import { ZK_OAUTH_WALLET_PLATFORMS, type ZkOAuthIdentity, type ZkOAuthPlatform } from './types';
+import { readStoredPrimaryIdentity } from './primaryIdentity';
 import { resolveTwitterIdentity } from './resolveTwitterIdentity';
 import { resolveTwitchIdentity } from './resolveTwitchIdentity';
 import { resolveTelegramIdentity } from './resolveTelegramIdentity';
@@ -20,7 +21,14 @@ export function buildZkOAuthPrivyUserId(platform: ZkOAuthPlatform, socialUserId:
 }
 
 export async function resolveZkOAuthIdentity(): Promise<ZkOAuthIdentity | null> {
+  const primary = readStoredPrimaryIdentity();
+  if (primary) {
+    const primaryIdentity = await resolvers[primary]();
+    if (primaryIdentity) return primaryIdentity;
+  }
+
   for (const platform of ZK_OAUTH_WALLET_PLATFORMS) {
+    if (platform === primary) continue;
     const identity = await resolvers[platform]();
     if (identity) return identity;
   }

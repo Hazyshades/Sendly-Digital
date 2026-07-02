@@ -101,11 +101,30 @@ function toUserFacingErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function ReceiveOAuthStatus({ connected, platformLabel }: { connected: boolean; platformLabel: string }) {
+function ReceiveOAuthStatus({
+  connected,
+  platformLabel,
+  username,
+  hasUsername,
+}: {
+  connected: boolean;
+  platformLabel: string;
+  username: string;
+  hasUsername: boolean;
+}) {
   if (!connected) return <ZkAccountsConnectHint />;
+  if (!hasUsername) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        {platformLabel} connected. Enter a username above to load pending payments.
+      </p>
+    );
+  }
+  const handle = username.replace(/^@/, '');
   return (
     <p className="text-sm text-muted-foreground">
-      {platformLabel} connected. Enter your username above to load pending payments.
+      {platformLabel} connected as <span className="font-medium text-foreground">@{handle}</span>. Pending payments load
+      automatically.
     </p>
   );
 }
@@ -1319,19 +1338,21 @@ export function PendingPayments({
           <ReceiveOAuthStatus
             connected={Boolean((oauth1Token && oauth1TokenSecret) || accessToken || privyAccessToken)}
             platformLabel="Twitter / X"
+            username={username}
+            hasUsername={isIdentityValid}
           />
         ) : platform === 'twitch' ? (
-          <ReceiveOAuthStatus connected={Boolean(twitchAccessToken)} platformLabel="Twitch" />
+          <ReceiveOAuthStatus connected={Boolean(twitchAccessToken)} platformLabel="Twitch" username={username} hasUsername={isIdentityValid} />
         ) : platform === 'github' ? (
-          <ReceiveOAuthStatus connected={Boolean(githubAccessToken)} platformLabel="GitHub" />
+          <ReceiveOAuthStatus connected={Boolean(githubAccessToken)} platformLabel="GitHub" username={username} hasUsername={isIdentityValid} />
         ) : platform === 'telegram' ? (
-          <ReceiveOAuthStatus connected={Boolean(telegramAccessToken)} platformLabel="Telegram" />
+          <ReceiveOAuthStatus connected={Boolean(telegramAccessToken)} platformLabel="Telegram" username={username} hasUsername={isIdentityValid} />
         ) : platform === 'instagram' ? (
-          <ReceiveOAuthStatus connected={Boolean(instagramAccessToken)} platformLabel="Instagram" />
+          <ReceiveOAuthStatus connected={Boolean(instagramAccessToken)} platformLabel="Instagram" username={username} hasUsername={isIdentityValid} />
         ) : platform === 'gmail' ? (
-          <ReceiveOAuthStatus connected={Boolean(gmailAccessToken)} platformLabel="Gmail" />
+          <ReceiveOAuthStatus connected={Boolean(gmailAccessToken)} platformLabel="Gmail" username={username} hasUsername={isIdentityValid} />
         ) : platform === 'linkedin' ? (
-          <ReceiveOAuthStatus connected={Boolean(linkedinAccessToken)} platformLabel="LinkedIn" />
+          <ReceiveOAuthStatus connected={Boolean(linkedinAccessToken)} platformLabel="LinkedIn" username={username} hasUsername={isIdentityValid} />
         ) : (
           <div className="space-y-2 rounded-xl border bg-background p-3">
             <div className="text-sm font-medium">Reclaim proof</div>

@@ -38,6 +38,8 @@ import {
   type ZkPlatformConnectionState,
 } from '@/hooks/useZkPlatformConnections';
 import { useMotionSafe } from '@/hooks/useMotionSafe';
+import { notifyZkOAuthIdentityUpdated } from '@/lib/zk-oauth/notifyIdentityUpdated';
+import { PRIMARY_IDENTITY_KEY } from '@/lib/zk-oauth/primaryIdentity';
 import { cn } from '@/components/ui/utils';
 
 const PLATFORM_ICONS: Record<ZkPanelPlatformId, LucideIcon> = {
@@ -59,8 +61,6 @@ const PLATFORM_HINTS: Record<ZkPanelPlatformId, string> = {
   linkedin: 'Professional identity',
   instagram: 'Coming soon',
 };
-
-const PRIMARY_IDENTITY_KEY = 'sendly-primary-identity';
 
 const MOTION_CLASS =
   'transition-[transform,opacity,width] duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none';
@@ -134,6 +134,7 @@ function usePrimaryIdentity(connectedPlatforms: ZkPlatformConnectionState[]) {
   const setPrimary = (id: ZkPanelPlatformId) => {
     setPrimaryId(id);
     writePrimaryIdentity(id);
+    notifyZkOAuthIdentityUpdated();
   };
 
   return { primaryId: effectivePrimaryId, setPrimary };
