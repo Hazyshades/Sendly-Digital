@@ -133,7 +133,7 @@ export const clearGmailToken = (): void => {
     sessionStorage.removeItem('gmail_oauth_state');
     sessionStorage.removeItem('gmail_oauth_redirect');
     sessionStorage.removeItem('gmail_code_verifier');
-    toast.success('Gmail token cleared');
+    toast.success('Gmail account disconnected');
   } catch (error) {
     console.error('[zkSEND] Failed to clear Gmail token:', error);
     toast.error('Failed to clear Gmail token');

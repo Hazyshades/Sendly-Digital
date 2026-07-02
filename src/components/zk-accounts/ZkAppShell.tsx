@@ -17,7 +17,6 @@ import {
   useZkSocialPanelState,
 } from '@/components/zk-accounts/ZkSocialConnectionsPanel';
 import { useZkAccountsPanelLayout } from '@/hooks/useZkAccountsPanelLayout';
-import { useZkPlatformConnections } from '@/hooks/useZkPlatformConnections';
 import { cn } from '@/components/ui/utils';
 
 /** Half of Tailwind `max-w-2xl` (42rem) */
@@ -46,7 +45,6 @@ export function ZkAppShell({
 }: ZkAppShellProps) {
   const { isCompact } = useZkAccountsPanelLayout();
   const { expanded, setExpanded, toggleExpanded } = useZkSocialPanelState();
-  const { connectedCount, totalCount } = useZkPlatformConnections();
 
   return (
     <>
@@ -55,14 +53,11 @@ export function ZkAppShell({
           <nav className="mb-4">
             <div className="flex gap-2">
               {!isCompact ? (
-                <div className="relative min-w-0 flex-1">
-                  <ZkSocialNavToggle
-                    expanded={expanded}
-                    onClick={toggleExpanded}
-                    connectedCount={connectedCount}
-                    totalCount={totalCount}
-                  />
-                </div>
+                <ZkSocialNavToggle
+                  expanded={expanded}
+                  onClick={toggleExpanded}
+                  className="min-w-0 flex-1"
+                />
               ) : null}
 
               {navigationItems.map((item) => (
@@ -89,7 +84,7 @@ export function ZkAppShell({
             className="pointer-events-none absolute inset-y-0 left-0 z-10 hidden lg:flex justify-end"
             style={{ width: `calc(50% - ${MAIN_HALF} - ${GAP})` }}
           >
-            <div className="pointer-events-auto sticky top-20 h-fit max-w-full">
+            <div className="pointer-events-auto sticky top-20 mt-[3.25rem] h-fit max-w-full">
               <ZkSocialConnectionsPanel expanded={expanded} onExpandedChange={setExpanded} />
             </div>
           </div>
@@ -98,9 +93,9 @@ export function ZkAppShell({
 
       {isCompact ? (
         <Sheet open={mobileSheetOpen} onOpenChange={onMobileSheetOpenChange}>
-          <SheetContent side="left" className="w-[min(100vw-2rem,18rem)] p-0 gap-0">
-            <SheetHeader className="border-b border-gray-200/80 px-4 py-3">
-              <SheetTitle>Social</SheetTitle>
+          <SheetContent side="left" className="w-[min(100vw-2rem,22.5rem)] p-0 gap-0">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Linked identities</SheetTitle>
             </SheetHeader>
             <div className="overflow-y-auto">
               <ZkSocialConnectionsPanel embedded className="bg-transparent" />

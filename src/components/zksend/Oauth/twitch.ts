@@ -177,7 +177,7 @@ export const clearTwitchToken = (): void => {
     localStorage.removeItem('twitch_access_token');
     sessionStorage.removeItem('twitch_oauth_state');
     sessionStorage.removeItem('twitch_oauth_redirect');
-    toast.success('Twitch token cleared');
+    toast.success('Twitch account disconnected');
   } catch (error) {
     console.error('[zkSEND] Failed to clear Twitch token:', error);
     toast.error('Failed to clear Twitch token');
