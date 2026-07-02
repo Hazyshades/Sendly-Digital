@@ -1,90 +1,57 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Github } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CreatorComposer } from '@/components/creator/CreatorComposer';
-import { connectGithub } from '@/components/zksend/Oauth/github';
 import {
   createPaywall,
   getCreatorPaywallPublicPath,
   MIN_PAYWALL_PRICE_USDC,
 } from '@/lib/paywall/creatorPaywallAPI';
+import { upsertCreatorProfile, getCreatorProfilePath } from '@/lib/paywall/creatorProfileAPI';
 import { slugifyTitle } from '@/lib/paywall/contentTeaser';
-import {
-  fetchGithubSessionUser,
-  getStoredGithubAccessToken,
-  type GithubSessionUser,
-} from '@/lib/paywall/githubSession';
-import { isZkHost } from '@/lib/runtime/zkHost';
+import { getStoredGithubAccessToken } from '@/lib/paywall/githubSession';
+import { useCreatorIdentity } from '@/hooks/useCreatorIdentity';
 
 export function CreatorWritePage() {
   const navigate = useNavigate();
-  const [githubToken, setGithubToken] = useState<string | null>(() => getStoredGithubAccessToken());
-  const [githubUser, setGithubUser] = useState<GithubSessionUser | null>(null);
-  const [connectingGithub, setConnectingGithub] = useState(false);
-  const [loadingSession, setLoadingSession] = useState(true);
+  const { identity, loading: identityLoading, isZkHost } = useCreatorIdentity();
+
   const [slug, setSlug] = useState('');
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [priceUsdc, setPriceUsdc] = useState(String(MIN_PAYWALL_PRICE_USDC));
   const [title, setTitle] = useState('');
   const [contentBody, setContentBody] = useState('');
   const [loading, setLoading] = useState(false);
-  const loginRef = useRef<string | null>(null);
 
-  const refreshGithubSession = useCallback(async (token: string | null) => {
-    setLoadingSession(true);
-    if (!token) {
-      setGithubUser(null);
-      loginRef.current = null;
-      setLoadingSession(false);
-      return;
-    }
-    const user = await fetchGithubSessionUser(token);
-    setGithubUser(user);
-    if (user) {
-      loginRef.current = user.login;
-      setSlug((prev) => (prev ? prev : `${user.login}/`));
-    }
-    setLoadingSession(false);
-  }, []);
+  const handle = identity?.handle ?? '';
 
   useEffect(() => {
-    void refreshGithubSession(githubToken);
-  }, [githubToken, refreshGithubSession]);
+    if (handle && !slug) setSlug(`${handle}/`);
+  }, [handle, slug]);
 
-  const handleTitleChange = (value: string) => {
-    setTitle(value);
-    if (!slugManuallyEdited && loginRef.current) {
-      const part = slugifyTitle(value);
-      setSlug(part ? `${loginRef.current}/${part}` : `${loginRef.current}/`);
-    }
-  };
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setTitle(value);
+      if (!slugManuallyEdited && handle) {
+        const part = slugifyTitle(value);
+        setSlug(part ? `${handle}/${part}` : `${handle}/`);
+      }
+    },
+    [slugManuallyEdited, handle],
+  );
 
   const handleSlugChange = (value: string) => {
     setSlugManuallyEdited(true);
     setSlug(value);
   };
 
-  const handleConnectGithub = async () => {
-    setConnectingGithub(true);
-    try {
-      const token = await connectGithub();
-      if (token) {
-        setGithubToken(token);
-        await refreshGithubSession(token);
-      }
-    } finally {
-      setConnectingGithub(false);
-    }
-  };
-
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!githubToken || !githubUser) {
-      toast.error('Connect GitHub first');
+    if (!identity) {
+      toast.error('Connect a social account first');
       return;
     }
     const price = parseFloat(priceUsdc);
@@ -93,28 +60,49 @@ export function CreatorWritePage() {
       return;
     }
 
+    const githubAccessToken =
+      identity.platform === 'github' ? getStoredGithubAccessToken() ?? undefined : undefined;
+
     setLoading(true);
     try {
+      await upsertCreatorProfile({
+        platform: identity.platform,
+        handle: identity.handle,
+        displayName: identity.displayName,
+        githubAccessToken,
+      }).catch(() => undefined);
+
       const result = await createPaywall({
-        githubAccessToken: githubToken,
+        platform: identity.platform,
+        githubAccessToken,
         slug: slug.trim(),
-        handle: githubUser.login,
+        handle: identity.handle,
         priceUsdc: price,
         title: title.trim(),
         contentBody,
       });
-      const path = getCreatorPaywallPublicPath(result.paywall.slug);
-      toast.success('Published');
-      navigate(path);
+
+      toast.success('Published', {
+        description: 'View your profile',
+        action: {
+          label: 'Profile',
+          onClick: () => navigate(getCreatorProfilePath(identity.platform, identity.handle)),
+        },
+      });
+      navigate(getCreatorPaywallPublicPath(result.paywall.slug));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to publish';
-      toast.error(message.includes('409') || message.toLowerCase().includes('slug') ? 'This link is already taken — choose another slug' : message);
+      toast.error(
+        message.includes('409') || message.toLowerCase().includes('slug')
+          ? 'This link is already taken — choose another slug'
+          : message,
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  if (!isZkHost()) {
+  if (!isZkHost) {
     return (
       <Card className="bg-white shadow-circle-card rounded-2xl backdrop-blur-sm border-0">
         <CardHeader>
@@ -122,30 +110,30 @@ export function CreatorWritePage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Creator Studio is available on the zk domain (e.g. zk.localhost) with GitHub OAuth.
+            Creator Studio is available on the zk domain (e.g. zk.localhost).
           </p>
         </CardContent>
       </Card>
     );
   }
 
-  if (loadingSession) {
-    return <p className="py-12 text-center text-muted-foreground">Loading GitHub session…</p>;
+  if (identityLoading) {
+    return <p className="py-12 text-center text-muted-foreground">Loading identity…</p>;
   }
 
-  if (!githubUser) {
+  if (!identity) {
     return (
       <Card className="bg-white shadow-circle-card rounded-2xl backdrop-blur-sm border-0 max-w-lg mx-auto">
         <CardHeader>
-          <CardTitle>Connect GitHub to publish</CardTitle>
+          <CardTitle>Connect a social account to publish</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Sign in with GitHub to write paid articles. Readers pay in USDC on Arc; you receive funds via ZkSend.
+            Link your social identity to write paid articles. Readers pay in USDC on Arc; funds are
+            reserved to your @handle via ZkSend.
           </p>
-          <Button onClick={handleConnectGithub} disabled={connectingGithub}>
-            <Github className="mr-2 h-4 w-4" />
-            {connectingGithub ? 'Connecting…' : 'Connect GitHub'}
+          <Button asChild>
+            <Link to="/creator">Connect identity</Link>
           </Button>
         </CardContent>
       </Card>
@@ -154,18 +142,17 @@ export function CreatorWritePage() {
 
   return (
     <CreatorComposer
-      githubLogin={githubUser.login}
+      platform={identity.platform}
+      handleLabel={identity.handle}
       title={title}
       contentBody={contentBody}
       slug={slug}
       priceUsdc={priceUsdc}
       loading={loading}
-      connectingGithub={connectingGithub}
       onTitleChange={handleTitleChange}
       onContentChange={setContentBody}
       onSlugChange={handleSlugChange}
       onPriceChange={setPriceUsdc}
-      onReconnectGithub={handleConnectGithub}
       onSubmit={onSubmit}
     />
   );

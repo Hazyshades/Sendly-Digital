@@ -1,4 +1,6 @@
-import { Lock, Unlock, Github } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Lock, Unlock, Github, Twitter, Twitch, Mail, Linkedin, MessageCircle, User } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -7,7 +9,29 @@ import type {
   PaywallPaymentInstructions,
   PaywallUnlockedResponse,
 } from '@/lib/paywall/creatorPaywallAPI';
+import { getCreatorProfilePath } from '@/lib/paywall/creatorProfileAPI';
 import { ARC_CHAIN_ID, getExplorerTxUrl } from '@/lib/web3/constants';
+
+const PLATFORM_ICONS: Record<string, LucideIcon> = {
+  twitter: Twitter,
+  github: Github,
+  twitch: Twitch,
+  gmail: Mail,
+  linkedin: Linkedin,
+  telegram: MessageCircle,
+};
+
+function CreatorLink({ platform, handle }: { platform: string; handle: string }) {
+  const Icon = PLATFORM_ICONS[platform] ?? User;
+  return (
+    <Link
+      to={getCreatorProfilePath(platform, handle)}
+      className="inline-flex items-center gap-1.5 hover:text-blue-600 hover:underline"
+    >
+      <Icon className="h-3.5 w-3.5" />@{handle}
+    </Link>
+  );
+}
 
 interface PaywallArticleViewProps {
   loading: boolean;
@@ -47,8 +71,7 @@ export function PaywallArticleView({
             <div>
               <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">{unlocked.title}</h1>
               <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1.5">
-                <Github className="h-3.5 w-3.5" />
-                github:{unlocked.recipient.handle}
+                <CreatorLink platform={unlocked.recipient.platform} handle={unlocked.recipient.handle} />
                 {unlocked.txHash ? (
                   <>
                     {' · '}
@@ -85,10 +108,7 @@ export function PaywallArticleView({
           <div className="flex-1">
             <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">{instructions.title}</h1>
             <p className="text-sm text-muted-foreground mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="inline-flex items-center gap-1">
-                <Github className="h-3.5 w-3.5" />
-                github:{instructions.recipient.handle}
-              </span>
+              <CreatorLink platform={instructions.recipient.platform} handle={instructions.recipient.handle} />
               <span className="inline-flex items-center rounded-full bg-blue-50 text-blue-700 px-2.5 py-0.5 text-xs font-medium">
                 {instructions.priceUsdc} USDC
               </span>

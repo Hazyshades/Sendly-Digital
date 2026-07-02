@@ -31,12 +31,14 @@ export type PaywallUnlockedResponse = {
   title: string;
   contentBody: string;
   recipient: { platform: string; handle: string };
-  paymentId: string;
+  paymentId: string | null;
   txHash: string | null;
+  owner?: boolean;
 };
 
 export type CreatePaywallInput = {
-  githubAccessToken: string;
+  platform?: string;
+  githubAccessToken?: string;
   slug: string;
   handle: string;
   priceUsdc: number;
@@ -64,7 +66,12 @@ function paywallUrl(slug: string): string {
 
 export async function fetchPaywall(
   slug: string,
-  proof?: { paymentId: string; txHash?: string; source?: 'human' | 'agent' },
+  proof?: {
+    paymentId?: string;
+    txHash?: string | null;
+    source?: 'human' | 'agent';
+    githubAccessToken?: string;
+  },
 ): Promise<
   | { status: 'locked'; instructions: PaywallPaymentInstructions }
   | { status: 'unlocked'; data: PaywallUnlockedResponse }
@@ -78,6 +85,9 @@ export async function fetchPaywall(
     headers['X-Sendly-Payment-Id'] = proof.paymentId;
     if (proof.txHash) headers['X-Sendly-Tx-Hash'] = proof.txHash;
     headers['X-Sendly-Source'] = proof.source ?? 'human';
+  }
+  if (proof?.githubAccessToken) {
+    headers['X-Sendly-Github-Token'] = proof.githubAccessToken;
   }
 
   const response = await fetch(paywallUrl(slug), { method: 'GET', headers });
@@ -108,6 +118,7 @@ export async function createPaywall(input: CreatePaywallInput): Promise<CreatePa
       Authorization: `Bearer ${publicAnonKey}`,
     },
     body: JSON.stringify({
+      platform: input.platform ?? 'github',
       githubAccessToken: input.githubAccessToken,
       slug: input.slug,
       handle: input.handle,

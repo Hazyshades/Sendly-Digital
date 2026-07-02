@@ -13,6 +13,8 @@ import {
   type PaywallUnlockedResponse,
 } from '@/lib/paywall/creatorPaywallAPI';
 import { payPaywallViaDeveloperWallet } from '@/lib/paywall/paywallPayment';
+import { getStoredEntitlement, storeEntitlement } from '@/lib/paywall/paywallEntitlements';
+import { getStoredGithubAccessToken } from '@/lib/paywall/githubSession';
 
 export function PaywallView() {
   const params = useParams();
@@ -34,7 +36,10 @@ export function PaywallView() {
       setLoading(true);
       setNotFound(false);
       try {
-        const result = await fetchPaywall(slug, proof);
+        // Replay a prior purchase (this device) or authenticate as the owner (github).
+        const stored = proof ?? getStoredEntitlement(slug) ?? undefined;
+        const githubAccessToken = getStoredGithubAccessToken() ?? undefined;
+        const result = await fetchPaywall(slug, { ...stored, githubAccessToken });
         if (result.status === 'not_found') {
           setNotFound(true);
           setInstructions(null);
@@ -81,6 +86,7 @@ export function PaywallView() {
       });
       const result = await fetchPaywall(slug, { paymentId, txHash, source: 'human' });
       if (result.status === 'unlocked') {
+        storeEntitlement(slug, { paymentId, txHash });
         setUnlocked(result.data);
         setInstructions(null);
         toast.success('Content unlocked');

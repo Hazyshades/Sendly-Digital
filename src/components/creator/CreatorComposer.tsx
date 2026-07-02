@@ -1,4 +1,5 @@
-import { Github } from 'lucide-react';
+import { Github, Twitter, Twitch, Mail, Linkedin, MessageCircle, User } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -7,48 +8,62 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { MIN_PAYWALL_PRICE_USDC } from '@/lib/paywall/creatorPaywallAPI';
 
+const PLATFORM_ICONS: Record<string, LucideIcon> = {
+  twitter: Twitter,
+  github: Github,
+  twitch: Twitch,
+  gmail: Mail,
+  linkedin: Linkedin,
+  telegram: MessageCircle,
+};
+
 export interface CreatorComposerProps {
-  githubLogin: string;
+  platform: string;
+  handleLabel: string;
   title: string;
   contentBody: string;
   slug: string;
   priceUsdc: string;
   loading: boolean;
-  connectingGithub: boolean;
+  reconnecting?: boolean;
   onTitleChange: (value: string) => void;
   onContentChange: (value: string) => void;
   onSlugChange: (value: string) => void;
   onPriceChange: (value: string) => void;
-  onReconnectGithub: () => void;
+  onReconnect?: () => void;
   onSubmit: (e: React.FormEvent) => void;
 }
 
 export function CreatorComposer({
-  githubLogin,
+  platform,
+  handleLabel,
   title,
   contentBody,
   slug,
   priceUsdc,
   loading,
-  connectingGithub,
+  reconnecting = false,
   onTitleChange,
   onContentChange,
   onSlugChange,
   onPriceChange,
-  onReconnectGithub,
+  onReconnect,
   onSubmit,
 }: CreatorComposerProps) {
+  const Icon = PLATFORM_ICONS[platform] ?? User;
   return (
     <Card className="bg-white shadow-circle-card rounded-2xl backdrop-blur-sm border-0 overflow-hidden">
       <CardContent className="p-0">
         <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2 text-sm text-gray-700">
-            <Github className="h-4 w-4" />
-            <span className="font-medium">@{githubLogin}</span>
+            <Icon className="h-4 w-4" />
+            <span className="font-medium">@{handleLabel}</span>
           </div>
-          <Button type="button" variant="ghost" size="sm" onClick={onReconnectGithub} disabled={connectingGithub}>
-            Reconnect
-          </Button>
+          {onReconnect ? (
+            <Button type="button" variant="ghost" size="sm" onClick={onReconnect} disabled={reconnecting}>
+              Reconnect
+            </Button>
+          ) : null}
         </div>
 
         <form onSubmit={onSubmit}>
@@ -99,7 +114,7 @@ export function CreatorComposer({
                 </Label>
                 <Input
                   id="slug"
-                  placeholder={`${githubLogin}/my-article`}
+                  placeholder={`${handleLabel}/my-article`}
                   value={slug}
                   onChange={(e) => onSlugChange(e.target.value)}
                   required
