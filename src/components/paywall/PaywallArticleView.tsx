@@ -5,6 +5,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { MarkdownContent } from '@/components/creator/MarkdownContent';
+import { AgentAccessPanel } from '@/components/paywall/AgentAccessPanel';
 import type {
   PaywallPaymentInstructions,
   PaywallUnlockedResponse,
@@ -133,6 +134,8 @@ export function PaywallArticleView({
         <p className="text-xs text-muted-foreground text-center">
           Settlement via ZkSend — payment goes to the creator&apos;s social identity on Arc.
         </p>
+
+        <AgentAccessPanel slug={instructions.slug} />
       </CardContent>
     </Card>
   );
