@@ -76,6 +76,8 @@ type Props = {
   onWalletSourceChange?: (value: WalletSource) => void;
   developerWallet?: DeveloperWallet | null;
   hasDeveloperWallet?: boolean;
+  /** Override card title (default: Receive). */
+  title?: string;
 };
 
 function shortenAddress(addr: string): string {
@@ -118,6 +120,7 @@ export function PendingPayments({
   onWalletSourceChange,
   developerWallet = null,
   hasDeveloperWallet = false,
+  title = 'Receive',
 }: Props) {
   const connectedChainId = useChainId();
   const activeChainId = connectedChainId || ARC_CHAIN_ID;
@@ -1289,7 +1292,7 @@ export function PendingPayments({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
-        <CardTitle>Receive</CardTitle>
+        <CardTitle>{title}</CardTitle>
         {!truncateAddresses && onWalletSourceChange ? (
           <WalletSourceToggle
             value={walletSource}

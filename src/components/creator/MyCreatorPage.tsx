@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useChainId } from 'wagmi';
 import { PenLine } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { CreatorProfileHeader } from '@/components/creator/CreatorProfileHeader';
 import { ArticleCard } from '@/components/creator/ArticleCard';
 import { ZkSocialConnectionsPanel } from '@/components/zk-accounts/ZkSocialConnectionsPanel';
+import { PendingPayments } from '@/components/zksend/PendingPayments';
+import type { SendRecipientType } from '@/components/zksend/ZkSendPanel';
+import type { WalletSource } from '@/components/zksend/WalletSourceToggle';
 import { useCreatorIdentity } from '@/hooks/useCreatorIdentity';
+import { useCircleWallet } from '@/hooks/useCircleWallet';
 import { getStoredGithubAccessToken } from '@/lib/paywall/githubSession';
 import {
   getCreatorProfile,
@@ -15,15 +20,42 @@ import {
   upsertCreatorProfile,
   type CreatorProfileResponse,
 } from '@/lib/paywall/creatorProfileAPI';
+import { ARC_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID, TEMPO_CHAIN_ID } from '@/lib/web3/constants';
+
+const CLAIM_PLATFORMS = new Set<SendRecipientType>([
+  'twitter',
+  'twitch',
+  'github',
+  'telegram',
+  'gmail',
+  'linkedin',
+  'instagram',
+]);
+
+function toClaimPlatform(platform: string): SendRecipientType | null {
+  const normalized = platform.toLowerCase();
+  return CLAIM_PLATFORMS.has(normalized as SendRecipientType)
+    ? (normalized as SendRecipientType)
+    : null;
+}
 
 export function MyCreatorPage() {
   const { identity, loading: identityLoading, isZkHost } = useCreatorIdentity();
+  const { developerWallet, hasDeveloperWallet } = useCircleWallet();
+  const connectedChainId = useChainId();
+  const activeChainId = connectedChainId || ARC_CHAIN_ID;
+  const isInternalWalletDisabled =
+    activeChainId === BASE_SEPOLIA_CHAIN_ID || activeChainId === TEMPO_CHAIN_ID;
+  const canUseInternalWallet = hasDeveloperWallet && !isInternalWalletDisabled;
+
+  const [walletSource, setWalletSource] = useState<WalletSource>('external');
   const [data, setData] = useState<CreatorProfileResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
   const platform = identity?.platform ?? '';
   const handle = identity?.handle ?? '';
   const displayName = identity?.displayName ?? '';
+  const claimPlatform = useMemo(() => toClaimPlatform(platform), [platform]);
 
   useEffect(() => {
     if (!platform || !handle) return;
@@ -70,7 +102,6 @@ export function MyCreatorPage() {
     return <p className="py-12 text-center text-muted-foreground">Loading identity…</p>;
   }
 
-  // Onboarding: no connected identity → surface the Linked Identities connector
   if (!identity) {
     return (
       <div className="space-y-4">
@@ -114,6 +145,20 @@ export function MyCreatorPage() {
           </div>
         </CardContent>
       </Card>
+
+      {claimPlatform ? (
+        <PendingPayments
+          platform={claimPlatform}
+          username={identity.handle}
+          isActive
+          isIdentityValid
+          title="Earnings"
+          walletSource={walletSource}
+          onWalletSourceChange={setWalletSource}
+          developerWallet={developerWallet}
+          hasDeveloperWallet={canUseInternalWallet}
+        />
+      ) : null}
 
       {loading ? (
         <p className="py-6 text-center text-muted-foreground">Loading articles…</p>
