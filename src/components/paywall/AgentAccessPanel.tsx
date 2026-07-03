@@ -1,3 +1,13 @@
+// Agent Access panel temporarily hidden.
+// Reason: the Try-it UI displayed the Supabase anon key (публичный ключ, защищён RLS,
+// не является секретом), но на демо это выглядело настораживающе.
+// Чтобы вернуть панель — раскомментируй реализацию ниже и удали заглушку.
+
+export function AgentAccessPanel(_props: { slug: string }) {
+  return null;
+}
+
+/* ORIGINAL IMPLEMENTATION (disabled)
 import { useCallback, useMemo, useState } from 'react';
 import { Bot, Copy, Check, Eye, EyeOff, Loader2, Play } from 'lucide-react';
 import { toast } from 'sonner';
@@ -256,3 +266,4 @@ export function AgentAccessPanel({ slug }: { slug: string }) {
     </div>
   );
 }
+*/
