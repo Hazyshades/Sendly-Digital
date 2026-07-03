@@ -371,6 +371,30 @@
     position: relative;
     z-index: 1;
   }
+
+  @keyframes lepton-reveal {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .lepton-reveal {
+    opacity: 0;
+    animation: lepton-reveal 460ms var(--ease-out) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lepton-reveal {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+  }
 }
 
 /**
