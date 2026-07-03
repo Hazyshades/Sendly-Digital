@@ -74,6 +74,18 @@
   ],
   "rewrites": [
     {
+      "source": "/llms.txt",
+      "destination": "https://eiiprokgcuksmunmszxf.supabase.co/functions/v1/creator-paywall/llms.txt"
+    },
+    {
+      "source": "/openapi.json",
+      "destination": "https://eiiprokgcuksmunmszxf.supabase.co/functions/v1/creator-paywall/openapi.json"
+    },
+    {
+      "source": "/lepton-hackathon",
+      "destination": "https://eiiprokgcuksmunmszxf.supabase.co/functions/v1/creator-paywall/lepton-hackathon"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
