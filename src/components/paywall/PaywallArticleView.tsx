@@ -132,7 +132,7 @@ export function PaywallArticleView({
         </div>
 
         <p className="text-xs text-muted-foreground text-center">
-          Settlement via ZkSend — payment goes to the creator&apos;s social identity on Arc.
+          Settlement via ZkSend - payment goes to the creator&apos;s social identity on Arc.
         </p>
 
         <AgentAccessPanel slug={instructions.slug} />

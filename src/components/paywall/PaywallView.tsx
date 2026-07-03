@@ -96,7 +96,7 @@ export function PaywallView() {
         setInstructions(null);
         toast.success('Content unlocked');
       } else {
-        toast.error('Payment sent but unlock failed — retry with payment proof');
+        toast.error('Payment sent but unlock failed - retry with payment proof');
         await loadPaywall({ paymentId, txHash });
       }
     } catch (err) {

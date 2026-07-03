@@ -379,7 +379,7 @@ function PlatformRow({
   return null;
 }
 
-// Temporarily hidden — uncomment render in ZkSocialConnectionsPanel to restore
+// Temporarily hidden - uncomment render in ZkSocialConnectionsPanel to restore
 export function InternalWalletRow({ compact }: { compact: boolean }) {
   const { developerWallet, hasDeveloperWallet, checkingWallet } = useCircleWallet();
 

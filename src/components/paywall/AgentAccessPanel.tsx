@@ -134,7 +134,7 @@ export function AgentAccessPanel({ slug }: { slug: string }) {
         <h2 className="text-sm font-semibold text-gray-900">Agent Access</h2>
       </div>
       <p className="mt-1.5 text-xs text-gray-600">
-        This resource is payable by an AI agent — no browser required. Use Try it to call endpoints
+        This resource is payable by an AI agent - no browser required. Use Try it to call endpoints
         with the anon key and see live responses (including HTTP 402).
       </p>
 
@@ -247,7 +247,7 @@ export function AgentAccessPanel({ slug }: { slug: string }) {
             )}
             {response.status === 402 ? (
               <p className="text-[11px] text-amber-700">
-                HTTP 402 is expected — agent pays on Arc, then retries with payment headers.
+                HTTP 402 is expected - agent pays on Arc, then retries with payment headers.
               </p>
             ) : null}
           </div>

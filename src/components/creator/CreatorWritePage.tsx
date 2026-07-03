@@ -94,7 +94,7 @@ export function CreatorWritePage() {
       const message = err instanceof Error ? err.message : 'Failed to publish';
       toast.error(
         message.includes('409') || message.toLowerCase().includes('slug')
-          ? 'This link is already taken — choose another slug'
+          ? 'This link is already taken - choose another slug'
           : message,
       );
     } finally {
