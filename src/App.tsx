@@ -32,6 +32,7 @@ import { PaywallRoute } from '@/pages/PaywallRoute';
 import { LeptonReceiptsRoute } from '@/pages/LeptonReceiptsRoute';
 import { LeptonPrBountyRoute } from '@/pages/LeptonPrBountyRoute';
 import { LeptonCitationRoute } from '@/pages/LeptonCitationRoute';
+import { LeptonHubRoute } from '@/pages/LeptonHubRoute';
 import { ArchitectureRoute } from '@/pages/ArchitectureRoute';
 import { isZkHost, toZkUrl } from '@/lib/runtime/zkHost';
 
@@ -65,6 +66,7 @@ function SharedAppRoutes({ zkMode }: { zkMode: boolean }) {
       <Route path="/creator" element={zkMode ? <CreatorHomeRoute /> : <ZkHostRedirect />} />
       <Route path="/paywall/create" element={zkMode ? <Navigate to="/creator/write" replace /> : <ZkHostRedirect />} />
       <Route path="/pay/*" element={zkMode ? <PaywallRoute /> : <ZkHostRedirect />} />
+      <Route path="/lepton" element={zkMode ? <LeptonHubRoute /> : <ZkHostRedirect />} />
       <Route path="/lepton/receipts" element={zkMode ? <LeptonReceiptsRoute /> : <ZkHostRedirect />} />
       <Route path="/lepton/pr-bounty" element={zkMode ? <LeptonPrBountyRoute /> : <ZkHostRedirect />} />
       <Route path="/lepton/citation" element={zkMode ? <LeptonCitationRoute /> : <ZkHostRedirect />} />
