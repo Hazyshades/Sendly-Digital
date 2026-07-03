@@ -558,6 +558,11 @@ html {
     animation: none;
     opacity: 1;
   }
+
+  /* Sonner toasts: keep stacking transform (final target), drop the slide/move */
+  [data-sonner-toast] {
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* RainbowKit: remove shadow from the wallet button (rk-account-button) */

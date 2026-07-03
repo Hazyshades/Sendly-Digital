@@ -37,9 +37,14 @@ export function LeptonPrBountyPage() {
             Flat USDC per merged PR from sponsor pool (Circle Agent Wallet).
           </p>
         </div>
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/lepton/receipts">Receipts</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/lepton/repo-settings">Repo settings</Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/lepton/receipts">Receipts</Link>
+          </Button>
+        </div>
       </div>
 
       {loading ? (

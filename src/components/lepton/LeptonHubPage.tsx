@@ -4,10 +4,14 @@ import {
   ArrowRight,
   Bot,
   CreditCard,
+  Eye,
   GitPullRequest,
   PenLine,
   Plug,
   Receipt,
+  Rocket,
+  Settings,
+  Tag,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -15,9 +19,128 @@ import { LeptonCatalogView } from '@/components/lepton/LeptonCatalogView';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { fetchCitationSources } from '@/lib/paywall/citationAPI';
-import { fetchPrPayoutReceipts } from '@/lib/paywall/prPayoutAPI';
+import {
+  fetchPrPayoutPolicies,
+  fetchPrPayoutReceipts,
+  formatUsdcAmount,
+  type PayoutKind,
+  type PrPayoutPolicy,
+  type PrPayoutReceipt,
+} from '@/lib/paywall/prPayoutAPI';
 
 const DEMO_ARTICLE_PATH = '/pay/leonissx/lepton-agents-hackathon';
+
+type PayoutKindCardConfig = {
+  kind: PayoutKind;
+  title: string;
+  icon: LucideIcon;
+  defaultRule: string;
+};
+
+const PAYOUT_KIND_CARDS: PayoutKindCardConfig[] = [
+  {
+    kind: 'merge',
+    title: 'Merge PR',
+    icon: GitPullRequest,
+    defaultRule: 'Flat USDC per merged pull request',
+  },
+  {
+    kind: 'bounty',
+    title: 'Issue Bounty',
+    icon: Tag,
+    defaultRule: 'Label issue bounty:<amount> on GitHub',
+  },
+  {
+    kind: 'release',
+    title: 'Release Dividend',
+    icon: Rocket,
+    defaultRule: 'Pool split among release contributors',
+  },
+  {
+    kind: 'review',
+    title: 'Review to Earn',
+    icon: Eye,
+    defaultRule: 'USDC when a reviewed PR merges',
+  },
+];
+
+function ruleForKind(policy: PrPayoutPolicy | null, kind: PayoutKind): string {
+  if (!policy) {
+    return PAYOUT_KIND_CARDS.find((c) => c.kind === kind)?.defaultRule ?? '';
+  }
+  switch (kind) {
+    case 'merge':
+      return `${formatUsdcAmount(policy.perPrAmountUsdc)} per merged PR`;
+    case 'bounty':
+      return policy.bountyEnabled === false ? 'Disabled' : 'bounty:<amount> label on issue';
+    case 'release':
+      return policy.releasePoolUsdc
+        ? `${formatUsdcAmount(policy.releasePoolUsdc)} release pool`
+        : 'Release pool (see repo settings)';
+    case 'review':
+      return policy.reviewAmountUsdc
+        ? `${formatUsdcAmount(policy.reviewAmountUsdc)} per reviewer`
+        : 'Per meaningful review on merge';
+    default:
+      return '';
+  }
+}
+
+function countPaidByKind(receipts: PrPayoutReceipt[]): Record<PayoutKind, number> {
+  const counts: Record<PayoutKind, number> = {
+    merge: 0,
+    bounty: 0,
+    release: 0,
+    review: 0,
+  };
+  for (const r of receipts) {
+    if (r.status !== 'paid' || !r.kind) continue;
+    if (r.kind in counts) counts[r.kind as PayoutKind]++;
+  }
+  return counts;
+}
+
+function PayoutKindCard({
+  config,
+  rule,
+  paidCount,
+  style,
+}: {
+  config: PayoutKindCardConfig;
+  rule: string;
+  paidCount: number;
+  style?: React.CSSProperties;
+}) {
+  const Icon = config.icon;
+  return (
+    <Link
+      to={`/lepton/receipts?kind=${config.kind}`}
+      style={style}
+      className="lepton-reveal group flex flex-col justify-between rounded-2xl border bg-card p-4 shadow-circle-card transition duration-200 [transition-timing-function:var(--ease-out)] hover:border-indigo-200 hover:shadow-md motion-safe:hover:-translate-y-0.5 active:scale-[0.99]"
+    >
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex size-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+            <Icon className="size-4" />
+          </div>
+          {paidCount > 0 && (
+            <Badge variant="secondary" className="text-[10px]">
+              {paidCount} paid
+            </Badge>
+          )}
+        </div>
+        <div className="space-y-1">
+          <h3 className="text-sm font-semibold text-foreground">{config.title}</h3>
+          <p className="text-xs leading-relaxed text-muted-foreground">{rule}</p>
+        </div>
+      </div>
+      <div className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-indigo-600">
+        View receipts
+        <ArrowRight className="size-3 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:translate-x-0.5" />
+      </div>
+    </Link>
+  );
+}
 
 type ModuleActor = 'human' | 'agent' | 'maintainer';
 
@@ -41,9 +164,18 @@ type SecondaryModule = {
 
 const SECONDARY_MODULES: SecondaryModule[] = [
   {
+    id: 'repo-settings',
+    title: 'Repo Settings',
+    description:
+      'All payout rules for a repo - merge PR, issue bounties, release pool, review rewards.',
+    actor: 'maintainer',
+    icon: Settings,
+    to: '/lepton/repo-settings',
+  },
+  {
     id: 'citation',
     title: 'Citation Agent',
-    description: 'An AI agent pays for paywall slugs, then returns a cited answer — real Arc txs.',
+    description: 'An AI agent pays for paywall slugs, then returns a cited answer - real Arc txs.',
     actor: 'agent',
     icon: Bot,
     to: '/lepton/citation',
@@ -55,7 +187,7 @@ const SECONDARY_MODULES: SecondaryModule[] = [
   {
     id: 'human-paywall',
     title: 'Human Paywall',
-    description: 'HTTP 402 unlock — a reader pays the creator by social identity.',
+    description: 'HTTP 402 unlock - a reader pays the creator by social identity.',
     actor: 'human',
     icon: CreditCard,
     to: '/creator',
@@ -160,13 +292,26 @@ export function LeptonHubPage() {
   const [badges, setBadges] = useState<Record<string, string | null>>({});
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [receiptsBadge, setReceiptsBadge] = useState<string | null>(null);
+  const [receipts, setReceipts] = useState<PrPayoutReceipt[]>([]);
+  const [policy, setPolicy] = useState<PrPayoutPolicy | null>(null);
+
+  const paidByKind = countPaidByKind(receipts);
 
   useEffect(() => {
     void fetchPrPayoutReceipts()
-      .then((receipts) => {
-        const paid = receipts.filter((r) => r.status === 'paid').length;
-        const label = paid > 0 ? `${paid} paid` : receipts.length > 0 ? `${receipts.length} events` : null;
+      .then((rows) => {
+        setReceipts(rows);
+        const paid = rows.filter((r) => r.status === 'paid').length;
+        const label = paid > 0 ? `${paid} paid` : rows.length > 0 ? `${rows.length} events` : null;
         if (label) setReceiptsBadge(label);
+      })
+      .catch(() => {
+        /* silent fallback */
+      });
+
+    void fetchPrPayoutPolicies()
+      .then((policies) => {
+        if (policies.length > 0) setPolicy(policies[0]);
       })
       .catch(() => {
         /* silent fallback */
@@ -188,16 +333,13 @@ export function LeptonHubPage() {
   return (
     <div className="space-y-10 py-2">
       <header className="lepton-reveal space-y-3">
-        <div className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-xs text-muted-foreground shadow-circle-card">
-          <span className="size-1.5 rounded-full bg-indigo-500" />
-          Arc Testnet · USDC settlement via ZkSend
-        </div>
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground [font-family:'Space_Grotesk','Inter',sans-serif]">
+       
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
           Sendly × Lepton
         </h1>
         <p className="max-w-xl text-[15px] leading-relaxed text-muted-foreground">
-          One sponsor pool, three surfaces. Payments settle to social identities on Arc — merged
-          PRs, AI citations, and human paywall unlocks.
+          One sponsor pool, GitHub repo treasury with four payout mechanics — merge, bounty, release,
+          and review — plus AI citation tolls and human paywall unlocks on Arc.
         </p>
       </header>
 
@@ -221,7 +363,7 @@ export function LeptonHubPage() {
               </h2>
               <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
                 Flat USDC per merged pull request, paid from the sponsor pool. Policy-driven with
-                built-in anti-abuse — contributors need no wallet upfront.
+                built-in anti-abuse - contributors need no wallet upfront.
               </p>
             </div>
           </div>
@@ -250,7 +392,7 @@ export function LeptonHubPage() {
             <div className="space-y-1.5">
               <h2 className="text-xl font-semibold tracking-tight text-foreground">Receipts</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                On-chain proof of every payout — repo, author, tx hash, and claim status.
+                On-chain proof of every payout - repo, author, tx hash, and claim status.
               </p>
             </div>
           </div>
@@ -259,6 +401,25 @@ export function LeptonHubPage() {
             <ArrowRight className="size-4 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:translate-x-0.5" />
           </div>
         </Link>
+      </section>
+
+      {/* GitHub payout kinds */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-3">
+          <h2 className="text-sm font-medium text-foreground">GitHub payout kinds</h2>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {PAYOUT_KIND_CARDS.map((config, i) => (
+            <PayoutKindCard
+              key={config.kind}
+              config={config}
+              rule={ruleForKind(policy, config.kind)}
+              paidCount={paidByKind[config.kind]}
+              style={{ animationDelay: `${150 + i * 60}ms` }}
+            />
+          ))}
+        </div>
       </section>
 
       {/* Secondary modules */}

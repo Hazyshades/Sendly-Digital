@@ -21,9 +21,14 @@ async function prFetch(path: string, init?: RequestInit) {
   return data;
 }
 
+export type PayoutKind = 'merge' | 'bounty' | 'release' | 'review';
+
+export const PAYOUT_KINDS: PayoutKind[] = ['merge', 'bounty', 'release', 'review'];
+
 export type PrPayoutReceipt = {
+  kind?: string;
   repo: string;
-  prNumber: number;
+  prNumber: number | null;
   author: string;
   amount: string;
   status: string;
@@ -34,6 +39,25 @@ export type PrPayoutReceipt = {
   createdAt: string;
 };
 
+const KIND_LABELS: Record<PayoutKind, string> = {
+  merge: 'Merge',
+  bounty: 'Bounty',
+  release: 'Release',
+  review: 'Review',
+};
+
+export function formatPayoutKindLabel(kind: string | undefined | null): string {
+  if (!kind) return '—';
+  if (kind in KIND_LABELS) return KIND_LABELS[kind as PayoutKind];
+  return kind;
+}
+
+export function parsePayoutKindFilter(raw: string | null): PayoutKind | 'all' {
+  if (!raw || raw === 'all') return 'all';
+  if (PAYOUT_KINDS.includes(raw as PayoutKind)) return raw as PayoutKind;
+  return 'all';
+}
+
 export type PrPayoutPolicy = {
   repoId: number;
   repoFullName: string;
@@ -42,7 +66,29 @@ export type PrPayoutPolicy = {
   dailyCapUsdc: string;
   budgetRemainingUsdc: string;
   active: boolean;
+  bountyEnabled?: boolean;
+  releasePoolUsdc?: string | number;
+  splitMode?: string;
+  reviewAmountUsdc?: string | number;
+  reviewMinChars?: number;
+  maxReviewersPerPr?: number;
 };
+
+export type IssueBounty = {
+  repoFullName: string;
+  issueNumber: number;
+  amountUsdc: string | number;
+  status: string;
+};
+
+/** Parse NUMERIC/string USDC values for display. */
+export function formatUsdcAmount(value: string | number | undefined | null): string {
+  if (value == null || value === '') return '0 USDC';
+  const n = typeof value === 'number' ? value : parseFloat(String(value));
+  if (!Number.isFinite(n)) return '0 USDC';
+  const formatted = Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, '');
+  return `${formatted} USDC`;
+}
 
 export async function fetchPrPayoutReceipts(): Promise<PrPayoutReceipt[]> {
   const data = (await prFetch('/pr-payouts')) as { receipts?: PrPayoutReceipt[] };
@@ -52,6 +98,11 @@ export async function fetchPrPayoutReceipts(): Promise<PrPayoutReceipt[]> {
 export async function fetchPrPayoutPolicies(): Promise<PrPayoutPolicy[]> {
   const data = (await prFetch('/pr-payout-policy')) as { policies?: PrPayoutPolicy[] };
   return data.policies ?? [];
+}
+
+export async function fetchActiveIssueBounties(): Promise<IssueBounty[]> {
+  const data = (await prFetch('/repo-bounties')) as { bounties?: IssueBounty[] };
+  return data.bounties ?? [];
 }
 
 export function getCreatorPaywallBase(): string {
