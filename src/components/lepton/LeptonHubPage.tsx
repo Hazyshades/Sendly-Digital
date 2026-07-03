@@ -338,8 +338,8 @@ export function LeptonHubPage() {
           Sendly × Lepton
         </h1>
         <p className="max-w-xl text-[15px] leading-relaxed text-muted-foreground">
-          One sponsor pool, GitHub repo treasury with four payout mechanics — merge, bounty, release,
-          and review — plus AI citation tolls and human paywall unlocks on Arc.
+          One sponsor pool, GitHub repo treasury with four payout mechanics - merge, bounty, release,
+          and review - plus AI citation tolls and human paywall unlocks on Arc.
         </p>
       </header>
 

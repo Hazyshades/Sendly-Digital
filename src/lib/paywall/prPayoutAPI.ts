@@ -25,6 +25,15 @@ export type PayoutKind = 'merge' | 'bounty' | 'release' | 'review';
 
 export const PAYOUT_KINDS: PayoutKind[] = ['merge', 'bounty', 'release', 'review'];
 
+/** Fixed sponsor pool wallet shown across Lepton pages. */
+export const SPONSOR_WALLET_ADDRESS = '0x6d4c724a90f4180d2784f56d4b96b5d4a461e9ca';
+
+/** Shorten an EVM address for display: 0x1234…abcd. */
+export function shortenAddress(address: string, lead = 6, tail = 4): string {
+  if (!address || address.length <= lead + tail + 1) return address;
+  return `${address.slice(0, lead)}…${address.slice(-tail)}`;
+}
+
 export type PrPayoutReceipt = {
   kind?: string;
   repo: string;
@@ -47,7 +56,7 @@ const KIND_LABELS: Record<PayoutKind, string> = {
 };
 
 export function formatPayoutKindLabel(kind: string | undefined | null): string {
-  if (!kind) return '—';
+  if (!kind) return '-';
   if (kind in KIND_LABELS) return KIND_LABELS[kind as PayoutKind];
   return kind;
 }

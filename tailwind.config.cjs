@@ -65,6 +65,7 @@ module.exports = {
         'outfit': ['"Outfit"', 'sans-serif'],
         'cormorant': ['"Cormorant Garamond"', 'serif'],
         'mono': ['"JetBrains Mono"', 'monospace'],
+        'space': ['"Space Grotesk"', '"Inter"', 'sans-serif'],
       },
       borderRadius: {
         lg: "16px",

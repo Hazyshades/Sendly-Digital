@@ -9,9 +9,12 @@ import {
   fetchActiveIssueBounties,
   fetchPrPayoutPolicies,
   formatUsdcAmount,
+  shortenAddress,
+  SPONSOR_WALLET_ADDRESS,
   type IssueBounty,
   type PrPayoutPolicy,
 } from '@/lib/paywall/prPayoutAPI';
+import { ARC_CHAIN_ID, getExplorerAddressUrl } from '@/lib/web3/constants';
 
 function splitModeLabel(mode: string | undefined): string {
   if (mode === 'weighted_by_prs') return 'Proportional to merged PR count';
@@ -168,8 +171,16 @@ function RepoPolicyBlock({
               <strong>{formatUsdcAmount(policy.budgetRemainingUsdc)}</strong>
             </p>
             <p>
-              <span className="text-muted-foreground">Sponsor pool:</span>{' '}
-              <code className="text-xs">{policy.sponsorPoolRef}</code>
+              <span className="text-muted-foreground">Sponsor wallet:</span>{' '}
+              <a
+                href={getExplorerAddressUrl(ARC_CHAIN_ID, SPONSOR_WALLET_ADDRESS)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-xs text-primary underline-offset-2 hover:underline"
+                title={SPONSOR_WALLET_ADDRESS}
+              >
+                {shortenAddress(SPONSOR_WALLET_ADDRESS)}
+              </a>
             </p>
           </div>
         </section>

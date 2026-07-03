@@ -13,6 +13,9 @@ import {
   type PayoutKind,
   type PrPayoutReceipt,
 } from '@/lib/paywall/prPayoutAPI';
+import { ARC_CHAIN_ID, getExplorerTxUrl } from '@/lib/web3/constants';
+
+const linkClass = 'text-primary underline-offset-2 hover:underline';
 
 const FILTER_OPTIONS: Array<{ value: PayoutKind | 'all'; label: string }> = [
   { value: 'all', label: 'All' },
@@ -67,7 +70,7 @@ export function LeptonReceiptsPage() {
         <div>
           <h1 className="text-2xl font-semibold">Payout Receipts</h1>
           <p className="text-sm text-muted-foreground">
-            On-chain proof for every GitHub payout kind — merge, bounty, release, and review.
+            On-chain proof for every GitHub payout kind - merge, bounty, release, and review.
           </p>
         </div>
         <div className="flex gap-2">
@@ -133,17 +136,64 @@ export function LeptonReceiptsPage() {
                         {formatPayoutKindLabel(r.kind)}
                       </Badge>
                     </td>
-                    <td className="py-2 pr-3 font-mono text-xs">{r.repo}</td>
-                    <td className="py-2 pr-3">{r.prNumber != null ? `#${r.prNumber}` : '—'}</td>
-                    <td className="py-2 pr-3">github:{r.author}</td>
+                    <td className="py-2 pr-3 font-mono text-xs">
+                      {r.repo ? (
+                        <a
+                          href={`https://github.com/${r.repo}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={linkClass}
+                        >
+                          {r.repo}
+                        </a>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+                    <td className="py-2 pr-3">
+                      {r.prNumber != null ? (
+                        <a
+                          href={`https://github.com/${r.repo}/pull/${r.prNumber}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={linkClass}
+                        >
+                          #{r.prNumber}
+                        </a>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+                    <td className="py-2 pr-3">
+                      {r.author ? (
+                        <a
+                          href={`https://github.com/${r.author}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={linkClass}
+                        >
+                          {r.author}
+                        </a>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
                     <td className="py-2 pr-3">{r.amount} USDC</td>
                     <td className={`py-2 pr-3 ${statusClass(r.status)}`}>{r.status}</td>
                     <td className="py-2 pr-3">{r.claimStatus}</td>
                     <td className="py-2 font-mono text-xs">
                       {r.txHash ? (
-                        <span title={r.txHash}>{r.txHash.slice(0, 10)}…</span>
+                        <a
+                          href={getExplorerTxUrl(ARC_CHAIN_ID, r.txHash)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={linkClass}
+                          title={r.txHash}
+                        >
+                          {r.txHash.slice(0, 10)}…
+                        </a>
                       ) : (
-                        '—'
+                        '-'
                       )}
                     </td>
                   </tr>
