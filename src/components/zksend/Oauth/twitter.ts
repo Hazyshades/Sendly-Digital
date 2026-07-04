@@ -1,34 +1,6 @@
 import { toast } from 'sonner';
+import { getZkTlsApiUrl } from '@/lib/zk-oauth/apiUrl';
 import { createPopupWindow } from './utils';
-
-const getZkTlsApiUrl = (): string => {
-  // In production we use an explicit API host (api.sendly.digital),
-  // to avoid hitting the TLS certificate of the frontend domain.
-  const envUrl =
-    (import.meta.env.VITE_ZKTLS_SERVICE_URL as string | undefined) ||
-    (import.meta.env.VITE_ZKTLS_API_URL as string | undefined);
-  if (envUrl) return envUrl;
-
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    try {
-      const url = new URL(window.location.origin);
-      let hostname = url.hostname.toLowerCase();
-
-      // Normalize www-prefixed hostnames (e.g. www.zk.sendly.digital -> zk.sendly.digital)
-      if (hostname.startsWith('www.')) {
-        hostname = hostname.slice(4);
-        url.hostname = hostname;
-        return url.origin;
-      }
-
-      return window.location.origin;
-    } catch {
-      return window.location.origin;
-    }
-  }
-
-  return 'http://localhost:3001';
-};
 
 export type TwitterOAuth1Tokens = {
   oauthToken: string;

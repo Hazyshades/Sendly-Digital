@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { getZkTlsApiUrl } from '@/lib/zk-oauth/apiUrl';
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
@@ -82,15 +83,6 @@ const persistOAuth1Tokens = (parsed: {
   if (parsed.userId) {
     localStorage.setItem('twitter_oauth1_user_id', parsed.userId);
   }
-};
-
-const getZkTlsApiUrl = (): string => {
-  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
-  const envUrl =
-    (import.meta.env.VITE_ZKTLS_SERVICE_URL as string | undefined) ||
-    (import.meta.env.VITE_ZKTLS_API_URL as string | undefined);
-  if (envUrl) return envUrl;
-  return 'http://localhost:3001';
 };
 
 export function TwitterOAuth1CallbackRoute() {
