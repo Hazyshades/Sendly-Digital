@@ -74,6 +74,10 @@
   ],
   "rewrites": [
     {
+      "source": "/llm.txt",
+      "destination": "https://eiiprokgcuksmunmszxf.supabase.co/functions/v1/creator-paywall/llms.txt"
+    },
+    {
       "source": "/llms.txt",
       "destination": "https://eiiprokgcuksmunmszxf.supabase.co/functions/v1/creator-paywall/llms.txt"
     },

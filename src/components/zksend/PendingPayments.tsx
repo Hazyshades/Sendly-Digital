@@ -189,6 +189,9 @@ export function PendingPayments({
 
   const useCircle = walletSource === 'circle' && hasDeveloperWallet && !!developerWallet;
   const effectiveRecipientAddress = useCircle ? developerWallet!.wallet_address : address;
+  const canClaimPayments = useCircle
+    ? Boolean(developerWallet?.wallet_address)
+    : Boolean(isConnected && address);
 
   useEffect(() => {
     if (accessToken) return;
@@ -1468,8 +1471,7 @@ export function PendingPayments({
                     onClick={claimAll}
                     disabled={
                       claimingAll ||
-                      !isConnected ||
-                      !address ||
+                      !canClaimPayments ||
                       !isIdentityValid ||
                       loadingList
                     }
