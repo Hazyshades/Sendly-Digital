@@ -4,9 +4,12 @@ import { toast } from 'sonner';
 
 import web3Service from '@/lib/web3/web3Service';
 import {
+  fetchTwitchAuthenticatedUser,
   generateSocialIdentityHash,
+  generateTwitchUidIdentityHash,
   normalizeSocialPlatform,
   normalizeSocialUsername,
+  twitchUidHandleSegment,
 } from '@/lib/reclaim/identity';
 import { fetchReclaimProofRequestConfig, verifyReclaimProofs } from '@/lib/reclaim/api';
 import { toOnchainReclaimProof } from '@/lib/reclaim/onchain';
@@ -83,6 +86,42 @@ type Props = {
 function shortenAddress(addr: string): string {
   if (addr.length <= 12) return addr;
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+}
+
+function resolveClaimIdentityHash(
+  platform: string,
+  loginUsername: string,
+  twitchUserId: string | null
+): `0x${string}` | null {
+  if (platform === 'twitch' && twitchUserId) {
+    return generateTwitchUidIdentityHash(twitchUserId);
+  }
+  return generateSocialIdentityHash(platform, loginUsername);
+}
+
+function twitchProveUsername(twitchUserId: string | null, loginUsername: string): string {
+  if (twitchUserId) return twitchUidHandleSegment(twitchUserId);
+  return loginUsername;
+}
+
+function validateZkFetchExtraction(
+  platform: string,
+  proofsArray: ReclaimProof[],
+  loginUsername: string,
+  twitchUserId: string | null
+): void {
+  const extracted = proofsArray[0]?.extractedParameterValues ?? {};
+  if (platform === 'twitch') {
+    const extractedUserId = String((extracted as { userId?: string }).userId ?? '').trim();
+    if (twitchUserId && extractedUserId && extractedUserId !== twitchUserId) {
+      throw new Error('Proof Twitch user id mismatch');
+    }
+    return;
+  }
+  const extractedUsername = normalizeSocialUsername(String(extracted.username || ''));
+  if (extractedUsername && extractedUsername !== loginUsername) {
+    throw new Error('Proof username mismatch');
+  }
 }
 
 function toUserFacingErrorMessage(error: unknown, fallback: string): string {
@@ -171,6 +210,7 @@ export function PendingPayments({
   const [oauth1Token, setOauth1Token] = useState('');
   const [oauth1TokenSecret, setOauth1TokenSecret] = useState('');
   const [twitchAccessToken, setTwitchAccessToken] = useState('');
+  const [twitchResolvedUserId, setTwitchResolvedUserId] = useState<string | null>(null);
   const [githubAccessToken, setGithubAccessToken] = useState('');
   const [telegramAccessToken, setTelegramAccessToken] = useState('');
   const [instagramAccessToken, setInstagramAccessToken] = useState('');
@@ -243,6 +283,29 @@ export function PendingPayments({
       console.warn('[zkSEND] Failed to load Twitch token:', error);
     }
   }, [twitchAccessToken]);
+
+  useEffect(() => {
+    if (platform !== 'twitch' || !twitchAccessToken) {
+      setTwitchResolvedUserId(null);
+      return;
+    }
+    const twitchClientId = import.meta.env.VITE_TWITCH_CLIENT_ID as string | undefined;
+    if (!twitchClientId) return;
+
+    let active = true;
+    void fetchTwitchAuthenticatedUser(twitchAccessToken, twitchClientId)
+      .then((user) => {
+        if (!active) return;
+        setTwitchResolvedUserId(user?.userId ?? null);
+      })
+      .catch((error) => {
+        console.warn('[zkSEND] Failed to resolve Twitch user id:', error);
+        if (active) setTwitchResolvedUserId(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [platform, twitchAccessToken]);
 
   useEffect(() => {
     if (githubAccessToken) return;
@@ -424,10 +487,14 @@ export function PendingPayments({
 
   const identityHash = useMemo(() => {
     if (platform === 'address') return null;
+    if (platform === 'twitch') {
+      if (!twitchResolvedUserId) return null;
+      return generateTwitchUidIdentityHash(twitchResolvedUserId);
+    }
     const u = normalizeSocialUsername(username.replace(/^@/, ''));
     if (!u) return null;
     return generateSocialIdentityHash(platform, u);
-  }, [platform, username]);
+  }, [platform, username, twitchResolvedUserId]);
 
   const addressModeRecipient = useMemo(() => {
     if (platform !== 'address') return null;
@@ -554,7 +621,10 @@ export function PendingPayments({
         return;
       }
 
-      if (!identityHash) throw new Error('Enter username');
+      if (!identityHash) {
+        if (platform === 'twitch' && twitchAccessToken) return;
+        throw new Error('Enter username');
+      }
       setLoadingList(true);
 
       const ids = await web3Service.getZkSendPendingPayments(identityHash);
@@ -622,6 +692,9 @@ export function PendingPayments({
       }
       if (normalizedPlatform === 'twitch' && !twitchAccessToken) {
         throw new Error('Connect Twitch to generate proof');
+      }
+      if (normalizedPlatform === 'twitch' && !twitchResolvedUserId) {
+        throw new Error('Resolving Twitch user id — connect Twitch and retry');
       }
       if (normalizedPlatform === 'github' && !githubAccessToken) {
         throw new Error('Connect GitHub to generate proof');
@@ -702,7 +775,8 @@ export function PendingPayments({
             });
 
         const paymentRow = rows.find((row) => row.paymentId === paymentId);
-        const identityHashValue = identityHash ?? generateSocialIdentityHash(platform, u);
+        const identityHashValue =
+          identityHash ?? resolveClaimIdentityHash(platform, u, twitchResolvedUserId);
         if (paymentRow && identityHashValue) {
           try {
             await markZkSendPaymentClaimed({
@@ -765,7 +839,7 @@ export function PendingPayments({
         requestUrl = 'https://api.twitch.tv/helix/users';
         accessTokenToUse = twitchAccessToken;
         clientId = twitchClientId;
-        regexPattern = '"login":"(?<username>[^"]+)"';
+        regexPattern = '"id":"(?<userId>[^"]+)"';
       } else if (isGithub) {
         requestUrl = 'https://api.github.com/user';
         accessTokenToUse = githubAccessToken;
@@ -816,7 +890,7 @@ export function PendingPayments({
             : {}),
           ...(clientId ? { clientId } : {}),
           platform: normalizedPlatform,
-          username: u,
+          username: isTwitch ? twitchProveUsername(twitchResolvedUserId, u) : u,
           paymentId,
           recipient: effectiveRecipientAddress,
           responseMatches: [
@@ -841,12 +915,7 @@ export function PendingPayments({
       }
 
       const proofsArray: ReclaimProof[] = Array.isArray(proof) ? (proof as ReclaimProof[]) : [proof as ReclaimProof];
-      const extractedUsername = normalizeSocialUsername(
-        String(proofsArray[0]?.extractedParameterValues?.username || '')
-      );
-      if (extractedUsername && extractedUsername !== u) {
-        throw new Error('Proof username mismatch');
-      }
+      validateZkFetchExtraction(normalizedPlatform, proofsArray, u, twitchResolvedUserId);
 
       const signatures =
         (Array.isArray((proofsArray[0] as any)?.signatures) && (proofsArray[0] as any).signatures) ||
@@ -900,7 +969,8 @@ export function PendingPayments({
           });
 
       const paymentRow = rows.find((row) => row.paymentId === paymentId);
-      const identityHashValue = identityHash ?? generateSocialIdentityHash(platform, u);
+      const identityHashValue =
+        identityHash ?? resolveClaimIdentityHash(platform, u, twitchResolvedUserId);
       if (paymentRow && identityHashValue) {
         try {
           await markZkSendPaymentClaimed({
@@ -959,6 +1029,9 @@ export function PendingPayments({
       if (normalizedPlatform === 'twitch' && !twitchAccessToken) {
         throw new Error('Connect Twitch to generate proof');
       }
+      if (normalizedPlatform === 'twitch' && !twitchResolvedUserId) {
+        throw new Error('Resolving Twitch user id — connect Twitch and retry');
+      }
       if (normalizedPlatform === 'github' && !githubAccessToken) {
         throw new Error('Connect GitHub to generate proof');
       }
@@ -978,7 +1051,8 @@ export function PendingPayments({
       }
 
       const paymentIds = rows.map((r) => r.paymentId);
-      const identityHashValue = identityHash ?? generateSocialIdentityHash(platform, u);
+      const identityHashValue =
+        identityHash ?? resolveClaimIdentityHash(platform, u, twitchResolvedUserId);
       if (!identityHashValue) {
         throw new Error('Invalid identity');
       }
@@ -1092,7 +1166,7 @@ export function PendingPayments({
         requestUrl = 'https://api.twitch.tv/helix/users';
         accessTokenToUse = twitchAccessToken;
         clientId = twitchClientId;
-        regexPattern = '"login":"(?<username>[^"]+)"';
+        regexPattern = '"id":"(?<userId>[^"]+)"';
       } else if (isGithub) {
         requestUrl = 'https://api.github.com/user';
         accessTokenToUse = githubAccessToken;
@@ -1132,7 +1206,7 @@ export function PendingPayments({
             : {}),
           ...(clientId ? { clientId } : {}),
           platform: normalizedPlatform,
-          username: u,
+          username: isTwitch ? twitchProveUsername(twitchResolvedUserId, u) : u,
           paymentId: firstPaymentId,
           recipient: effectiveRecipientAddress,
           responseMatches: [{ type: 'regex', value: regexPattern }],
@@ -1149,12 +1223,7 @@ export function PendingPayments({
       if (!proof) throw new Error('No proof received from zkFetch');
 
       const proofsArray: ReclaimProof[] = Array.isArray(proof) ? (proof as ReclaimProof[]) : [proof as ReclaimProof];
-      const extractedUsername = normalizeSocialUsername(
-        String(proofsArray[0]?.extractedParameterValues?.username || '')
-      );
-      if (extractedUsername && extractedUsername !== u) {
-        throw new Error('Proof username mismatch');
-      }
+      validateZkFetchExtraction(normalizedPlatform, proofsArray, u, twitchResolvedUserId);
 
       const signatures =
         (Array.isArray((proofsArray[0] as any)?.signatures) && (proofsArray[0] as any).signatures) ||

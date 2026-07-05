@@ -64,3 +64,48 @@ export function generateSocialIdentityHash(
   return keccak256(toUtf8Bytes(identity)) as `0x${string}`;
 }
 
+/** Canonical Twitch identity for raid payouts: twitch:uid:{user_id} */
+export function buildTwitchUidIdentity(userId: string | number): string {
+  return `twitch:uid:${String(userId).trim()}`;
+}
+
+/** Handle segment for paySocialIdentity / claim: uid:{user_id} */
+export function twitchUidHandleSegment(userId: string | number): string {
+  return `uid:${String(userId).trim()}`;
+}
+
+/** keccak256("twitch:uid:{user_id}") — matches creator-paywall twitchIdentity.ts */
+export function generateTwitchUidIdentityHash(
+  userId: string | number
+): `0x${string}` | null {
+  const id = String(userId).trim();
+  if (!id) return null;
+  return keccak256(toUtf8Bytes(buildTwitchUidIdentity(id))) as `0x${string}`;
+}
+
+export type TwitchHelixUser = {
+  userId: string;
+  login: string;
+};
+
+/** Resolve authenticated Twitch user from Helix GET /users (OAuth bearer). */
+export async function fetchTwitchAuthenticatedUser(
+  accessToken: string,
+  clientId: string
+): Promise<TwitchHelixUser | null> {
+  const res = await fetch('https://api.twitch.tv/helix/users', {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Client-Id': clientId,
+    },
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as { data?: Array<{ id?: string; login?: string }> };
+  const user = json.data?.[0];
+  if (!user?.id) return null;
+  return {
+    userId: String(user.id),
+    login: String(user.login ?? '').toLowerCase(),
+  };
+}
+

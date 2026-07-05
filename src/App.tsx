@@ -34,6 +34,8 @@ import { LeptonPrBountyRoute } from '@/pages/LeptonPrBountyRoute';
 import { LeptonCitationRoute } from '@/pages/LeptonCitationRoute';
 import { LeptonHubRoute } from '@/pages/LeptonHubRoute';
 import { LeptonRepoSettingsRoute } from '@/pages/LeptonRepoSettingsRoute';
+import { LeptonTwitchCampaignRoute } from '@/pages/LeptonTwitchCampaignRoute';
+import { LeptonTwitchReceiptsRoute } from '@/pages/LeptonTwitchReceiptsRoute';
 import { ArchitectureRoute } from '@/pages/ArchitectureRoute';
 import { isZkHost, toZkUrl } from '@/lib/runtime/zkHost';
 
@@ -72,6 +74,8 @@ function SharedAppRoutes({ zkMode }: { zkMode: boolean }) {
       <Route path="/lepton/pr-bounty" element={zkMode ? <LeptonPrBountyRoute /> : <ZkHostRedirect />} />
       <Route path="/lepton/repo-settings" element={zkMode ? <LeptonRepoSettingsRoute /> : <ZkHostRedirect />} />
       <Route path="/lepton/citation" element={zkMode ? <LeptonCitationRoute /> : <ZkHostRedirect />} />
+      <Route path="/lepton/twitch/campaign" element={zkMode ? <LeptonTwitchCampaignRoute /> : <ZkHostRedirect />} />
+      <Route path="/lepton/twitch/receipts" element={zkMode ? <LeptonTwitchReceiptsRoute /> : <ZkHostRedirect />} />
       <Route path="/zksend" element={<Navigate to="/payments" replace />} />
       <Route path="/Circle-Mint" element={<CircleMintRoute />} />
       <Route path="/blog" element={<BlogRoute />} />

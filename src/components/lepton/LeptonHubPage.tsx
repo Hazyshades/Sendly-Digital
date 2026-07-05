@@ -12,6 +12,7 @@ import {
   Rocket,
   Settings,
   Tag,
+  Radio,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -27,6 +28,7 @@ import {
   type PrPayoutPolicy,
   type PrPayoutReceipt,
 } from '@/lib/paywall/prPayoutAPI';
+import { fetchTwitchPayoutReceipts } from '@/lib/paywall/twitchPayoutAPI';
 
 const DEMO_ARTICLE_PATH = '/pay/leonissx/lepton-agents-hackathon';
 
@@ -292,6 +294,7 @@ export function LeptonHubPage() {
   const [badges, setBadges] = useState<Record<string, string | null>>({});
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [receiptsBadge, setReceiptsBadge] = useState<string | null>(null);
+  const [twitchReceiptsBadge, setTwitchReceiptsBadge] = useState<string | null>(null);
   const [receipts, setReceipts] = useState<PrPayoutReceipt[]>([]);
   const [policy, setPolicy] = useState<PrPayoutPolicy | null>(null);
 
@@ -304,6 +307,16 @@ export function LeptonHubPage() {
         const paid = rows.filter((r) => r.status === 'paid').length;
         const label = paid > 0 ? `${paid} paid` : rows.length > 0 ? `${rows.length} events` : null;
         if (label) setReceiptsBadge(label);
+      })
+      .catch(() => {
+        /* silent fallback */
+      });
+
+    void fetchTwitchPayoutReceipts()
+      .then((rows) => {
+        const paid = rows.filter((r) => r.status === 'paid').length;
+        const label = paid > 0 ? `${paid} raids paid` : rows.length > 0 ? `${rows.length} events` : null;
+        if (label) setTwitchReceiptsBadge(label);
       })
       .catch(() => {
         /* silent fallback */
@@ -398,6 +411,68 @@ export function LeptonHubPage() {
           </div>
           <div className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600">
             View receipts
+            <ArrowRight className="size-4 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:translate-x-0.5" />
+          </div>
+        </Link>
+      </section>
+
+      {/* Twitch Stream Treasury */}
+      <section className="grid gap-4 lg:grid-cols-2">
+        <Link
+          to="/lepton/twitch/campaign"
+          style={{ animationDelay: '180ms' }}
+          className="lepton-reveal group flex flex-col justify-between rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-card p-6 shadow-circle-card transition duration-200 [transition-timing-function:var(--ease-out)] hover:border-violet-200 hover:shadow-md motion-safe:hover:-translate-y-0.5 active:scale-[0.99]"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-sm">
+                <Radio className="size-6" />
+              </div>
+              <ActorTag actor="maintainer" />
+            </div>
+            <div className="space-y-1.5">
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                Twitch Raid-to-Pay
+              </h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Pay raiding streamers when they raid your channel — campaign budget, EventSub
+                webhooks, uid-canonical claims on Arc.
+              </p>
+            </div>
+          </div>
+          <div className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-violet-600">
+            Campaign setup
+            <ArrowRight className="size-4 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:translate-x-0.5" />
+          </div>
+        </Link>
+
+        <Link
+          to="/lepton/twitch/receipts"
+          style={{ animationDelay: '240ms' }}
+          className="lepton-reveal group flex flex-col justify-between rounded-2xl border bg-card p-6 shadow-circle-card transition duration-200 [transition-timing-function:var(--ease-out)] hover:border-violet-200 hover:shadow-md motion-safe:hover:-translate-y-0.5 active:scale-[0.99]"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-violet-50 text-violet-600">
+                <Receipt className="size-6" />
+              </div>
+              {twitchReceiptsBadge && (
+                <Badge variant="secondary" className="text-[10px]">
+                  {twitchReceiptsBadge}
+                </Badge>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                Twitch receipts
+              </h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Raid payout ledger — raider id, viewers, skip reasons, tx hash, claim status.
+              </p>
+            </div>
+          </div>
+          <div className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-violet-600">
+            View raid receipts
             <ArrowRight className="size-4 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:translate-x-0.5" />
           </div>
         </Link>
