@@ -1,7 +1,5 @@
 // Agent Access panel temporarily hidden.
-// Reason: the Try-it UI displayed the Supabase anon key (публичный ключ, защищён RLS,
-// не является секретом), но на демо это выглядело настораживающе.
-// Чтобы вернуть панель — раскомментируй реализацию ниже и удали заглушку.
+// Reason: the Try-it UI displayed the Supabase anon key 
 
 export function AgentAccessPanel(_props: { slug: string }) {
   return null;

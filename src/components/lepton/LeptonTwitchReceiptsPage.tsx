@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,17 @@ import { ARC_CHAIN_ID, getExplorerTxUrl } from '@/lib/web3/constants';
 
 const linkClass = 'text-primary underline-offset-2 hover:underline';
 
+type TwitchReceiptKindFilter = 'all' | 'raid';
+
+const FILTER_OPTIONS: Array<{ value: TwitchReceiptKindFilter; label: string }> = [
+  { value: 'all', label: 'All' },
+  { value: 'raid', label: 'Raid-to-Pay' },
+];
+
+function parseTwitchKindFilter(raw: string | null): TwitchReceiptKindFilter {
+  return raw === 'raid' ? 'raid' : 'all';
+}
+
 function statusClass(status: string): string {
   if (status === 'paid') return 'text-emerald-600';
   if (status.startsWith('skipped')) return 'text-amber-600';
@@ -21,8 +32,11 @@ function statusClass(status: string): string {
 }
 
 export function LeptonTwitchReceiptsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [receipts, setReceipts] = useState<TwitchPayoutReceipt[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const activeFilter = parseTwitchKindFilter(searchParams.get('kind'));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -39,13 +53,27 @@ export function LeptonTwitchReceiptsPage() {
     void load();
   }, [load]);
 
+  const filteredReceipts = useMemo(() => {
+    if (activeFilter === 'all') return receipts;
+    // All Twitch receipts are raid today; filter reserved for future kinds
+    return receipts;
+  }, [receipts, activeFilter]);
+
+  const setFilter = (kind: TwitchReceiptKindFilter) => {
+    if (kind === 'all') {
+      setSearchParams({});
+    } else {
+      setSearchParams({ kind });
+    }
+  };
+
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Twitch Raid Receipts</h1>
           <p className="text-sm text-muted-foreground">
-            On-chain proof for raid-to-pay events — raider, viewers, tx hash, claim status.
+            On-chain proof for raid-to-pay events - raider, viewers, tx hash, claim status.
           </p>
         </div>
         <div className="flex gap-2">
@@ -58,14 +86,29 @@ export function LeptonTwitchReceiptsPage() {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        {FILTER_OPTIONS.map((opt) => (
+          <Button
+            key={opt.value}
+            variant={activeFilter === opt.value ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilter(opt.value)}
+          >
+            {opt.label}
+          </Button>
+        ))}
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Raid payouts</CardTitle>
+          <CardTitle className="text-base">
+            {activeFilter === 'raid' ? 'Raid payouts' : 'All Twitch payouts'}
+          </CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
-          ) : receipts.length === 0 ? (
+          ) : filteredReceipts.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No raid payouts yet. Trigger a <code className="text-xs">channel.raid</code> EventSub
               event or use Twitch CLI mock against the webhook.
@@ -83,7 +126,7 @@ export function LeptonTwitchReceiptsPage() {
                 </tr>
               </thead>
               <tbody>
-                {receipts.map((r) => (
+                {filteredReceipts.map((r) => (
                   <tr
                     key={`${r.campaignId}-${r.recipientUserId}-${r.createdAt}`}
                     className="border-b border-border/50"

@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "npm run sync:agent-docs && tsc && vite build",
+    "sync:agent-docs": "node scripts/sync-agent-docs.mjs",
     "preview": "vite preview",
     "circle:create-wallet": "node scripts/circleCreateWallet.mjs",
     "deploy:tempo": "node contracts/deploy/deployToTempo.mjs",

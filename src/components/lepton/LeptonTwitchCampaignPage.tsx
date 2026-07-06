@@ -132,7 +132,7 @@ export function LeptonTwitchCampaignPage() {
         <div>
           <h1 className="text-2xl font-semibold">Twitch Raid Campaign</h1>
           <p className="text-sm text-muted-foreground">
-            Create a raid-to-pay campaign — incoming raids on the target channel pay the raiding
+            Create a raid-to-pay campaign - incoming raids on the target channel pay the raiding
             streamer in USDC on Arc.
           </p>
         </div>

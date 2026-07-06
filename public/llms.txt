@@ -1,0 +1,752 @@
+# Sendly Creator Paywall
+
+Agent documentation:
+
+`https://sendly.digital/llm.txt`
+
+OpenAPI spec:
+
+`https://sendly.digital/openapi.json`
+
+---
+
+## Arc USDC / ZkSend / Social Identity Settlement
+
+Sendly Creator Paywall uses HTTP `402 Payment Required` to unlock paid content through Arc Testnet USDC settlement.
+
+Payments are executed with:
+
+`ZkSend.createPayment`
+
+The recipient is a social identity, not a wallet address.
+
+Canonical recipient format:
+
+`<platform>:<handle>`
+
+Supported platforms:
+
+`twitter`, `github`, `twitch`, `gmail`, `linkedin`, `telegram`
+
+Important: the platform is not always `github`. Always read the recipient platform from the `402` response:
+
+`paywall.recipient.platform`
+
+Using the wrong platform will produce a payment that does not match the expected `identityHash`.
+
+---
+
+# Base URL
+
+`https://eiiprokgcuksmunmszxf.supabase.co/functions/v1/creator-paywall`
+
+---
+
+# Settlement
+
+Chain:
+
+`Arc Testnet`
+
+Chain ID:
+
+`5042002`
+
+USDC token:
+
+`0x3600000000000000000000000000000000000000`
+
+ZkSend contract:
+
+`0x33783a585504025e66b8f8f6451de0c23158a3cb`
+
+Settlement method:
+
+`ZkSend.createPayment`
+
+Use USDC atomic units, not ETH wei.
+
+USDC has 6 decimals.
+
+Examples:
+
+`0.5 USDC = 500000`
+`1 USDC = 1000000`
+`2.5 USDC = 2500000`
+
+---
+
+# Paywall Unlock Flow
+
+## 1. Request paid content
+
+`GET /paywall/{slug}`
+
+Example:
+
+`GET https://eiiprokgcuksmunmszxf.supabase.co/functions/v1/creator-paywall/paywall/leonissx/lepton-agents-hackathon`
+
+Demo article (live): **5 USDC**, recipient platform `twitter`, handle `leonissx`.
+
+---
+
+## 2. If response is HTTP 402, read payment instructions
+
+The `402` response contains the paywall object.
+
+Required fields:
+
+`paywall.slug`
+`paywall.priceUsdc`
+`paywall.recipient.platform`
+`paywall.recipient.handle`
+`paywall.recipient.identityHash`
+`paywall.settlement.chainId`
+`paywall.settlement.usdcAddress`
+`paywall.settlement.contractAddress`
+`paywall.settlement.method`
+
+Example recipient:
+
+```json
+{
+  "platform": "github",
+  "handle": "hazyshades",
+  "identity": "github:hazyshades",
+  "identityHash": "0x..."
+}
+```
+
+Important:
+
+Do not assume the recipient platform. Use the exact value from:
+
+`paywall.recipient.platform`
+
+Examples:
+
+`github`
+`twitter`
+`twitch`
+`telegram`
+
+---
+
+## 3. Execute payment on Arc
+
+Approve USDC spending first.
+
+Approve:
+
+`USDC.approve(paywall.settlement.contractAddress, amountAtomic)`
+
+Then call:
+
+`ZkSend.createPayment(identityHash, platform, amountAtomic, usdcAddress)`
+
+Where:
+
+`identityHash = paywall.recipient.identityHash`
+`platform = paywall.recipient.platform`
+`amountAtomic = priceUsdc * 1_000_000`
+`usdcAddress = paywall.settlement.usdcAddress`
+
+Agent execution may use Circle Wallet execution if available.
+
+Circle Agent Stack hint:
+
+`circle wallet execute --chain ARC-TESTNET`
+
+The Circle command is optional implementation detail. The protocol requirement is the Arc USDC ZkSend transaction.
+
+---
+
+## 4. Optionally index the payment
+
+After the transaction is submitted, index the payment if the payment index service is available.
+
+Recommended indexed fields:
+
+`paymentId`
+`txHash`
+`slug`
+`platform`
+`handle`
+`identityHash`
+`amountUsdc`
+`amountAtomic`
+`chainId`
+`source`
+
+If using `/zk-sender/payments`, make sure the endpoint is available in the current deployment or documented as a separate service.
+
+---
+
+## 5. Retry content request with payment headers
+
+Retry:
+
+`GET /paywall/{slug}`
+
+Headers:
+
+`X-Sendly-Payment-Id: <paymentId>`
+`X-Sendly-Tx-Hash: <txHash>`
+`X-Sendly-Source: agent`
+
+Allowed source values:
+
+`agent`
+`human`
+
+---
+
+## 6. Success response
+
+If payment is valid, the server returns HTTP `200` with unlocked content.
+
+The response contains:
+
+`content_body`
+
+---
+
+# Creator Profiles
+
+## Public creator profile
+
+`GET /creator/{platform}/{handle}`
+
+Example:
+
+`GET /creator/github/hazyshades`
+
+Returns public creator profile and article metadata.
+
+Does not return:
+
+`content_body`
+
+Use this endpoint for browsing a creator’s active articles.
+
+---
+
+## Create or update creator profile
+
+`POST /creator/profile`
+
+Idempotent upsert.
+
+GitHub ownership is server-verified.
+
+Other supported platforms are OAuth-attested.
+
+---
+
+## Update creator profile
+
+`PATCH /creator/profile`
+
+Owner-only update.
+
+Editable fields:
+
+`display_name`
+`bio`
+`avatar_url`
+
+---
+
+# PR Payout Agent
+
+Hero use case for Lepton.
+
+Maintainers can configure a repo treasury policy. When eligible GitHub events happen, Sendly pays contributors by GitHub identity using ZkSend.
+
+Recipient format:
+
+`github:<author_login>`
+
+Contributor does not need to provide a wallet upfront.
+
+Contributor claims through Sendly zkTLS GitHub ownership verification.
+
+---
+
+## 1. Configure payout policy
+
+`POST /pr-payout-policy`
+
+Example:
+
+`POST https://eiiprokgcuksmunmszxf.supabase.co/functions/v1/creator-paywall/pr-payout-policy`
+
+Core fields (camelCase in JSON body):
+
+`repoId`
+`repoFullName`
+`perPrAmountUsdc`
+`dailyCapUsdc`
+`budgetRemainingUsdc`
+`active`
+`bountyEnabled`
+`releasePoolUsdc`
+`splitMode`
+`reviewAmountUsdc`
+`reviewMinChars`
+`maxReviewersPerPr`
+
+Live demo policy (`Hazyshades/Sendly-Test-Repo`):
+
+```json
+{
+  "repoId": 1287958084,
+  "repoFullName": "Hazyshades/Sendly-Test-Repo",
+  "perPrAmountUsdc": 10,
+  "dailyCapUsdc": 50,
+  "budgetRemainingUsdc": 120,
+  "active": true,
+  "bountyEnabled": true,
+  "releasePoolUsdc": 20,
+  "splitMode": "equal",
+  "reviewAmountUsdc": 15,
+  "reviewMinChars": 20,
+  "maxReviewersPerPr": 2
+}
+```
+
+Payout kinds: merge **10 USDC** · release pool **20 USDC** · review **15 USDC** per reviewer (max 2).
+
+---
+
+## 2. GitHub webhook
+
+`POST /webhooks/github`
+
+Example:
+
+`POST https://eiiprokgcuksmunmszxf.supabase.co/functions/v1/creator-paywall/webhooks/github`
+
+Required header:
+
+`X-GitHub-Event`
+
+Security header:
+
+`X-Hub-Signature-256`
+
+Signature:
+
+HMAC-SHA256 over the raw request body.
+
+Supported events:
+
+`pull_request`
+`issues`
+`release`
+`pull_request_review`
+
+Unknown events are ignored.
+
+---
+
+## 3. Merge payout
+
+Trigger:
+
+`pull_request closed` with `merged=true`
+
+Agent checks:
+
+repo policy
+budget
+caps
+bot filtering
+self-merge rules
+anti-abuse rules
+
+If eligible, the agent pays:
+
+`github:<pull_request_author>`
+
+---
+
+## 4. Receipts
+
+`GET /pr-payouts`
+
+Returns payout receipts for all payout kinds.
+
+Receipt fields include:
+
+`kind`
+`tx_hash`
+`claim_status`
+`skip_reason`
+
+Supported kinds:
+
+`merge`
+`bounty`
+`release`
+`review`
+
+---
+
+# Repo Treasury Events
+
+GitHub webhook dispatch is based on:
+
+`X-GitHub-Event`
+
+Configure the demo repo webhook for:
+
+`pull_request`
+`issues`
+`release`
+`pull_request_review`
+
+---
+
+## Issue Bounty Escrow
+
+Create a GitHub issue label:
+
+`bounty:<amount>`
+
+Example:
+
+`bounty:2`
+
+When a merged PR closes the issue using:
+
+`Fixes #N`
+`Closes #N`
+`Resolves #N`
+
+the PR author is paid the bounty.
+
+Rules:
+
+The bounty label must exist before merge.
+Each issue can be paid once.
+The PR author must pass anti-abuse checks.
+
+---
+
+## Release Dividend
+
+Trigger:
+
+`release published`
+
+The `release_pool_usdc` is split among distinct non-bot PR authors since the previous release.
+
+Requires:
+
+`GITHUB_API_TOKEN`
+
+Used for GitHub compare/history lookup.
+
+---
+
+## Review-to-Earn
+
+Trigger:
+
+`pull_request_review submitted`
+
+Eligible reviews:
+
+`changes_requested`
+`approved` with body length greater than or equal to `review_min_chars`
+
+Rules:
+
+Reviewer cannot be the PR author.
+Reviewers are capped by `max_reviewers_per_pr`.
+Review payout is escrowed first.
+Reviewers are paid when the PR merges.
+
+---
+
+# Twitch Stream Treasury / Raid-to-Pay
+
+Hero Twitch use case for Lepton.
+
+Canonical Twitch identity:
+
+`twitch:uid:{user_id}`
+
+Canonical identity hash:
+
+`keccak256("twitch:uid:{user_id}")`
+
+Twitch login is a snapshot only. The canonical recipient is based on Twitch user ID, not mutable login.
+
+---
+
+## 1. Create campaign
+
+`POST /twitch/campaigns`
+
+Example body:
+
+```json
+{
+  "sponsorId": "lepton-demo",
+  "broadcasterUserId": "126247254",
+  "broadcasterLoginSnapshot": "kurdypel",
+  "name": "Raid-to-Pay Demo",
+  "totalBudgetUsdc": 10,
+  "status": "active"
+}
+```
+
+---
+
+## 2. Set raid payout policy
+
+`POST /twitch/payout-policy`
+
+Example body:
+
+```json
+{
+  "campaignId": "7fa09b5d-222c-43f3-9b64-687d7bb68b39",
+  "minViewers": 5,
+  "ratePerViewerUsdc": 0.01,
+  "maxPerEventUsdc": 2,
+  "maxPerDayUsdc": 10,
+  "enabled": true
+}
+```
+
+Live formula example: 25 viewers → `min(25 * 0.01, 2)` = **0.25 USDC** to raider.
+
+---
+
+## 3. Twitch EventSub webhook
+
+`POST /webhooks/twitch`
+
+Example:
+
+`POST https://eiiprokgcuksmunmszxf.supabase.co/functions/v1/creator-paywall/webhooks/twitch`
+
+Supported EventSub message types:
+
+`webhook_callback_verification`
+`notification`
+`revocation`
+
+For verification, return the Twitch challenge.
+
+For notifications, handle:
+
+`channel.raid`
+
+Security header:
+
+`Twitch-Eventsub-Message-Signature`
+
+Signature payload:
+
+`message_id + timestamp + raw_body`
+
+---
+
+## 4. Raid payout
+
+On `channel.raid`, pay the raider:
+
+`twitch:uid:{from_broadcaster_user_id}`
+
+The payout comes from the campaign budget.
+
+Formula:
+
+`amount = min(viewers * rate_per_viewer, max_per_event)`
+
+Skip payout if:
+
+`viewers < min_viewers`
+
+Anti-abuse checks:
+
+self raid
+allowlist
+one payout per raider per campaign per UTC day
+campaign budget cap
+policy daily cap
+
+Feature flag:
+
+`TWITCH_RAID_PAYOUTS_ENABLED=true`
+
+The verification challenge should still be accepted even when raid payout processing is disabled.
+
+---
+
+## 5. Twitch receipts
+
+`GET /twitch-payouts`
+
+Returns raid payout receipts.
+
+Receipt fields include:
+
+`tx_hash`
+`claim_status`
+`skip_reason`
+
+---
+
+## 6. Twitch identity lookup
+
+`GET /twitch/identity/{userId}`
+
+Returns canonical Twitch identity data:
+
+`twitch:uid:{user_id}`
+`identityHash`
+`login snapshot`
+
+---
+
+## 7. Twitch claim flow
+
+Contributor claims through zkTLS Twitch proof.
+
+Required context message:
+
+`twitch:uid:{id}`
+
+---
+
+# Citation via 402
+
+Citation sources can be paid through the same 402 settlement rail.
+
+Attribution becomes settlement.
+
+---
+
+## 1. Register citation sources
+
+`GET /citation/sources`
+
+`POST /citation/sources`
+
+A citation source can be:
+
+an existing paywall slug
+an external URL registered for attribution
+
+---
+
+## 2. Run demo research agent
+
+`POST /citation/demo-run`
+
+Example body:
+
+```json
+{
+  "question": "What are the latest Sendly payment flows?"
+}
+```
+
+The demo agent pays each registered paywall slug through real Arc transactions and returns a cited answer.
+
+---
+
+## 3. Settlement
+
+Citation payments use the same settlement flow as paywall unlock:
+
+HTTP `402`
+read `paywall.recipient`
+pay through Arc USDC ZkSend
+retry with payment headers
+receive unlocked content or cited result
+
+---
+
+# Pricing
+
+Minimum price:
+
+`0.5 USDC`
+
+Use USDC atomic units when paying:
+
+`0.5 USDC = 500000`
+`1 USDC = 1000000`
+`5 USDC = 5000000`
+`10 USDC = 10000000`
+
+## Live demo snapshot (Jul 2026)
+
+| Surface | Amount |
+| --- | --- |
+| Paywall `leonissx/lepton-agents-hackathon` | 5 USDC |
+| GitHub merge PR | 10 USDC |
+| GitHub release pool | 20 USDC (split) |
+| GitHub review | 15 USDC / reviewer |
+| GitHub daily cap | 50 USDC |
+| Twitch campaign budget | 10 USDC |
+| Twitch raid | 0.01 USDC/viewer, min 5 viewers, cap 2 USDC/event, 10 USDC/day |
+
+Machine-readable: `https://sendly.digital/openapi.json` (see `x-demo-pricing`).
+
+---
+
+# Platform Verification
+
+Supported platforms:
+
+`twitter`
+`github`
+`twitch`
+`gmail`
+`linkedin`
+`telegram`
+
+GitHub ownership is server-verified.
+
+Other platforms are OAuth-attested unless a stronger verification method is configured.
+
+---
+
+# Important Agent Rules
+
+Never assume the platform is GitHub.
+
+Always read:
+
+`paywall.recipient.platform`
+
+Always use the matching identity hash:
+
+`paywall.recipient.identityHash`
+
+Always pay in USDC atomic units.
+
+Do not use ETH wei for USDC amounts.
+
+Always retry the original request with:
+
+`X-Sendly-Payment-Id`
+`X-Sendly-Tx-Hash`
+`X-Sendly-Source`
+
+If the payment succeeds but unlock fails, check:
+
+wrong platform
+wrong identityHash
+wrong amount decimals
+wrong chain
+missing payment index
+missing retry headers
+unsupported source value

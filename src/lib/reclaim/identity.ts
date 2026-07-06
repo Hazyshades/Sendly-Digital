@@ -74,7 +74,7 @@ export function twitchUidHandleSegment(userId: string | number): string {
   return `uid:${String(userId).trim()}`;
 }
 
-/** keccak256("twitch:uid:{user_id}") — matches creator-paywall twitchIdentity.ts */
+/** keccak256("twitch:uid:{user_id}") - matches creator-paywall twitchIdentity.ts */
 export function generateTwitchUidIdentityHash(
   userId: string | number
 ): `0x${string}` | null {

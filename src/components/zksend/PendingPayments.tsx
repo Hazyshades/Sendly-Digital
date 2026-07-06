@@ -694,7 +694,7 @@ export function PendingPayments({
         throw new Error('Connect Twitch to generate proof');
       }
       if (normalizedPlatform === 'twitch' && !twitchResolvedUserId) {
-        throw new Error('Resolving Twitch user id — connect Twitch and retry');
+        throw new Error('Resolving Twitch user id - connect Twitch and retry');
       }
       if (normalizedPlatform === 'github' && !githubAccessToken) {
         throw new Error('Connect GitHub to generate proof');
@@ -1030,7 +1030,7 @@ export function PendingPayments({
         throw new Error('Connect Twitch to generate proof');
       }
       if (normalizedPlatform === 'twitch' && !twitchResolvedUserId) {
-        throw new Error('Resolving Twitch user id — connect Twitch and retry');
+        throw new Error('Resolving Twitch user id - connect Twitch and retry');
       }
       if (normalizedPlatform === 'github' && !githubAccessToken) {
         throw new Error('Connect GitHub to generate proof');

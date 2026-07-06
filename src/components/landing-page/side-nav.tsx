@@ -17,6 +17,7 @@ const navItems = [
   { id: "signals", label: "Gift Cards" },
   { id: "work", label: "Payments" },
   { id: "blog", label: "Blog", href: "/blog" },
+  { id: "lepton", label: "Lepton", href: "/lepton" },
 ]
 
 export function SideNav() {
@@ -79,27 +80,25 @@ export function SideNav() {
           backdropFilter: 'blur(20px)',
         }}
       >
-        <div className="flex items-center gap-1">
-          {navItems.map(({ id, label, href }) =>
-            href ? (
-              <Link
-                key={id}
-                to={href}
-                className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] font-medium text-sm hover:shadow-lg hover:shadow-[#6366f1]/25 transition-[box-shadow] duration-200 ease-[var(--ease-out)] !text-white hover:!text-white"
-              >
-                {label}
-              </Link>
-            ) : (
-              <button
-                key={id}
-                onClick={() => scrollToSection(id)}
-                className="nav-text px-4 py-2 rounded-xl text-sm font-medium text-gray-700 hover:bg-white/90 backdrop-blur-sm transition-[background-color,color] duration-200 ease-[var(--ease-out)]"
-              >
-                {label}
-              </button>
-            )
-          )}
-        </div>
+        {navItems.map(({ id, label, href }) =>
+          href ? (
+            <Link
+              key={id}
+              to={href}
+              className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] font-medium text-sm hover:shadow-lg hover:shadow-[#6366f1]/25 transition-[box-shadow] duration-200 ease-[var(--ease-out)] !text-white hover:!text-white"
+            >
+              {label}
+            </Link>
+          ) : (
+            <button
+              key={id}
+              onClick={() => scrollToSection(id)}
+              className="nav-text px-4 py-2 rounded-xl text-sm font-medium text-gray-700 hover:bg-white/90 backdrop-blur-sm transition-[background-color,color] duration-200 ease-[var(--ease-out)]"
+            >
+              {label}
+            </button>
+          )
+        )}
 
         <Dialog open={launchAppOpen} onOpenChange={setLaunchAppOpen}>
           <button
@@ -118,19 +117,19 @@ export function SideNav() {
               </DialogTitle>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-4 mt-4">
-              <button
-                type="button"
-                disabled
-                className="relative flex flex-col items-center justify-center gap-3 p-5 rounded-2xl bg-white/60 backdrop-blur-sm border-2 border-[#6366f1]/40 shadow-circle-card cursor-not-allowed opacity-60"
-                aria-disabled="true"
+              <Link
+                to="/payments"
+                onClick={() => setLaunchAppOpen(false)}
+                className="relative flex flex-col items-center justify-center gap-3 p-5 rounded-2xl bg-white/80 backdrop-blur-sm border border-gray-200 shadow-circle-card hover:shadow-lg hover:shadow-[#6366f1]/20 transition-[box-shadow,transform] duration-200 ease-[var(--ease-out)] active:scale-[0.97] [@media(hover:hover)_and_(pointer:fine)]:hover:scale-[1.02]"
               >
-                <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-[10px] font-semibold text-white uppercase tracking-wide">
-                  Soon
+                <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-[10px] font-semibold text-white tracking-wide">
+                  New
                 </span>
                 <span className="font-medium text-gray-800">Payments</span>
-              </button>
+              </Link>
               <Link
                 to="/create"
+                onClick={() => setLaunchAppOpen(false)}
                 className="flex flex-col items-center justify-center gap-3 p-5 rounded-2xl bg-white/80 backdrop-blur-sm border border-gray-200 shadow-circle-card hover:shadow-lg hover:shadow-[#6366f1]/20 transition-[box-shadow,transform] duration-200 ease-[var(--ease-out)] active:scale-[0.97] [@media(hover:hover)_and_(pointer:fine)]:hover:scale-[1.02]"
               >
                 <span className="font-medium text-gray-800">NFT</span>
