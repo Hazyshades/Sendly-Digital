@@ -28,12 +28,13 @@ import {
   PaginationEllipsis,
 } from '@/components/ui/pagination';
 import { getLeaderboardSendersGraph, syncLeaderboardGraph, updateZnsDomainsGraph, LeaderboardEntry } from '@/lib/leaderboard';
-import { useAccount } from 'wagmi';
 import { toast } from 'sonner';
 import { getContractBalance, getContractTransactionsCount } from '@/lib/web3/contractBalance';
 import { CONTRACT_ADDRESS, getContractsForChain, ARC_CHAIN_ID } from '@/lib/web3/constants';
 import { isZkHost } from '@/lib/runtime/zkHost';
 import { getZkSendLeaderboardEntriesFromStats } from '@/lib/supabase/zksendPayments';
+import { useWalletSourcePreference } from '@/hooks/useWalletSourcePreference';
+import { WalletSourceToggle } from '@/components/zksend/WalletSourceToggle';
 
 const ITEMS_PER_PAGE = 30;
 
@@ -136,8 +137,15 @@ export function Leaderboard() {
   const [tvlLoading, setTvlLoading] = useState(false);
   const [contractTransactionsCount, setContractTransactionsCount] = useState<number | null>(null);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
-  const { address } = useAccount();
-  const normalizedAccount = address?.toLowerCase() ?? null;
+  const {
+    walletSource,
+    setWalletSource,
+    activeAddress,
+    hasExternalWallet,
+    hasInternalWallet,
+  } = useWalletSourcePreference();
+  const showWalletToggle = hasExternalWallet && hasInternalWallet;
+  const normalizedAccount = activeAddress?.toLowerCase() ?? null;
 
   const terminology = useMemo(() => {
     const isZk = isZkHost();
@@ -932,6 +940,14 @@ export function Leaderboard() {
 
         {/* Search and filters */}
         <div className="flex flex-col sm:flex-row gap-3 pb-4">
+          {showWalletToggle ? (
+            <WalletSourceToggle
+              value={walletSource}
+              onChange={setWalletSource}
+              hasCircleWallet={hasInternalWallet}
+              compact
+            />
+          ) : null}
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
