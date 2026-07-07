@@ -106,7 +106,7 @@ export const clearTelegramToken = (): void => {
     localStorage.removeItem('telegram_oauth');
     localStorage.removeItem('telegram_oauth_token');
     localStorage.removeItem('telegram_oauth_redirect');
-    toast.success('Telegram token cleared');
+    toast.success('Telegram account disconnected');
   } catch (error) {
     console.error('[zkSEND] Failed to clear Telegram token:', error);
     toast.error('Failed to clear Telegram token');

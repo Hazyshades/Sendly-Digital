@@ -122,7 +122,7 @@ export const clearGithubToken = (): void => {
     sessionStorage.removeItem('github_oauth_state');
     sessionStorage.removeItem('github_oauth_redirect');
     sessionStorage.removeItem('github_code_verifier');
-    toast.success('GitHub token cleared');
+    toast.success('GitHub account disconnected');
   } catch (error) {
     console.error('[zkSEND] Failed to clear GitHub token:', error);
     toast.error('Failed to clear GitHub token');

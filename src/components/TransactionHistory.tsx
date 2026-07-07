@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Calendar, TrendingUp, Gift, ArrowUpRight, ArrowDownLeft, Download, RefreshCw, Search, CheckCircle, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,12 +10,14 @@ import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/
 import { Spinner } from '@/components/ui/spinner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { useAccount, useChainId } from 'wagmi';
+import { useChainId } from 'wagmi';
 import { createWalletClient, custom } from 'viem';
 import { arcTestnet, chains } from '@/lib/web3/wagmiConfig';
 import { getExplorerTxUrl, getContractsForChain, ARC_CHAIN_ID } from '@/lib/web3/constants';
 import web3Service from '@/lib/web3/web3Service';
-import { GiftCardsService } from '@/lib/supabase/giftCards';
+import { GiftCardsService, getMyCardsDataSource } from '@/lib/supabase/giftCards';
+import { useWalletSourcePreference } from '@/hooks/useWalletSourcePreference';
+import { WalletSourceToggle } from '@/components/zksend/WalletSourceToggle';
 import { formatDisplayAmount, formatTokenAmountString } from '@/lib/tokenAmount';
 import { isZkHost } from '@/lib/runtime/zkHost';
 import {
@@ -57,6 +60,20 @@ function normalizeTxHash(h: string | null | undefined): string {
   const s = h.trim();
   return s.length === 66 && s.startsWith('0x') ? s : '0x';
 }
+
+type GiftCardHistoryRow = {
+  tokenId: string;
+  amount: string;
+  token: string;
+  recipient: string;
+  sender: string;
+  message: string;
+  redeemed: boolean;
+  type: 'sent' | 'received';
+  txHash: string | null;
+  createdAt: string | null;
+  recipient_type?: string | null;
+};
 
 function normalizePlatform(p?: string | null): SocialPlatform {
   const s = (p ?? '').trim().toLowerCase();
@@ -134,7 +151,16 @@ function toTransactionFromReceived(row: ZkSendPaymentRow): Transaction {
 }
 
 export function TransactionHistory() {
-  const { address, isConnected } = useAccount();
+  const {
+    walletSource,
+    setWalletSource,
+    activeAddress,
+    hasExternalWallet,
+    hasInternalWallet,
+    hasSocialIdentity,
+    checkingWallet,
+  } = useWalletSourcePreference();
+  const showWalletToggle = hasExternalWallet && hasInternalWallet;
   const connectedChainId = useChainId();
   const activeChainId = connectedChainId || ARC_CHAIN_ID;
   const activeChain = useMemo(
@@ -162,7 +188,7 @@ export function TransactionHistory() {
   // Add refs to prevent duplicate requests
   const isFetchingRef = useRef(false);
   const lastAddressRef = useRef<string | null>(null);
-  const lastConnectionStateRef = useRef<boolean | null>(null);
+  const lastWalletSourceRef = useRef<string | null>(null);
   const lastChainIdRef = useRef<number | null>(null);
   
   // Add data cache (increased cache time to 5 minutes)
@@ -181,31 +207,40 @@ export function TransactionHistory() {
   });
 
   useEffect(() => {
-    // Check if important parameters have actually changed
-    const addressChanged = lastAddressRef.current !== address;
-    const connectionChanged = lastConnectionStateRef.current !== isConnected;
+    if (checkingWallet) {
+      return;
+    }
+
+    const addressChanged = lastAddressRef.current !== activeAddress;
+    const walletSourceChanged = lastWalletSourceRef.current !== walletSource;
     const chainChanged = lastChainIdRef.current !== activeChainId;
-    
-    // Update refs
-    lastAddressRef.current = address || null;
-    lastConnectionStateRef.current = isConnected;
+
+    lastAddressRef.current = activeAddress;
+    lastWalletSourceRef.current = walletSource;
     lastChainIdRef.current = activeChainId;
-    
-    // If already loading data, don't make duplicate request
+
     if (isFetchingRef.current) {
       return;
     }
-    
-    // If parameters haven't changed, don't make request
-    if (!addressChanged && !connectionChanged && !chainChanged) {
+
+    if (!addressChanged && !walletSourceChanged && !chainChanged) {
       return;
     }
-    
-    if (isConnected && address) {
-      fetchData();
+
+    if (addressChanged || walletSourceChanged) {
+      dataCacheRef.current = {
+        address: null,
+        chainId: null,
+        analytics: null,
+        transactions: null,
+        timestamp: 0,
+      };
+    }
+
+    if (activeAddress) {
+      void fetchData();
     } else {
       setLoading(false);
-      // Reset data if wallet is not connected
       setAnalytics({
         totalSent: '0',
         totalReceived: '0',
@@ -213,19 +248,19 @@ export function TransactionHistory() {
         cardsSent: 0,
         cardsReceived: 0,
         averageAmount: '0',
-        topCurrency: 'USDC'
+        topCurrency: 'USDC',
       });
       setTransactions([]);
     }
-  }, [isConnected, address, activeChainId]);
+  }, [checkingWallet, activeAddress, walletSource, activeChainId]);
 
   const zkSendFilter = useMemo(() => ({
     chainId: String(activeChainId),
     contractAddress: (getContractsForChain(activeChainId).zksend ?? '').toLowerCase(),
   }), [activeChainId]);
 
-  const fetchZkSendData = async () => {
-    if (!address || isFetchingRef.current) return;
+  const fetchZkSendData = async (queryAddress: string) => {
+    if (!queryAddress || isFetchingRef.current) return;
     if (!zkSendFilter.contractAddress) {
       setAnalytics({
         totalSent: '0',
@@ -244,8 +279,8 @@ export function TransactionHistory() {
       isFetchingRef.current = true;
       setLoading(true);
       const [sentRows, receivedRows] = await Promise.all([
-        getZkSendPaymentsBySender(address, zkSendFilter),
-        getZkSendPaymentsByRecipientWallet(address, zkSendFilter),
+        getZkSendPaymentsBySender(queryAddress, zkSendFilter),
+        getZkSendPaymentsByRecipientWallet(queryAddress, zkSendFilter),
       ]);
 
       const sentTxs: Transaction[] = sentRows.map((row) => toTransactionFromSent(row));
@@ -304,7 +339,7 @@ export function TransactionHistory() {
       setAnalytics(newAnalytics);
       setTransactions(allTxs);
       dataCacheRef.current = {
-        address: address ?? null,
+        address: queryAddress,
         chainId: activeChainId,
         analytics: newAnalytics,
         transactions: allTxs,
@@ -331,8 +366,127 @@ export function TransactionHistory() {
     }
   };
 
+  const fetchSupabaseGiftCardHistory = async (queryAddress: string): Promise<GiftCardHistoryRow[]> => {
+    const sentAmountUnit = getMyCardsDataSource() === 'graph' ? 'micro' : 'human';
+    const [supabaseReceivedCards, supabaseSentCards] = await Promise.all([
+      GiftCardsService.getCardsByRecipientForMyCards(queryAddress, activeChainId),
+      GiftCardsService.getCardsBySenderForMyCards(queryAddress, activeChainId),
+    ]);
+
+    const receivedCards = supabaseReceivedCards.map((card) => ({
+      tokenId: card.token_id,
+      amount: formatTokenAmountString(card.amount, { unit: sentAmountUnit }),
+      token: card.currency,
+      recipient: card.recipient_address || queryAddress,
+      sender: card.sender_address,
+      message: card.message || '',
+      redeemed: card.redeemed,
+      type: 'received' as const,
+      txHash: card.tx_hash || null,
+      createdAt: card.created_at || null,
+      recipient_type: card.recipient_type,
+    }));
+
+    const sentCards = supabaseSentCards.map((card) => ({
+      tokenId: card.token_id,
+      amount: formatTokenAmountString(card.amount, { unit: sentAmountUnit }),
+      token: card.currency,
+      recipient: card.recipient_username || card.recipient_address || 'Unknown',
+      sender: card.sender_address,
+      message: card.message || '',
+      redeemed: card.redeemed,
+      type: 'sent' as const,
+      txHash: card.tx_hash || null,
+      createdAt: card.created_at || null,
+      recipient_type: card.recipient_type,
+    }));
+
+    return [...receivedCards, ...sentCards];
+  };
+
+  const applyGiftCardHistory = (allCards: GiftCardHistoryRow[]) => {
+    let totalSent = 0;
+    let totalReceived = 0;
+    let totalRedeemed = 0;
+    let cardsSent = 0;
+    let cardsReceived = 0;
+    const currencyCounts: Record<TransactionCurrency, number> = {
+      USDC: 0,
+      EURC: 0,
+      USYC: 0,
+      PATHUSD: 0,
+      ALPHAUSD: 0,
+      BETAUSD: 0,
+      THETAUSD: 0,
+    };
+
+    allCards.forEach((card) => {
+      const amount = parseFloat(card.amount);
+      const symbol = String(card.token || '').toUpperCase() as keyof typeof currencyCounts;
+      if (currencyCounts[symbol] !== undefined) currencyCounts[symbol]++;
+
+      if (card.type === 'sent') {
+        totalSent += amount;
+        cardsSent++;
+      } else {
+        totalReceived += amount;
+        cardsReceived++;
+        if (card.redeemed) {
+          totalRedeemed += amount;
+        }
+      }
+    });
+
+    const averageAmount =
+      cardsSent + cardsReceived > 0
+        ? ((totalSent + totalReceived) / (cardsSent + cardsReceived)).toFixed(2)
+        : '0';
+    const currencyOrder: Array<keyof typeof currencyCounts> = [
+      'USDC', 'EURC', 'USYC', 'PATHUSD', 'ALPHAUSD', 'BETAUSD', 'THETAUSD',
+    ];
+    const topCurrency = currencyOrder.reduce((prev, curr) => {
+      return currencyCounts[curr] > currencyCounts[prev] ? curr : prev;
+    }, currencyOrder[0]);
+
+    const newAnalytics: Analytics = {
+      totalSent: totalSent.toFixed(2),
+      totalReceived: totalReceived.toFixed(2),
+      totalRedeemed: totalRedeemed.toFixed(2),
+      cardsSent,
+      cardsReceived,
+      averageAmount,
+      topCurrency,
+    };
+
+    const blockchainTransactions: Transaction[] = allCards.map((card) => {
+      const txHashRaw = card.txHash;
+      const txHash =
+        txHashRaw && txHashRaw.length === 66 && txHashRaw.startsWith('0x') ? txHashRaw : null;
+      const timestamp = card.createdAt
+        ? new Date(card.createdAt).toISOString()
+        : new Date().toISOString();
+
+      return {
+        id: `tx_${card.tokenId}_${card.type}`,
+        type: card.type === 'sent' ? 'sent' : card.redeemed ? 'redeemed' : 'received',
+        amount: card.amount,
+        currency: card.token as Transaction['currency'],
+        counterpart: card.type === 'sent' ? card.recipient : card.sender,
+        message: card.message,
+        status: card.redeemed ? 'redeemed' : 'completed',
+        timestamp,
+        txHash: txHash || '0x',
+        gasUsed: '0.002',
+        platform: card.type === 'sent' ? normalizePlatform(card.recipient_type) : undefined,
+      };
+    });
+
+    return { newAnalytics, blockchainTransactions };
+  };
+
   const fetchData = async () => {
-    if (!isConnected || !address || isFetchingRef.current) return;
+    const queryAddress = activeAddress;
+    if (!queryAddress || isFetchingRef.current) return;
 
     if (isZkHost()) {
       const cacheAge = Date.now() - dataCacheRef.current.timestamp;
@@ -340,7 +494,7 @@ export function TransactionHistory() {
       const cachedTransactions = dataCacheRef.current.transactions;
       const cacheValid =
         cacheAge < 300000 &&
-        dataCacheRef.current.address === address &&
+        dataCacheRef.current.address === queryAddress &&
         dataCacheRef.current.chainId === activeChainId &&
         cachedAnalytics != null &&
         cachedTransactions != null;
@@ -350,184 +504,104 @@ export function TransactionHistory() {
         setLoading(false);
         return;
       }
-      await fetchZkSendData();
+      await fetchZkSendData(queryAddress);
       return;
     }
 
-    // Check cache (increased cache time to 5 minutes)
     const cacheAge = Date.now() - dataCacheRef.current.timestamp;
     const cacheValid =
       cacheAge < 300000 &&
-      dataCacheRef.current.address === address &&
-      dataCacheRef.current.chainId === activeChainId; // 5 minutes
-    
+      dataCacheRef.current.address === queryAddress &&
+      dataCacheRef.current.chainId === activeChainId;
+
     const cachedAnalytics = dataCacheRef.current.analytics;
     const cachedTransactions = dataCacheRef.current.transactions;
     if (cacheValid && cachedAnalytics != null && cachedTransactions != null) {
-      console.log('Using cached data');
       setAnalytics(cachedAnalytics);
       setTransactions(cachedTransactions);
       setLoading(false);
       return;
     }
 
+    const useWeb3Path = walletSource === 'external' && hasExternalWallet;
+
     try {
       isFetchingRef.current = true;
       setLoading(true);
-      console.log('Fetching transaction history for:', address);
-      
-      // Initialize web3 service
-      const walletClient = createWalletClient({
-        chain: activeChain,
-        transport: custom(window.ethereum)
-      });
 
-      await web3Service.initialize(walletClient, address, activeChainId);
-      
-      // Load received gift cards first (usually faster)
-      // Using API to get fresh data without cache
-      console.log('Loading received gift cards...');
-      const receivedCardsData = await web3Service.loadGiftCards(false, true);
-      
-      // Load Supabase cache for received cards to enrich with tx_hash / created_at
-      console.log('Loading received gift cards from Supabase...');
-      const supabaseReceivedCards = await GiftCardsService.getCardsByRecipientForMyCards(address, activeChainId);
-      const supabaseReceivedMap = new Map(
-        supabaseReceivedCards.map(card => [card.token_id, card])
-      );
+      let allCards: GiftCardHistoryRow[];
 
-      // Mark received cards with type 'received' and enrich from Supabase when possible
-      const receivedCards = receivedCardsData.map(card => {
-        const supa = supabaseReceivedMap.get(card.tokenId);
-        return {
-          ...card,
-          amount: formatTokenAmountString(card.amount, { unit: 'human' }),
-          type: 'received' as const,
-          txHash: supa?.tx_hash || (card as any).txHash || null,
-          createdAt: supa?.created_at || null
-        };
-      });
-      
-      // Load sent gift cards from Supabase cache
-      console.log('Loading sent gift cards from Supabase...');
-      const supabaseSentCards = await GiftCardsService.getCardsBySenderForMyCards(address, activeChainId);
-      
-      // Transform Supabase sent cards to match blockchain format
-      const sentCards = supabaseSentCards.map(card => ({
-        tokenId: card.token_id,
-        amount: formatTokenAmountString(card.amount, { unit: 'human' }),
-        token: card.currency,
-        recipient: card.recipient_username || card.recipient_address || 'Unknown',
-        sender: card.sender_address,
-        message: card.message || '',
-        redeemed: card.redeemed,
-        type: 'sent' as const,
-        txHash: card.tx_hash || null, // Use real tx_hash from Supabase
-        createdAt: card.created_at || null // Use real created_at from Supabase
-      }));
-      
-      console.log(`Loaded ${receivedCards.length} received cards and ${sentCards.length} sent cards`);
-      
-      // Combine all cards
-      const allCards = [...receivedCards, ...sentCards];
-      
-      // Calculate analytics from blockchain data
-      let totalSent = 0;
-      let totalReceived = 0;
-      let totalRedeemed = 0;
-      let cardsSent = 0;
-      let cardsReceived = 0;
-      let cardsRedeemed = 0;
-      const currencyCounts: Record<TransactionCurrency, number> = {
-        USDC: 0,
-        EURC: 0,
-        USYC: 0,
-        PATHUSD: 0,
-        ALPHAUSD: 0,
-        BETAUSD: 0,
-        THETAUSD: 0,
-      };
+      if (useWeb3Path) {
+        console.log('Fetching transaction history for:', queryAddress);
 
-      allCards.forEach((card: any) => {
-        const amount = parseFloat(card.amount);
-        const symbol = String(card.token || '').toUpperCase() as keyof typeof currencyCounts;
-        if (currencyCounts[symbol] !== undefined) currencyCounts[symbol]++;
+        const walletClient = createWalletClient({
+          chain: activeChain,
+          transport: custom(window.ethereum),
+        });
 
-        if (card.type === 'sent') {
-          totalSent += amount;
-          cardsSent++;
-        } else {
-          totalReceived += amount;
-          cardsReceived++;
-          
-          if (card.redeemed) {
-            totalRedeemed += amount;
-            cardsRedeemed++;
-          }
-        }
-      });
+        await web3Service.initialize(walletClient, queryAddress, activeChainId);
 
-      const averageAmount = (cardsSent + cardsReceived) > 0 ? 
-        ((totalSent + totalReceived) / (cardsSent + cardsReceived)).toFixed(2) : '0';
-      const currencyOrder: Array<keyof typeof currencyCounts> = ['USDC', 'EURC', 'USYC', 'PATHUSD', 'ALPHAUSD', 'BETAUSD', 'THETAUSD'];
-      const topCurrency = currencyOrder.reduce((prev, curr) => {
-        return currencyCounts[curr] > currencyCounts[prev] ? curr : prev;
-      }, currencyOrder[0]);
+        const receivedCardsData = await web3Service.loadGiftCards(false, true);
+        const supabaseReceivedCards = await GiftCardsService.getCardsByRecipientForMyCards(
+          queryAddress,
+          activeChainId,
+        );
+        const supabaseReceivedMap = new Map(
+          supabaseReceivedCards.map((card) => [card.token_id, card]),
+        );
 
-      const newAnalytics: Analytics = {
-        totalSent: totalSent.toFixed(2),
-        totalReceived: totalReceived.toFixed(2),
-        totalRedeemed: totalRedeemed.toFixed(2),
-        cardsSent,
-        cardsReceived,
-        averageAmount,
-        topCurrency
-      };
+        const receivedCards = receivedCardsData.map((card) => {
+          const supa = supabaseReceivedMap.get(card.tokenId);
+          return {
+            tokenId: card.tokenId,
+            amount: formatTokenAmountString(card.amount, { unit: 'human' }),
+            token: card.token,
+            recipient: card.recipient,
+            sender: card.sender,
+            message: card.message,
+            redeemed: card.redeemed,
+            type: 'received' as const,
+            txHash: supa?.tx_hash || (card as { txHash?: string }).txHash || null,
+            createdAt: supa?.created_at || null,
+            recipient_type: supa?.recipient_type,
+          };
+        });
 
-      console.log('Setting analytics:', newAnalytics);
+        const supabaseSentCards = await GiftCardsService.getCardsBySenderForMyCards(
+          queryAddress,
+          activeChainId,
+        );
+        const sentAmountUnit = getMyCardsDataSource() === 'graph' ? 'micro' : 'human';
+        const sentCards = supabaseSentCards.map((card) => ({
+          tokenId: card.token_id,
+          amount: formatTokenAmountString(card.amount, { unit: sentAmountUnit }),
+          token: card.currency,
+          recipient: card.recipient_username || card.recipient_address || 'Unknown',
+          sender: card.sender_address,
+          message: card.message || '',
+          redeemed: card.redeemed,
+          type: 'sent' as const,
+          txHash: card.tx_hash || null,
+          createdAt: card.created_at || null,
+          recipient_type: card.recipient_type,
+        }));
+
+        allCards = [...receivedCards, ...sentCards];
+      } else {
+        console.log('Fetching Supabase transaction history for:', queryAddress);
+        allCards = await fetchSupabaseGiftCardHistory(queryAddress);
+      }
+
+      const { newAnalytics, blockchainTransactions } = applyGiftCardHistory(allCards);
       setAnalytics(newAnalytics);
-
-      // Create transactions from blockchain data
-      const blockchainTransactions: Transaction[] = allCards.map((card) => {
-        // Use real txHash if available (from Supabase) and it's a full hash (66 chars with 0x)
-        const txHashRaw = (card as any).txHash;
-        const txHash =
-          txHashRaw && txHashRaw.length === 66 && txHashRaw.startsWith('0x')
-            ? txHashRaw
-            : null;
-        
-        // Use real created_at timestamp from Supabase if available, otherwise use current time as fallback
-        const createdAt = (card as any).createdAt;
-        const timestamp = createdAt
-          ? new Date(createdAt).toISOString()
-          : new Date().toISOString();
-        
-        const recipientType = (card as any).recipient_type as string | undefined;
-        return {
-          id: `tx_${card.tokenId}_${card.type}`,
-          type: card.type === 'sent' ? 'sent' : (card.redeemed ? 'redeemed' : 'received'),
-          amount: card.amount,
-          currency: card.token,
-          counterpart: card.type === 'sent' ? card.recipient : card.sender,
-          message: card.message,
-          status: card.redeemed ? 'redeemed' : 'completed',
-          timestamp,
-          txHash: txHash || '0x',
-          gasUsed: '0.002',
-          platform: card.type === 'sent' ? normalizePlatform(recipientType) : undefined,
-        };
-      });
-
-      console.log('Setting transactions:', blockchainTransactions);
       setTransactions(blockchainTransactions);
-      
-      // Save data to cache
+
       dataCacheRef.current = {
-        address: address || null,
+        address: queryAddress,
         chainId: activeChainId,
         analytics: newAnalytics,
         transactions: blockchainTransactions,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -666,7 +740,39 @@ export function TransactionHistory() {
     toast.success('Transactions exported successfully!');
   };
 
-  if (!isConnected) {
+  if (checkingWallet) {
+    return (
+      <div className="p-6 space-y-4">
+        <div className="flex items-center justify-center gap-2">
+          <Spinner className="w-6 h-6" />
+          <p className="text-gray-600">Checking wallet...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (hasSocialIdentity && !hasInternalWallet && !hasExternalWallet) {
+    return (
+      <div className="p-6">
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Calendar className="w-12 h-12 opacity-50" />
+            </EmptyMedia>
+            <EmptyTitle>Create Internal Wallet</EmptyTitle>
+            <EmptyDescription>
+              Your social account is connected. Create an Internal Wallet on Dashboard to view transaction history.
+            </EmptyDescription>
+          </EmptyHeader>
+          <Button asChild className="mt-4">
+            <Link to="/dashboard">Go to Dashboard</Link>
+          </Button>
+        </Empty>
+      </div>
+    );
+  }
+
+  if (!activeAddress) {
     return (
       <div className="p-6">
         <Empty>
@@ -676,7 +782,7 @@ export function TransactionHistory() {
             </EmptyMedia>
             <EmptyTitle>Connect your wallet</EmptyTitle>
             <EmptyDescription>
-              Please connect your wallet to view transaction history
+              Please connect your wallet or social account to view transaction history
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -779,6 +885,13 @@ export function TransactionHistory() {
               </button>
             ))}
           </div>
+          {showWalletToggle ? (
+            <WalletSourceToggle
+              value={walletSource}
+              onChange={setWalletSource}
+              hasCircleWallet={hasInternalWallet}
+            />
+          ) : null}
         </div>
 
         {/* Additional filters (type, currency, date) - compact 
@@ -1051,6 +1164,13 @@ export function TransactionHistory() {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-4 items-center">
+          {showWalletToggle ? (
+            <WalletSourceToggle
+              value={walletSource}
+              onChange={setWalletSource}
+              hasCircleWallet={hasInternalWallet}
+            />
+          ) : null}
           <Input
             placeholder="Search transactions..."
             value={searchQuery}

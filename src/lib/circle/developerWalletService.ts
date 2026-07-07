@@ -181,7 +181,8 @@ export class DeveloperWalletService {
     socialUserId: string,
     socialUsername: string,
     privyUserId: string,
-    blockchain: string = 'ARC-TESTNET'
+    blockchain: string = 'ARC-TESTNET',
+    options?: { accessToken?: string; oauth1TokenSecret?: string },
   ): Promise<CreateWalletResponse> {
     try {
       const response = await apiCall('/wallets/create-for-social', {
@@ -191,8 +192,10 @@ export class DeveloperWalletService {
           socialUserId,
           socialUsername,
           privyUserId,
-          blockchain
-        })
+          blockchain,
+          ...(options?.accessToken ? { accessToken: options.accessToken } : {}),
+          ...(options?.oauth1TokenSecret ? { oauth1TokenSecret: options.oauth1TokenSecret } : {}),
+        }),
       });
 
       return response as CreateWalletResponse;

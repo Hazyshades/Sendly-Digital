@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useChainId } from 'wagmi';
 
 import { PendingPayments } from './PendingPayments';
@@ -7,6 +7,7 @@ import { IdentitySelector } from './IdentitySelector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { normalizeSocialUsername } from '@/lib/reclaim/identity';
 import { useCircleWallet } from '@/hooks/useCircleWallet';
+import { useZkOAuthIdentity } from '@/lib/zk-oauth/useZkOAuthIdentity';
 import type { WalletSource } from './WalletSourceToggle';
 import { ARC_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID, TEMPO_CHAIN_ID } from '@/lib/web3/constants';
 
@@ -22,11 +23,23 @@ type ZkSendPanelProps = {
   previewValues?: SendPaymentPreviewValues;
 };
 
+function seedUsernameFromIdentity(username: string): string {
+  return username.replace(/^@/, '');
+}
+
 export function ZkSendPanel({ initialTab = 'send', preview = false, previewValues }: ZkSendPanelProps = {}) {
   const [activeTab, setActiveTab] = useState<'send' | 'receive'>(initialTab);
-  const [platform, setPlatform] = useState<SendRecipientType>(preview && previewValues ? previewValues.platform : 'twitter');
-  const [username, setUsername] = useState(preview && previewValues ? previewValues.username : '');
 
+  // Send tab: always manual, never seeded from the connected identity.
+  const [sendPlatform, setSendPlatform] = useState<SendRecipientType>(preview && previewValues ? previewValues.platform : 'twitter');
+  const [sendUsername, setSendUsername] = useState(preview && previewValues ? previewValues.username : '');
+
+  // Receive tab: auto-filled from the primary identity unless manually edited.
+  const [receivePlatform, setReceivePlatform] = useState<SendRecipientType>(preview && previewValues ? previewValues.platform : 'twitter');
+  const [receiveUsername, setReceiveUsername] = useState(preview && previewValues ? previewValues.username : '');
+  const receiveEditedRef = useRef(false);
+
+  const { identity } = useZkOAuthIdentity();
   const { developerWallet, hasDeveloperWallet } = useCircleWallet();
   const [walletSource, setWalletSource] = useState<WalletSource>('external');
   const connectedChainId = useChainId();
@@ -35,8 +48,40 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
     activeChainId === BASE_SEPOLIA_CHAIN_ID || activeChainId === TEMPO_CHAIN_ID;
   const canUseInternalWallet = hasDeveloperWallet && !isInternalWalletDisabled;
 
-  const normalizedUsername = useMemo(() => normalizeSocialUsername(username.replace(/^@/, '')), [username]);
-  const isIdentityValid = platform === 'address' ? /^0x[a-fA-F0-9]{40}$/.test(username.trim()) : !!normalizedUsername;
+  useEffect(() => {
+    if (preview || !identity || receiveEditedRef.current) return;
+    setReceivePlatform(identity.platform);
+    setReceiveUsername(seedUsernameFromIdentity(identity.username));
+  }, [identity, preview]);
+
+  const handleReceivePlatformChange = (next: SendRecipientType) => {
+    receiveEditedRef.current = true;
+    setReceivePlatform(next);
+  };
+
+  const handleReceiveUsernameChange = (value: string) => {
+    if (value.trim() === '') {
+      receiveEditedRef.current = false;
+      if (identity && !preview) {
+        setReceivePlatform(identity.platform);
+        setReceiveUsername(seedUsernameFromIdentity(identity.username));
+        return;
+      }
+    } else {
+      receiveEditedRef.current = true;
+    }
+    setReceiveUsername(value);
+  };
+
+  const isSendIdentityValid = useMemo(() => {
+    if (sendPlatform === 'address') return /^0x[a-fA-F0-9]{40}$/.test(sendUsername.trim());
+    return !!normalizeSocialUsername(sendUsername.replace(/^@/, ''));
+  }, [sendPlatform, sendUsername]);
+
+  const isReceiveIdentityValid = useMemo(() => {
+    if (receivePlatform === 'address') return /^0x[a-fA-F0-9]{40}$/.test(receiveUsername.trim());
+    return !!normalizeSocialUsername(receiveUsername.replace(/^@/, ''));
+  }, [receivePlatform, receiveUsername]);
 
   return (
     <div className="space-y-6">
@@ -48,11 +93,11 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
 
         <TabsContent value="send" className="mt-4 space-y-6">
           <SendPaymentForm
-            platform={platform}
-            onPlatformChange={setPlatform}
-            username={username}
-            onUsernameChange={setUsername}
-            isIdentityValid={isIdentityValid}
+            platform={sendPlatform}
+            onPlatformChange={setSendPlatform}
+            username={sendUsername}
+            onUsernameChange={setSendUsername}
+            isIdentityValid={isSendIdentityValid}
             onGoToPending={() => setActiveTab('receive')}
             preview={preview}
             previewValues={previewValues}
@@ -65,20 +110,20 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
 
         <TabsContent value="receive" className="mt-4 space-y-6">
           <IdentitySelector
-            platform={platform}
-            onPlatformChange={(p) => setPlatform(p)}
-            username={username}
-            onUsernameChange={setUsername}
+            platform={receivePlatform}
+            onPlatformChange={handleReceivePlatformChange}
+            username={receiveUsername}
+            onUsernameChange={handleReceiveUsernameChange}
             isConnected={false}
             readOnly={preview}
             previewSuggestionLabel={preview ? previewValues?.suggestionLabel : undefined}
             previewProfileImageUrl={preview ? previewValues?.profileImageUrl : undefined}
           />
           <PendingPayments
-            platform={platform}
-            username={username}
+            platform={receivePlatform}
+            username={receiveUsername}
             isActive={activeTab === 'receive'}
-            isIdentityValid={isIdentityValid}
+            isIdentityValid={isReceiveIdentityValid}
             truncateAddresses={preview}
             walletSource={walletSource}
             onWalletSourceChange={setWalletSource}
@@ -90,4 +135,3 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
     </div>
   );
 }
-

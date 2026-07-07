@@ -54,7 +54,6 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
   const [receivedCards, setReceivedCards] = useState<GiftCard[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [hasFetched, setHasFetched] = useState(false);
   const [activeTab, setActiveTab] = useState('received');
   // Temporary flag to disable background blockchain sync on /my
   const ENABLE_BLOCKCHAIN_SYNC = false;
@@ -176,18 +175,36 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
     }
   };
 
+  const cardsFetchKey = [
+    isConnected ? address?.toLowerCase() ?? '' : '',
+    authenticated ? '1' : '0',
+    (user as { id?: string } | undefined)?.id ?? '',
+    user?.twitter ? (user.twitter as { subject?: string }).subject ?? '' : '',
+    user?.twitch ? (user.twitch as { subject?: string }).subject ?? '' : '',
+    telegramUsername,
+    user?.tiktok ? (user.tiktok as { subject?: string }).subject ?? '' : '',
+    (user as { instagram?: { subject?: string } } | undefined)?.instagram?.subject ?? '',
+  ].join('|');
+
   useEffect(() => {
-    // Load cards if MetaMask is connected OR a social network with a Internal Wallet is available
-    if ((isConnected && address) || (authenticated && user)) {
-      if (!hasFetched) {
-        setHasFetched(true);
-        fetchCards();
-      }
-    } else {
+    const canLoadCards = (isConnected && address) || (authenticated && user);
+    if (!canLoadCards) {
       setLoading(false);
-      setHasFetched(false);
+      setSentCards([]);
+      setReceivedCards([]);
+      return;
     }
-  }, [isConnected, address, authenticated, user, hasFetched]);
+
+    let cancelled = false;
+    setLoading(true);
+    fetchCards().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cardsFetchKey, isConnected, address, authenticated, user]);
 
   useEffect(() => {
     // Fetch pending cards count if authenticated and has at least one social network
@@ -252,7 +269,6 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
     // If neither MetaMask nor a Internal Wallet is available - do not load cards.
     // Unclaimed social gift cards belong in Pending Claims (on-chain vault), not Received.
     if (recipientAddresses.length === 0) {
-      setLoading(false);
       return;
     }
 
@@ -262,19 +278,22 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
       
       // Received: only rows where recipient is your wallet (after claim sync / DB address path).
       // Pending social cards are listed under Pending Claims, not here.
-      const [allReceivedCards, supabaseSentCards] = await Promise.all([
+      const [allReceivedCards, allSentCardsRaw] = await Promise.all([
         Promise.all(
           recipientAddresses.map((addr) => GiftCardsService.getCardsByRecipientForMyCards(addr, activeChainId))
         ).then((results) => results.flat()),
-        isConnected && address
-          ? GiftCardsService.getCardsBySenderForMyCards(address, activeChainId)
-          : Promise.resolve([]),
+        Promise.all(
+          recipientAddresses.map((addr) => GiftCardsService.getCardsBySenderForMyCards(addr, activeChainId))
+        ).then((results) => results.flat()),
       ]);
 
         // Transform Supabase data to our format
         // Remove duplicates by tokenId
       const uniqueReceivedCards = Array.from(
         new Map(allReceivedCards.map(card => [card.token_id, card])).values()
+      );
+      const uniqueSentCards = Array.from(
+        new Map(allSentCardsRaw.map(card => [card.token_id, card])).values()
       );
       
       const transformedReceivedCards: GiftCard[] = uniqueReceivedCards.map(card => ({
@@ -292,7 +311,7 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
         qrCode: `/spend?tokenId=${card.token_id}`
       }));
 
-      const transformedSentCards: GiftCard[] = supabaseSentCards.map(card => {
+      const transformedSentCards: GiftCard[] = uniqueSentCards.map(card => {
         const username = card.recipient_username ? card.recipient_username.replace(/^@/, '') : null;
         const recipientDisplay = (() => {
           switch (card.recipient_type) {
@@ -314,7 +333,7 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
           design: 'pink',
           message: card.message,
           recipient: recipientDisplay,
-          sender: address || '',
+          sender: card.sender_address || '',
           status: card.redeemed ? 'redeemed' : 'active',
           createdAt: card.created_at ? new Date(card.created_at).toLocaleDateString() : new Date().toLocaleDateString(),
           hasTimer: false,
@@ -326,7 +345,6 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
       // Update UI with cached data immediately - don't wait for blockchain!
       setReceivedCards(transformedReceivedCards);
       setSentCards(transformedSentCards);
-      setLoading(false);
 
       // Then sync with blockchain in the background (slow, but non-blocking)
       // Temporarily disabled per request
@@ -651,10 +669,7 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
               onCardClaimed={async () => {
                 // Wait a bit for database to update after claim
                 await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // Reset hasFetched to force reload
-                setHasFetched(false);
-                
+
                 // Always refresh cards after claim, even without MetaMask
                 // This ensures cards claimed via Internal Wallet appear immediately
                 await fetchCards();

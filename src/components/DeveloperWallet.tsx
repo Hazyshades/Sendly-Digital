@@ -17,6 +17,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Loader2, Wallet, Copy, Check, ExternalLink, ArrowUpCircle, ChevronUp, ChevronDown, Coins, Send } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
+import { isZkHost } from '@/lib/runtime/zkHost';
+import { useZkOAuthIdentity, buildZkOAuthPrivyUserId, readZkOAuthAccessTokenForPlatform, readTwitterOAuth1Secret } from '@/lib/zk-oauth';
 
 interface DeveloperWalletProps {
   blockchain?: string;
@@ -30,6 +32,8 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
   const activeChain = arcTestnet;
   const activeChainId = connectedChainId || ARC_CHAIN_ID;
   const { user: privyUser, authenticated } = usePrivySafe();
+  const zk = isZkHost();
+  const { identity: zkOAuthIdentity, loading: zkOAuthLoading } = useZkOAuthIdentity();
 
   const INTERNAL_WALLET_DISABLED_CHAIN_IDS: number[] = [BASE_SEPOLIA_CHAIN_ID, TEMPO_CHAIN_ID];
   const isInternalWalletDisabled = INTERNAL_WALLET_DISABLED_CHAIN_IDS.includes(activeChainId);
@@ -108,7 +112,10 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
 
     // Create a stable key for checking (use only important data, not the entire privyUser object)
     const privyUserId = privyUser?.id || '';
-    const checkKey = `${isConnected}-${address || ''}-${blockchain}-${authenticated}-${privyUserId}`;
+    const zkIdentityKey = zkOAuthIdentity
+      ? `${zkOAuthIdentity.platform}:${zkOAuthIdentity.socialUserId}`
+      : '';
+    const checkKey = `${isConnected}-${address || ''}-${blockchain}-${authenticated}-${privyUserId}-${zkIdentityKey}-${zkOAuthLoading}`;
     
     // If check is already in progress or parameters haven't changed, skip
     if (isCheckingRef.current) {
@@ -126,15 +133,20 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
 
     // If there are no conditions for checking, just set checking to false
     // But only if we're sure the data is loaded (not undefined)
-    const hasNoConditions = !isConnected && (authenticated === false || (authenticated === true && !privyUser));
-    if (hasNoConditions) {
+    const hasZkSocial = zk && !!zkOAuthIdentity;
+    const hasNoConditions =
+      !isConnected &&
+      !hasZkSocial &&
+      (authenticated === false || (authenticated === true && !privyUser)) &&
+      (!zk || !zkOAuthLoading);
+    if (hasNoConditions && !(zk && zkOAuthLoading)) {
       setChecking(false);
       lastCheckParamsRef.current = checkKey;
       return;
     }
 
     // If data is still loading (authenticated === undefined), wait
-    if (!isConnected && authenticated === undefined) {
+    if (!isConnected && authenticated === undefined && !(zk && zkOAuthLoading)) {
       // Don't set checking to false, as data is still loading
       return;
     }
@@ -142,7 +154,10 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
     // Add a small delay for debounce (especially important for React StrictMode)
     checkTimeoutRef.current = setTimeout(() => {
       // Check again if parameters changed during the delay
-      const currentCheckKey = `${isConnected}-${address || ''}-${blockchain}-${authenticated}-${privyUser?.id || ''}`;
+      const currentZkKey = zkOAuthIdentity
+        ? `${zkOAuthIdentity.platform}:${zkOAuthIdentity.socialUserId}`
+        : '';
+      const currentCheckKey = `${isConnected}-${address || ''}-${blockchain}-${authenticated}-${privyUser?.id || ''}-${currentZkKey}-${zkOAuthLoading}`;
       if (lastCheckParamsRef.current === currentCheckKey || isCheckingRef.current) {
         // If parameters haven't changed or check is already in progress, reset checking
         if (!isCheckingRef.current) {
@@ -155,9 +170,17 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
       isCheckingRef.current = true;
       lastCheckParamsRef.current = currentCheckKey;
 
+      const currentHasZkSocial = zk && !!zkOAuthIdentity;
+
       if (isConnected && address) {
-        // If MetaMask is connected - check wallet by address
-        checkWallet().finally(() => {
+        // Prefer EOA-linked wallet, then fall back to zk OAuth / Privy social wallets.
+        checkWalletWithFallback().finally(() => {
+          isCheckingRef.current = false;
+        });
+      } else if (zk && zkOAuthLoading) {
+        isCheckingRef.current = false;
+      } else if (currentHasZkSocial && !isConnected) {
+        checkZkOAuthWallet().finally(() => {
           isCheckingRef.current = false;
         });
       } else if (authenticated && privyUser && !isConnected) {
@@ -178,7 +201,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
         checkTimeoutRef.current = null;
       }
     };
-  }, [isConnected, address, blockchain, authenticated, privyUser?.id, isInternalWalletDisabled]);
+  }, [isConnected, address, blockchain, authenticated, privyUser?.id, isInternalWalletDisabled, zk, zkOAuthIdentity, zkOAuthLoading]);
 
   // Load balances of the wallet
   useEffect(() => {
@@ -189,17 +212,72 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
     }
   }, [wallet]);
 
-  const checkWallet = async () => {
+  const findWalletByLinkedSocial = async (): Promise<DeveloperWallet | null> => {
+    if (zk && zkOAuthIdentity) {
+      try {
+        const zkWallet = await DeveloperWalletService.getWalletBySocial(
+          zkOAuthIdentity.platform,
+          zkOAuthIdentity.socialUserId,
+          blockchain,
+        );
+        if (zkWallet) return zkWallet;
+      } catch (error) {
+        console.error('[DeveloperWallet] Error checking zk OAuth wallet:', error);
+      }
+    }
+
+    if (!authenticated || !privyUser) return null;
+
+    const socialPlatforms = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'] as const;
+    for (const platform of socialPlatforms) {
+      let socialUserId: string | null = null;
+
+      if (platform === 'twitter' && privyUser.twitter) {
+        socialUserId = (privyUser.twitter as any).subject;
+      } else if (platform === 'twitch' && privyUser.twitch) {
+        socialUserId = (privyUser.twitch as any).subject;
+      } else if (platform === 'telegram' && privyUser.telegram) {
+        socialUserId = privyUser.telegram.telegramUserId || (privyUser.telegram as any).subject;
+      } else if (platform === 'tiktok' && privyUser.tiktok) {
+        socialUserId = (privyUser.tiktok as any).subject;
+      } else if (platform === 'instagram' && (privyUser as any).instagram) {
+        socialUserId = ((privyUser as any).instagram as any).subject;
+      }
+
+      if (!socialUserId) continue;
+
+      try {
+        const foundWallet = await DeveloperWalletService.getWalletBySocial(
+          platform,
+          socialUserId,
+          blockchain,
+        );
+        if (foundWallet) return foundWallet;
+      } catch (error) {
+        console.error(`[DeveloperWallet] Error checking ${platform} wallet:`, error);
+      }
+    }
+
+    return null;
+  };
+
+  const checkWalletWithFallback = async () => {
     if (!address) {
       setChecking(false);
       return;
     }
-    
+
     try {
       setChecking(true);
       const wallets = await DeveloperWalletService.getWallets(address);
-      const existingWallet = wallets.find(w => w.blockchain === blockchain);
-      setWallet(existingWallet || null);
+      const existingWallet = wallets.find((w) => w.blockchain === blockchain);
+      if (existingWallet) {
+        setWallet(existingWallet);
+        return;
+      }
+
+      const socialWallet = await findWalletByLinkedSocial();
+      setWallet(socialWallet);
     } catch (error) {
       console.error('Error checking wallet:', error);
       toast.error('Failed to check wallet');
@@ -208,66 +286,35 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
     }
   };
 
-  const checkSocialWallet = async () => {
-    if (!authenticated || !privyUser) {
-      console.log('[DeveloperWallet] No authenticated user or privyUser');
+  const checkZkOAuthWallet = async () => {
+    if (!zkOAuthIdentity) {
       setChecking(false);
       return;
     }
-    
+
     try {
       setChecking(true);
-      console.log('[DeveloperWallet] Checking social wallet for authenticated user');
-      // Check for a Internal Wallet for linked social networks
-      const socialPlatforms = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'];
-      
-      let walletFound = false;
-      
-      for (const platform of socialPlatforms) {
-        let socialUserId: string | null = null;
-        
-        if (platform === 'twitter' && privyUser.twitter) {
-          socialUserId = (privyUser.twitter as any).subject;
-          console.log('[DeveloperWallet] Found Twitter account, subject:', socialUserId);
-        } else if (platform === 'twitch' && privyUser.twitch) {
-          socialUserId = (privyUser.twitch as any).subject;
-          console.log('[DeveloperWallet] Found Twitch account, subject:', socialUserId);
-        } else if (platform === 'telegram' && privyUser.telegram) {
-          socialUserId = privyUser.telegram.telegramUserId || (privyUser.telegram as any).subject;
-          console.log('[DeveloperWallet] Found Telegram account, userId:', socialUserId);
-        } else if (platform === 'tiktok' && privyUser.tiktok) {
-          socialUserId = (privyUser.tiktok as any).subject;
-          console.log('[DeveloperWallet] Found TikTok account, subject:', socialUserId);
-        } else if (platform === 'instagram' && (privyUser as any).instagram) {
-          socialUserId = ((privyUser as any).instagram as any).subject;
-          console.log('[DeveloperWallet] Found Instagram account, subject:', socialUserId);
-        }
+      const foundWallet = await findWalletByLinkedSocial();
+      setWallet(foundWallet || null);
+    } catch (error) {
+      console.error('[DeveloperWallet] Error checking zk OAuth wallet:', error);
+    } finally {
+      setChecking(false);
+    }
+  };
 
-        if (socialUserId) {
-          console.log(`[DeveloperWallet] Checking wallet for ${platform} with userId: ${socialUserId}`);
-          const foundWallet = await DeveloperWalletService.getWalletBySocial(
-            platform as 'twitter' | 'twitch' | 'telegram' | 'tiktok' | 'instagram',
-            socialUserId,
-            blockchain
-          );
-          
-          console.log(`[DeveloperWallet] Wallet check result for ${platform}:`, foundWallet ? 'FOUND' : 'NOT FOUND');
-          
-          if (foundWallet) {
-            console.log('[DeveloperWallet] Setting wallet:', foundWallet);
-            setWallet(foundWallet);
-            walletFound = true;
-            break;
-          }
-        }
-      }
-      
-      if (!walletFound) {
-        console.log('[DeveloperWallet] No wallet found for any social platform');
-      }
+  const checkSocialWallet = async () => {
+    if (!authenticated || !privyUser) {
+      setChecking(false);
+      return;
+    }
+
+    try {
+      setChecking(true);
+      const foundWallet = await findWalletByLinkedSocial();
+      setWallet(foundWallet);
     } catch (error) {
       console.error('[DeveloperWallet] Error checking social wallet:', error);
-      // Do not show an error to the user; simply treat as no wallet found
     } finally {
       setChecking(false);
     }
@@ -303,7 +350,45 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
       return;
     }
 
-    // If MetaMask is NOT connected, but a social account exists - create a wallet for the social account
+    // If MetaMask is NOT connected, but zk OAuth social account exists
+    if (zk && zkOAuthIdentity) {
+      try {
+        setLoading(true);
+        const { platform, socialUserId, username } = zkOAuthIdentity;
+        const privyUserId = buildZkOAuthPrivyUserId(platform, socialUserId);
+
+        const response = await DeveloperWalletService.createWalletForSocial(
+          platform,
+          socialUserId,
+          username,
+          privyUserId,
+          blockchain,
+          {
+            accessToken: readZkOAuthAccessTokenForPlatform(platform) ?? undefined,
+            oauth1TokenSecret:
+              platform === 'twitter' ? readTwitterOAuth1Secret() ?? undefined : undefined,
+          },
+        );
+
+        if (response.success && response.wallet) {
+          setWallet(response.wallet);
+          toast.success('Internal Wallet created successfully!');
+          if (onWalletCreated) {
+            onWalletCreated(response.wallet);
+          }
+        } else {
+          toast.error(response.message || 'Failed to create wallet');
+        }
+      } catch (error: any) {
+        console.error('Error creating zk OAuth wallet:', error);
+        toast.error(`Error creating wallet: ${error?.message || 'Unknown error'}`);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // If MetaMask is NOT connected, but a Privy social account exists
     if (!authenticated || !privyUser) {
       toast.error('Please connect your wallet or social account');
       return;
@@ -1028,8 +1113,13 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
     );
   }
 
-  // need show message about connect or not connect to wallet or social account
-  const shouldShowConnectMessage = !isConnected && (!authenticated || !privyUser);
+  const hasSocialIdentity =
+    (zk && !!zkOAuthIdentity) || (authenticated && !!privyUser);
+  const shouldShowConnectMessage = !isConnected && !hasSocialIdentity && !(zk && zkOAuthLoading);
+  const showCreateWalletUi =
+    !shouldShowConnectMessage &&
+    (isConnected || hasSocialIdentity) &&
+    !(zk && zkOAuthLoading);
 
   return (
     <Card className="bg-white/90 backdrop-blur-sm border border-gray-200 shadow-circle-card gap-2">
@@ -1044,12 +1134,28 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
       {/* Description - center of the card */}
       <CardDescription className="text-left text-sm text-gray-600 -mt-1">
         {shouldShowConnectMessage
-          ? 'Please connect your wallet or social account to use platform functionality.'
-          : 'Create an Internal Wallet to use the platform seamlessly.'}
+          ? zk
+            ? 'Connect Twitter, Twitch, Telegram, GitHub, Gmail, or LinkedIn in the Accounts panel to create an Internal Wallet.'
+            : 'Please connect your wallet or social account to use platform functionality.'
+          : zkOAuthIdentity
+            ? `Connected as ${zkOAuthIdentity.displayLabel}. Create an Internal Wallet to use the platform seamlessly.`
+            : 'Create an Internal Wallet to use the platform seamlessly.'}
       </CardDescription>
     </div>
   </CardHeader>
-      {!shouldShowConnectMessage && (
+      {shouldShowConnectMessage && zk ? (
+        <CardContent className="pt-2">
+        </CardContent>
+      ) : null}
+      {!showCreateWalletUi && zk && zkOAuthLoading ? (
+        <CardContent className="pt-2">
+          <div className="flex items-center justify-center py-4 text-sm text-gray-600">
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Checking connected accounts...
+          </div>
+        </CardContent>
+      ) : null}
+      {showCreateWalletUi && (
         <CardContent className="space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h4 className="font-medium text-blue-900 mb-2">Why is this needed?</h4>
@@ -1090,9 +1196,11 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
           </Button>
 
           <p className="text-xs text-gray-500 text-center">
-            {isConnected 
+            {isConnected
               ? `The wallet will be created on Arc Testnet blockchain and linked to your EVM address`
-              : `The wallet will be created on Arc Testnet blockchain and linked to your social account`}
+              : zkOAuthIdentity
+                ? `The wallet will be created on Arc Testnet and linked to ${zkOAuthIdentity.displayLabel}`
+                : `The wallet will be created on Arc Testnet blockchain and linked to your social account`}
           </p>
         </CardContent>
       )}

@@ -120,7 +120,7 @@ export const clearLinkedInToken = (): void => {
     sessionStorage.removeItem('linkedin_oauth_state');
     sessionStorage.removeItem('linkedin_oauth_redirect');
     sessionStorage.removeItem('linkedin_code_verifier');
-    toast.success('LinkedIn token cleared');
+    toast.success('LinkedIn account disconnected');
   } catch (error) {
     console.error('[zkSEND] Failed to clear LinkedIn token:', error);
     toast.error('Failed to clear LinkedIn token');

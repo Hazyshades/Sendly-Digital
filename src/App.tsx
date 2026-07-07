@@ -25,6 +25,17 @@ import { BlogRoute } from '@/pages/BlogRoute';
 import { BlogPostRoute } from '@/pages/BlogPostRoute';
 import { ReclaimCallbackRoute } from '@/pages/ReclaimCallbackRoute';
 import { ZkSendRoute } from '@/pages/ZkSendRoute';
+import { CreatorWriteRoute } from '@/pages/CreatorWriteRoute';
+import { CreatorHomeRoute } from '@/pages/CreatorHomeRoute';
+import { CreatorProfileRoute } from '@/pages/CreatorProfileRoute';
+import { PaywallRoute } from '@/pages/PaywallRoute';
+import { LeptonReceiptsRoute } from '@/pages/LeptonReceiptsRoute';
+import { LeptonPrBountyRoute } from '@/pages/LeptonPrBountyRoute';
+import { LeptonCitationRoute } from '@/pages/LeptonCitationRoute';
+import { LeptonHubRoute } from '@/pages/LeptonHubRoute';
+import { LeptonRepoSettingsRoute } from '@/pages/LeptonRepoSettingsRoute';
+import { LeptonTwitchCampaignRoute } from '@/pages/LeptonTwitchCampaignRoute';
+import { LeptonTwitchReceiptsRoute } from '@/pages/LeptonTwitchReceiptsRoute';
 import { ArchitectureRoute } from '@/pages/ArchitectureRoute';
 import { isZkHost, toZkUrl } from '@/lib/runtime/zkHost';
 
@@ -53,6 +64,18 @@ function SharedAppRoutes({ zkMode }: { zkMode: boolean }) {
       <Route path="/auth/telegram" element={<TelegramAuthRoute />} />
       <Route path="/reclaim/callback" element={<ReclaimCallbackRoute />} />
       <Route path="/payments" element={zkMode ? <ZkSendRoute /> : <ZkHostRedirect />} />
+      <Route path="/creator/write" element={zkMode ? <CreatorWriteRoute /> : <ZkHostRedirect />} />
+      <Route path="/creator/:platform/:handle" element={zkMode ? <CreatorProfileRoute /> : <ZkHostRedirect />} />
+      <Route path="/creator" element={zkMode ? <CreatorHomeRoute /> : <ZkHostRedirect />} />
+      <Route path="/paywall/create" element={zkMode ? <Navigate to="/creator/write" replace /> : <ZkHostRedirect />} />
+      <Route path="/pay/*" element={zkMode ? <PaywallRoute /> : <ZkHostRedirect />} />
+      <Route path="/lepton" element={zkMode ? <LeptonHubRoute /> : <ZkHostRedirect />} />
+      <Route path="/lepton/receipts" element={zkMode ? <LeptonReceiptsRoute /> : <ZkHostRedirect />} />
+      <Route path="/lepton/pr-bounty" element={zkMode ? <LeptonPrBountyRoute /> : <ZkHostRedirect />} />
+      <Route path="/lepton/repo-settings" element={zkMode ? <LeptonRepoSettingsRoute /> : <ZkHostRedirect />} />
+      <Route path="/lepton/citation" element={zkMode ? <LeptonCitationRoute /> : <ZkHostRedirect />} />
+      <Route path="/lepton/twitch/campaign" element={zkMode ? <LeptonTwitchCampaignRoute /> : <ZkHostRedirect />} />
+      <Route path="/lepton/twitch/receipts" element={zkMode ? <LeptonTwitchReceiptsRoute /> : <ZkHostRedirect />} />
       <Route path="/zksend" element={<Navigate to="/payments" replace />} />
       <Route path="/Circle-Mint" element={<CircleMintRoute />} />
       <Route path="/blog" element={<BlogRoute />} />

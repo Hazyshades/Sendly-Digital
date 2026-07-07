@@ -1,5 +1,5 @@
 import { usePrivy } from '@privy-io/react-auth';
-import { isZkLocalhost } from '@/lib/runtime/zkHost';
+import { isZkHost } from '@/lib/runtime/zkHost';
 
 type PrivyState = ReturnType<typeof usePrivy>;
 
@@ -33,11 +33,10 @@ function createPrivyFallback(): PrivyState {
  * For local zk subdomain dev (e.g. `zk.localhost`) we allow the app to run without Privy by
  * returning a safe fallback when Privy context isn't available.
  * 
- * IMPORTANT: For zk.localhost, Privy is completely disabled to prevent OAuth interception.
+ * IMPORTANT: On zk hosts Privy is completely disabled to prevent OAuth interception.
  */
 export function usePrivySafe(): PrivyState {
-  // Explicitly disable Privy for zk.localhost to prevent OAuth interception
-  if (isZkLocalhost()) {
+  if (isZkHost()) {
     return createPrivyFallback();
   }
   

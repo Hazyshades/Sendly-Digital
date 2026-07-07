@@ -36,7 +36,7 @@ const experiments = [
   {
     title: "Prove",
     medium: "zkTLS layer",
-    description: "Create a ZK proof from the attested session - asserting account ownership.",
+    description: "Create a ZK proof from the attested session - asserting account ownership",
     span: "col-span-1 row-span-1",
     number: 3,
   },

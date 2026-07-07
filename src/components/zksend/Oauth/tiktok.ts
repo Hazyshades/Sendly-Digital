@@ -115,7 +115,7 @@ export const clearTiktokToken = (): void => {
     sessionStorage.removeItem('tiktok_oauth_state');
     sessionStorage.removeItem('tiktok_oauth_redirect');
     sessionStorage.removeItem('tiktok_code_verifier');
-    toast.success('TikTok token cleared');
+    toast.success('TikTok account disconnected');
   } catch (error) {
     console.error('[zkSEND] Failed to clear TikTok token:', error);
     toast.error('Failed to clear TikTok token');

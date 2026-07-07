@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAccount } from 'wagmi';
 
 /**
@@ -44,6 +46,23 @@ export function WalletSourceToggle({
 }: Props) {
   const { isConnected, connector } = useAccount();
   const externalLabel = getExternalWalletLabel(connector, isConnected);
+  const showExternal = isConnected;
+
+  useEffect(() => {
+    if (!showExternal && value === 'external' && hasCircleWallet) {
+      onChange('circle');
+    }
+  }, [showExternal, value, hasCircleWallet, onChange]);
+
+  if (!showExternal && !hasCircleWallet) {
+    return (
+      <p className={`text-slate-500 dark:text-slate-400 ${compact ? 'text-xs' : 'text-sm'}`}>
+        <Link to="/dashboard" className="text-blue-600 dark:text-blue-400 hover:underline">
+          Create Internal Wallet
+        </Link>
+      </p>
+    );
+  }
 
   return (
     <div
@@ -51,18 +70,20 @@ export function WalletSourceToggle({
       role="group"
       aria-label="Wallet source"
     >
-      <button
-        type="button"
-        onClick={() => onChange('external')}
-        disabled={disabled}
-        className={`${compact ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-sm'} font-medium rounded-md transition-all ${
-          value === 'external'
-            ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm'
-            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-        } disabled:opacity-50 disabled:cursor-not-allowed`}
-      >
-        {externalLabel}
-      </button>
+      {showExternal ? (
+        <button
+          type="button"
+          onClick={() => onChange('external')}
+          disabled={disabled}
+          className={`${compact ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-sm'} font-medium rounded-md transition-all ${
+            value === 'external'
+              ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
+        >
+          {externalLabel}
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={() => hasCircleWallet && onChange('circle')}

@@ -4,9 +4,12 @@ import { toast } from 'sonner';
 
 import web3Service from '@/lib/web3/web3Service';
 import {
+  fetchTwitchAuthenticatedUser,
   generateSocialIdentityHash,
+  generateTwitchUidIdentityHash,
   normalizeSocialPlatform,
   normalizeSocialUsername,
+  twitchUidHandleSegment,
 } from '@/lib/reclaim/identity';
 import { fetchReclaimProofRequestConfig, verifyReclaimProofs } from '@/lib/reclaim/api';
 import { toOnchainReclaimProof } from '@/lib/reclaim/onchain';
@@ -36,14 +39,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import type { SendRecipientType } from './ZkSendPanel';
-import { connectTwitter } from './Oauth/twitter';
-import { connectTwitch } from './Oauth/twitch';
-import { connectGithub } from './Oauth/github';
-import { connectTelegram } from './Oauth/telegram';
-import { connectInstagram } from './Oauth/instagram';
-// import { connectTiktok } from './Oauth/tiktok';
-import { connectGmail } from './Oauth/gmail';
-import { connectLinkedIn } from './Oauth/linkedin';
+import { ZkAccountsConnectHint } from '@/components/zk-accounts/ZkAccountsConnectHint';
 
 const TOKEN_SYMBOL_BY_ADDRESS: Record<string, string> = {
   '0x89b50855aa3be2f677cd6303cec089b5f319d72a': 'EURC',
@@ -83,11 +79,49 @@ type Props = {
   onWalletSourceChange?: (value: WalletSource) => void;
   developerWallet?: DeveloperWallet | null;
   hasDeveloperWallet?: boolean;
+  /** Override card title (default: Receive). */
+  title?: string;
 };
 
 function shortenAddress(addr: string): string {
   if (addr.length <= 12) return addr;
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+}
+
+function resolveClaimIdentityHash(
+  platform: string,
+  loginUsername: string,
+  twitchUserId: string | null
+): `0x${string}` | null {
+  if (platform === 'twitch' && twitchUserId) {
+    return generateTwitchUidIdentityHash(twitchUserId);
+  }
+  return generateSocialIdentityHash(platform, loginUsername);
+}
+
+function twitchProveUsername(twitchUserId: string | null, loginUsername: string): string {
+  if (twitchUserId) return twitchUidHandleSegment(twitchUserId);
+  return loginUsername;
+}
+
+function validateZkFetchExtraction(
+  platform: string,
+  proofsArray: ReclaimProof[],
+  loginUsername: string,
+  twitchUserId: string | null
+): void {
+  const extracted = proofsArray[0]?.extractedParameterValues ?? {};
+  if (platform === 'twitch') {
+    const extractedUserId = String((extracted as { userId?: string }).userId ?? '').trim();
+    if (twitchUserId && extractedUserId && extractedUserId !== twitchUserId) {
+      throw new Error('Proof Twitch user id mismatch');
+    }
+    return;
+  }
+  const extractedUsername = normalizeSocialUsername(String(extracted.username || ''));
+  if (extractedUsername && extractedUsername !== loginUsername) {
+    throw new Error('Proof username mismatch');
+  }
 }
 
 function toUserFacingErrorMessage(error: unknown, fallback: string): string {
@@ -106,6 +140,34 @@ function toUserFacingErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+function ReceiveOAuthStatus({
+  connected,
+  platformLabel,
+  username,
+  hasUsername,
+}: {
+  connected: boolean;
+  platformLabel: string;
+  username: string;
+  hasUsername: boolean;
+}) {
+  if (!connected) return <ZkAccountsConnectHint />;
+  if (!hasUsername) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        {platformLabel} connected. Enter a username above to load pending payments.
+      </p>
+    );
+  }
+  const handle = username.replace(/^@/, '');
+  return (
+    <p className="text-sm text-muted-foreground">
+      {platformLabel} connected as <span className="font-medium text-foreground">@{handle}</span>. Pending payments load
+      automatically.
+    </p>
+  );
+}
+
 export function PendingPayments({
   platform,
   username,
@@ -116,6 +178,7 @@ export function PendingPayments({
   onWalletSourceChange,
   developerWallet = null,
   hasDeveloperWallet = false,
+  title = 'Receive',
 }: Props) {
   const connectedChainId = useChainId();
   const activeChainId = connectedChainId || ARC_CHAIN_ID;
@@ -147,6 +210,7 @@ export function PendingPayments({
   const [oauth1Token, setOauth1Token] = useState('');
   const [oauth1TokenSecret, setOauth1TokenSecret] = useState('');
   const [twitchAccessToken, setTwitchAccessToken] = useState('');
+  const [twitchResolvedUserId, setTwitchResolvedUserId] = useState<string | null>(null);
   const [githubAccessToken, setGithubAccessToken] = useState('');
   const [telegramAccessToken, setTelegramAccessToken] = useState('');
   const [instagramAccessToken, setInstagramAccessToken] = useState('');
@@ -154,14 +218,6 @@ export function PendingPayments({
   const [gmailAccessToken, setGmailAccessToken] = useState('');
   const [linkedinAccessToken, setLinkedinAccessToken] = useState('');
   const [privyAccessToken, setPrivyAccessToken] = useState<string | null>(null);
-  const [connectingTwitter, setConnectingTwitter] = useState(false);
-  const [connectingTwitch, setConnectingTwitch] = useState(false);
-  const [connectingGithub, setConnectingGithub] = useState(false);
-  const [connectingTelegram, setConnectingTelegram] = useState(false);
-  const [connectingInstagram, setConnectingInstagram] = useState(false);
-  // const [connectingTiktok, setConnectingTiktok] = useState(false);
-  const [connectingGmail, setConnectingGmail] = useState(false);
-  const [connectingLinkedIn, setConnectingLinkedIn] = useState(false);
   const [reclaimProofs, setReclaimProofs] = useState<ReclaimProof[] | null>(null);
   const [proofLoading, setProofLoading] = useState(false);
   const [proofError, setProofError] = useState<string | null>(null);
@@ -173,6 +229,9 @@ export function PendingPayments({
 
   const useCircle = walletSource === 'circle' && hasDeveloperWallet && !!developerWallet;
   const effectiveRecipientAddress = useCircle ? developerWallet!.wallet_address : address;
+  const canClaimPayments = useCircle
+    ? Boolean(developerWallet?.wallet_address)
+    : Boolean(isConnected && address);
 
   useEffect(() => {
     if (accessToken) return;
@@ -224,6 +283,29 @@ export function PendingPayments({
       console.warn('[zkSEND] Failed to load Twitch token:', error);
     }
   }, [twitchAccessToken]);
+
+  useEffect(() => {
+    if (platform !== 'twitch' || !twitchAccessToken) {
+      setTwitchResolvedUserId(null);
+      return;
+    }
+    const twitchClientId = import.meta.env.VITE_TWITCH_CLIENT_ID as string | undefined;
+    if (!twitchClientId) return;
+
+    let active = true;
+    void fetchTwitchAuthenticatedUser(twitchAccessToken, twitchClientId)
+      .then((user) => {
+        if (!active) return;
+        setTwitchResolvedUserId(user?.userId ?? null);
+      })
+      .catch((error) => {
+        console.warn('[zkSEND] Failed to resolve Twitch user id:', error);
+        if (active) setTwitchResolvedUserId(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [platform, twitchAccessToken]);
 
   useEffect(() => {
     if (githubAccessToken) return;
@@ -321,6 +403,61 @@ export function PendingPayments({
   }, [linkedinAccessToken]);
 
   useEffect(() => {
+    const syncOAuthFromPanel = () => {
+      try {
+        const twitterStored = localStorage.getItem('twitter_oauth_token') || localStorage.getItem('twitter_oauth');
+        if (twitterStored) {
+          let token = twitterStored;
+          if (twitterStored.trim().startsWith('{')) {
+            const parsed = JSON.parse(twitterStored) as { access_token?: string; token?: string };
+            token = parsed.access_token || parsed.token || twitterStored;
+          }
+          if (token) setAccessToken(token);
+        }
+        const oauth1 = localStorage.getItem('twitter_oauth1_token');
+        const oauth1Secret = localStorage.getItem('twitter_oauth1_secret');
+        if (oauth1 && oauth1Secret) {
+          setOauth1Token(oauth1);
+          setOauth1TokenSecret(oauth1Secret);
+        }
+        const twitch =
+          localStorage.getItem('twitch_oauth_token') ||
+          localStorage.getItem('twitch_oauth') ||
+          localStorage.getItem('twitch_access_token');
+        if (twitch) setTwitchAccessToken(twitch);
+        const github =
+          localStorage.getItem('github_oauth_token') ||
+          localStorage.getItem('github_oauth') ||
+          localStorage.getItem('github_access_token');
+        if (github) setGithubAccessToken(github);
+        const telegram =
+          localStorage.getItem('telegram_oauth_token') || localStorage.getItem('telegram_oauth');
+        if (telegram) setTelegramAccessToken(telegram);
+        const instagram =
+          localStorage.getItem('instagram_oauth_token') ||
+          localStorage.getItem('instagram_oauth') ||
+          localStorage.getItem('instagram_access_token');
+        if (instagram) setInstagramAccessToken(instagram);
+        const gmail =
+          localStorage.getItem('gmail_oauth_token') ||
+          localStorage.getItem('gmail_oauth') ||
+          localStorage.getItem('gmail_access_token');
+        if (gmail) setGmailAccessToken(gmail);
+        const linkedin =
+          localStorage.getItem('linkedin_oauth_token') ||
+          localStorage.getItem('linkedin_oauth') ||
+          localStorage.getItem('linkedin_access_token');
+        if (linkedin) setLinkedinAccessToken(linkedin);
+      } catch (error) {
+        console.warn('[zkSEND] Failed to sync OAuth tokens from Accounts panel:', error);
+      }
+    };
+
+    window.addEventListener('identity-updated', syncOAuthFromPanel);
+    return () => window.removeEventListener('identity-updated', syncOAuthFromPanel);
+  }, []);
+
+  useEffect(() => {
     // Privy is disabled for zk.localhost to prevent OAuth interception
     if (isZkLocalhost()) {
       setPrivyAccessToken(null);
@@ -350,10 +487,14 @@ export function PendingPayments({
 
   const identityHash = useMemo(() => {
     if (platform === 'address') return null;
+    if (platform === 'twitch') {
+      if (!twitchResolvedUserId) return null;
+      return generateTwitchUidIdentityHash(twitchResolvedUserId);
+    }
     const u = normalizeSocialUsername(username.replace(/^@/, ''));
     if (!u) return null;
     return generateSocialIdentityHash(platform, u);
-  }, [platform, username]);
+  }, [platform, username, twitchResolvedUserId]);
 
   const addressModeRecipient = useMemo(() => {
     if (platform !== 'address') return null;
@@ -455,118 +596,6 @@ export function PendingPayments({
     }
   };
 
-  const handleConnectTwitter = async () => {
-    setConnectingTwitter(true);
-    try {
-      const token = await connectTwitter();
-      if (token) {
-        const secret = localStorage.getItem('twitter_oauth1_secret');
-        if (secret) {
-          setOauth1Token(token);
-          setOauth1TokenSecret(secret);
-        } else {
-          setAccessToken(token);
-        }
-      }
-    } finally {
-      setConnectingTwitter(false);
-    }
-  };
-
-  const handleConnectTwitch = async () => {
-    setConnectingTwitch(true);
-    try {
-      const token = await connectTwitch();
-      if (token) {
-        setTwitchAccessToken(token);
-      }
-    } finally {
-      setConnectingTwitch(false);
-    }
-  };
-
-  const handleConnectGithub = async () => {
-    setConnectingGithub(true);
-    try {
-      const token = await connectGithub();
-      if (token) {
-        setGithubAccessToken(token);
-      }
-    } finally {
-      setConnectingGithub(false);
-    }
-  };
-
-  const handleConnectTelegram = async () => {
-    setConnectingTelegram(true);
-    try {
-      const token = await connectTelegram();
-      if (token) {
-        setTelegramAccessToken(token);
-      }
-    } finally {
-      setConnectingTelegram(false);
-    }
-  };
-
-  const handleConnectInstagram = async () => {
-    setConnectingInstagram(true);
-    try {
-      const token = await connectInstagram();
-      if (token) {
-        setInstagramAccessToken(token);
-      }
-    } finally {
-      setConnectingInstagram(false);
-    }
-  };
-
-  // const handleConnectTiktok = async () => {
-  //   setConnectingTiktok(true);
-  //   try {
-  //     const token = await connectTiktok();
-  //     if (token) {
-  //       setTiktokAccessToken(token);
-  //     }
-  //   } finally {
-  //     setConnectingTiktok(false);
-  //   }
-  // };
-
-  // const handleClearTiktokToken = () => {
-  //   setClearingToken(true);
-  //   try {
-  //     clearTiktokToken();
-  //     setTiktokAccessToken('');
-  //   } finally {
-  //     setClearingToken(false);
-  //   }
-  // };
-
-  const handleConnectGmail = async () => {
-    setConnectingGmail(true);
-    try {
-      const token = await connectGmail();
-      if (token) {
-        setGmailAccessToken(token);
-      }
-    } finally {
-      setConnectingGmail(false);
-    }
-  };
-
-  const handleConnectLinkedIn = async () => {
-    setConnectingLinkedIn(true);
-    try {
-      const token = await connectLinkedIn();
-      if (token) {
-        setLinkedinAccessToken(token);
-      }
-    } finally {
-      setConnectingLinkedIn(false);
-    }
-  };
-
   const loadPending = async () => {
     try {
       if (platform === 'address') {
@@ -592,7 +621,10 @@ export function PendingPayments({
         return;
       }
 
-      if (!identityHash) throw new Error('Enter username');
+      if (!identityHash) {
+        if (platform === 'twitch' && twitchAccessToken) return;
+        throw new Error('Enter username');
+      }
       setLoadingList(true);
 
       const ids = await web3Service.getZkSendPendingPayments(identityHash);
@@ -660,6 +692,9 @@ export function PendingPayments({
       }
       if (normalizedPlatform === 'twitch' && !twitchAccessToken) {
         throw new Error('Connect Twitch to generate proof');
+      }
+      if (normalizedPlatform === 'twitch' && !twitchResolvedUserId) {
+        throw new Error('Resolving Twitch user id - connect Twitch and retry');
       }
       if (normalizedPlatform === 'github' && !githubAccessToken) {
         throw new Error('Connect GitHub to generate proof');
@@ -740,7 +775,8 @@ export function PendingPayments({
             });
 
         const paymentRow = rows.find((row) => row.paymentId === paymentId);
-        const identityHashValue = identityHash ?? generateSocialIdentityHash(platform, u);
+        const identityHashValue =
+          identityHash ?? resolveClaimIdentityHash(platform, u, twitchResolvedUserId);
         if (paymentRow && identityHashValue) {
           try {
             await markZkSendPaymentClaimed({
@@ -803,7 +839,7 @@ export function PendingPayments({
         requestUrl = 'https://api.twitch.tv/helix/users';
         accessTokenToUse = twitchAccessToken;
         clientId = twitchClientId;
-        regexPattern = '"login":"(?<username>[^"]+)"';
+        regexPattern = '"id":"(?<userId>[^"]+)"';
       } else if (isGithub) {
         requestUrl = 'https://api.github.com/user';
         accessTokenToUse = githubAccessToken;
@@ -854,7 +890,7 @@ export function PendingPayments({
             : {}),
           ...(clientId ? { clientId } : {}),
           platform: normalizedPlatform,
-          username: u,
+          username: isTwitch ? twitchProveUsername(twitchResolvedUserId, u) : u,
           paymentId,
           recipient: effectiveRecipientAddress,
           responseMatches: [
@@ -879,12 +915,7 @@ export function PendingPayments({
       }
 
       const proofsArray: ReclaimProof[] = Array.isArray(proof) ? (proof as ReclaimProof[]) : [proof as ReclaimProof];
-      const extractedUsername = normalizeSocialUsername(
-        String(proofsArray[0]?.extractedParameterValues?.username || '')
-      );
-      if (extractedUsername && extractedUsername !== u) {
-        throw new Error('Proof username mismatch');
-      }
+      validateZkFetchExtraction(normalizedPlatform, proofsArray, u, twitchResolvedUserId);
 
       const signatures =
         (Array.isArray((proofsArray[0] as any)?.signatures) && (proofsArray[0] as any).signatures) ||
@@ -938,7 +969,8 @@ export function PendingPayments({
           });
 
       const paymentRow = rows.find((row) => row.paymentId === paymentId);
-      const identityHashValue = identityHash ?? generateSocialIdentityHash(platform, u);
+      const identityHashValue =
+        identityHash ?? resolveClaimIdentityHash(platform, u, twitchResolvedUserId);
       if (paymentRow && identityHashValue) {
         try {
           await markZkSendPaymentClaimed({
@@ -997,6 +1029,9 @@ export function PendingPayments({
       if (normalizedPlatform === 'twitch' && !twitchAccessToken) {
         throw new Error('Connect Twitch to generate proof');
       }
+      if (normalizedPlatform === 'twitch' && !twitchResolvedUserId) {
+        throw new Error('Resolving Twitch user id - connect Twitch and retry');
+      }
       if (normalizedPlatform === 'github' && !githubAccessToken) {
         throw new Error('Connect GitHub to generate proof');
       }
@@ -1016,7 +1051,8 @@ export function PendingPayments({
       }
 
       const paymentIds = rows.map((r) => r.paymentId);
-      const identityHashValue = identityHash ?? generateSocialIdentityHash(platform, u);
+      const identityHashValue =
+        identityHash ?? resolveClaimIdentityHash(platform, u, twitchResolvedUserId);
       if (!identityHashValue) {
         throw new Error('Invalid identity');
       }
@@ -1130,7 +1166,7 @@ export function PendingPayments({
         requestUrl = 'https://api.twitch.tv/helix/users';
         accessTokenToUse = twitchAccessToken;
         clientId = twitchClientId;
-        regexPattern = '"login":"(?<username>[^"]+)"';
+        regexPattern = '"id":"(?<userId>[^"]+)"';
       } else if (isGithub) {
         requestUrl = 'https://api.github.com/user';
         accessTokenToUse = githubAccessToken;
@@ -1170,7 +1206,7 @@ export function PendingPayments({
             : {}),
           ...(clientId ? { clientId } : {}),
           platform: normalizedPlatform,
-          username: u,
+          username: isTwitch ? twitchProveUsername(twitchResolvedUserId, u) : u,
           paymentId: firstPaymentId,
           recipient: effectiveRecipientAddress,
           responseMatches: [{ type: 'regex', value: regexPattern }],
@@ -1187,12 +1223,7 @@ export function PendingPayments({
       if (!proof) throw new Error('No proof received from zkFetch');
 
       const proofsArray: ReclaimProof[] = Array.isArray(proof) ? (proof as ReclaimProof[]) : [proof as ReclaimProof];
-      const extractedUsername = normalizeSocialUsername(
-        String(proofsArray[0]?.extractedParameterValues?.username || '')
-      );
-      if (extractedUsername && extractedUsername !== u) {
-        throw new Error('Proof username mismatch');
-      }
+      validateZkFetchExtraction(normalizedPlatform, proofsArray, u, twitchResolvedUserId);
 
       const signatures =
         (Array.isArray((proofsArray[0] as any)?.signatures) && (proofsArray[0] as any).signatures) ||
@@ -1352,7 +1383,7 @@ export function PendingPayments({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
-        <CardTitle>Receive</CardTitle>
+        <CardTitle>{title}</CardTitle>
         {!truncateAddresses && onWalletSourceChange ? (
           <WalletSourceToggle
             value={walletSource}
@@ -1376,93 +1407,24 @@ export function PendingPayments({
             deposits.
           </p>
         ) : platform === 'twitter' ? (
-          <div className="space-y-3">
-            <Button
-              type="button"
-              size="lg"
-              onClick={handleConnectTwitter}
-              disabled={connectingTwitter || !isIdentityValid}
-              className="w-full"
-            >
-              {connectingTwitter
-                ? 'Connecting...'
-                : oauth1Token || accessToken
-                  ? 'Reconnect Twitter / X'
-                  : 'Connect Twitter / X'}
-            </Button>
-          </div>
+          <ReceiveOAuthStatus
+            connected={Boolean((oauth1Token && oauth1TokenSecret) || accessToken || privyAccessToken)}
+            platformLabel="Twitter / X"
+            username={username}
+            hasUsername={isIdentityValid}
+          />
         ) : platform === 'twitch' ? (
-          <div className="space-y-3">
-            <Button
-              type="button"
-              size="lg"
-              onClick={handleConnectTwitch}
-              disabled={connectingTwitch || !isIdentityValid}
-              className="w-full"
-            >
-              {connectingTwitch ? 'Connecting...' : twitchAccessToken ? 'Reconnect Twitch' : 'Connect Twitch'}
-            </Button>
-          </div>
+          <ReceiveOAuthStatus connected={Boolean(twitchAccessToken)} platformLabel="Twitch" username={username} hasUsername={isIdentityValid} />
         ) : platform === 'github' ? (
-          <div className="space-y-3">
-            <Button
-              type="button"
-              size="lg"
-              onClick={handleConnectGithub}
-              disabled={connectingGithub || !isIdentityValid}
-              className="w-full"
-            >
-              {connectingGithub ? 'Connecting...' : githubAccessToken ? 'Reconnect GitHub' : 'Connect GitHub'}
-            </Button>
-          </div>
+          <ReceiveOAuthStatus connected={Boolean(githubAccessToken)} platformLabel="GitHub" username={username} hasUsername={isIdentityValid} />
         ) : platform === 'telegram' ? (
-          <div className="space-y-3">
-            <Button
-              type="button"
-              size="lg"
-              onClick={handleConnectTelegram}
-              disabled={connectingTelegram || !isIdentityValid}
-              className="w-full"
-            >
-              {connectingTelegram ? 'Connecting...' : telegramAccessToken ? 'Reconnect Telegram' : 'Connect Telegram'}
-            </Button>
-          </div>
+          <ReceiveOAuthStatus connected={Boolean(telegramAccessToken)} platformLabel="Telegram" username={username} hasUsername={isIdentityValid} />
         ) : platform === 'instagram' ? (
-          <div className="space-y-3">
-            <Button
-              type="button"
-              size="lg"
-              onClick={handleConnectInstagram}
-              disabled={connectingInstagram || !isIdentityValid}
-              className="w-full"
-            >
-              {connectingInstagram ? 'Connecting...' : instagramAccessToken ? 'Reconnect Instagram' : 'Connect Instagram'}
-            </Button>
-          </div>
+          <ReceiveOAuthStatus connected={Boolean(instagramAccessToken)} platformLabel="Instagram" username={username} hasUsername={isIdentityValid} />
         ) : platform === 'gmail' ? (
-          <div className="space-y-3">
-            <Button
-              type="button"
-              size="lg"
-              onClick={handleConnectGmail}
-              disabled={connectingGmail || !isIdentityValid}
-              className="w-full"
-            >
-              {connectingGmail ? 'Connecting...' : gmailAccessToken ? 'Reconnect Gmail' : 'Connect Gmail'}
-            </Button>
-          </div>
+          <ReceiveOAuthStatus connected={Boolean(gmailAccessToken)} platformLabel="Gmail" username={username} hasUsername={isIdentityValid} />
         ) : platform === 'linkedin' ? (
-          <div className="space-y-3">
-            <Button
-              type="button"
-              size="lg"
-              onClick={handleConnectLinkedIn}
-              disabled={connectingLinkedIn || !isIdentityValid}
-              className="w-full"
-            >
-              {connectingLinkedIn ? 'Connecting...' : linkedinAccessToken ? 'Reconnect LinkedIn' : 'Connect LinkedIn'}
-            </Button>
-          </div>
+          <ReceiveOAuthStatus connected={Boolean(linkedinAccessToken)} platformLabel="LinkedIn" username={username} hasUsername={isIdentityValid} />
         ) : (
           <div className="space-y-2 rounded-xl border bg-background p-3">
             <div className="text-sm font-medium">Reclaim proof</div>
@@ -1578,8 +1540,7 @@ export function PendingPayments({
                     onClick={claimAll}
                     disabled={
                       claimingAll ||
-                      !isConnected ||
-                      !address ||
+                      !canClaimPayments ||
                       !isIdentityValid ||
                       loadingList
                     }

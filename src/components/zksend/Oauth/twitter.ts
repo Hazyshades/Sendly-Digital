@@ -1,39 +1,12 @@
 import { toast } from 'sonner';
+import { getZkTlsApiUrl } from '@/lib/zk-oauth/apiUrl';
 import { createPopupWindow } from './utils';
-
-const getZkTlsApiUrl = (): string => {
-  // In production we use an explicit API host (api.sendly.digital),
-  // to avoid hitting the TLS certificate of the frontend domain.
-  const envUrl =
-    (import.meta.env.VITE_ZKTLS_SERVICE_URL as string | undefined) ||
-    (import.meta.env.VITE_ZKTLS_API_URL as string | undefined);
-  if (envUrl) return envUrl;
-
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    try {
-      const url = new URL(window.location.origin);
-      let hostname = url.hostname.toLowerCase();
-
-      // Normalize www-prefixed hostnames (e.g. www.zk.sendly.digital -> zk.sendly.digital)
-      if (hostname.startsWith('www.')) {
-        hostname = hostname.slice(4);
-        url.hostname = hostname;
-        return url.origin;
-      }
-
-      return window.location.origin;
-    } catch {
-      return window.location.origin;
-    }
-  }
-
-  return 'http://localhost:3001';
-};
 
 export type TwitterOAuth1Tokens = {
   oauthToken: string;
   oauthTokenSecret: string;
   screenName?: string;
+  userId?: string;
 };
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
@@ -80,10 +53,11 @@ const parseOAuth1AccessTokenResponse = (raw: unknown): TwitterOAuth1Tokens | nul
     nested?.screen_name,
     nested?.username
   );
+  const userId = firstString(root.userId, root.user_id, nested?.userId, nested?.user_id);
 
   if (!oauthToken || !oauthTokenSecret) return null;
 
-  return { oauthToken, oauthTokenSecret, screenName };
+  return { oauthToken, oauthTokenSecret, screenName, userId };
 };
 
 const isCallbackNotApprovedError = (status: number, bodyText: string): boolean => {
@@ -216,6 +190,8 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
 
         toast.info('Opening Twitter authorization...');
 
+        sessionStorage.setItem('twitter_oauth1_opener_origin', originUrl.origin);
+
         const popup = createPopupWindow(authorizeUrl, 'Twitter OAuth 1.0a');
 
         if (!popup) {
@@ -234,6 +210,7 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
         let fallbackExchangeAttemptKey: string | null = null;
         let lastSeenOauthToken: string | null = null;
         let lastSeenOauthVerifier: string | null = null;
+        let sawCallbackRoute = false;
         let popupCloseRescueAttempted = false;
         let popupClosedAtMs: number | null = null;
 
@@ -263,6 +240,7 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
             clearTimeout(flowTimeout);
             flowTimeout = null;
           }
+          sessionStorage.removeItem('twitter_oauth1_opener_origin');
         };
 
         const settle = (value: TwitterOAuth1Tokens | null, closePopup = false) => {
@@ -280,6 +258,8 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
         };
 
         const messageHandler = (event: MessageEvent) => {
+          if (event.origin !== originUrl.origin) return;
+
           if (event.data?.target === 'metamask-inpage' || event.data?.name === 'metamask-provider') {
             return;
           }
@@ -327,7 +307,10 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
             if (oauthToken && oauthVerifier) {
               // When popup is already on callback route, that route performs exchange itself.
               // Avoid duplicate access-token exchange from parent, it causes 400 "Unknown oauthToken".
-              if (isCallbackRoute) return;
+              if (isCallbackRoute) {
+                sawCallbackRoute = true;
+                return;
+              }
 
               const attemptKey = `${oauthToken}:${oauthVerifier}`;
               if (fallbackExchangeInFlight || fallbackExchangeAttemptKey === attemptKey) return;
@@ -386,7 +369,7 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
               return;
             }
 
-            if (!popupCloseRescueAttempted && lastSeenOauthToken && lastSeenOauthVerifier) {
+            if (!popupCloseRescueAttempted && !sawCallbackRoute && lastSeenOauthToken && lastSeenOauthVerifier) {
               popupCloseRescueAttempted = true;
               void exchangeTwitterOAuth1AccessToken(apiUrl, lastSeenOauthToken, lastSeenOauthVerifier)
                 .then((tokens) => {
@@ -396,12 +379,26 @@ export const requestTwitterOAuth1Flow = async (): Promise<TwitterOAuth1Tokens | 
                     if (tokens.screenName) {
                       localStorage.setItem('twitter_oauth1_screen_name', tokens.screenName);
                     }
+                    if (tokens.userId) {
+                      localStorage.setItem('twitter_oauth1_user_id', tokens.userId);
+                    }
                     settle(tokens);
                     return;
                   }
                   settle(null);
                 })
                 .catch((error) => {
+                  const message = error instanceof Error ? error.message : String(error);
+                  const stored = readStoredOAuth1Tokens();
+                  if (stored) {
+                    settle(stored);
+                    return;
+                  }
+                  if (message.includes('Unknown oauthToken')) {
+                    console.warn('[Twitter OAuth1] Ignoring popup-close rescue after callback exchange:', message);
+                    settle(null);
+                    return;
+                  }
                   console.error('[Twitter OAuth1] popup-close rescue exchange error:', error);
                   settle(null);
                 });
@@ -450,6 +447,9 @@ export const connectTwitter = async (): Promise<string | null> => {
     if (tokens.screenName) {
       localStorage.setItem('twitter_oauth1_screen_name', tokens.screenName);
     }
+    if (tokens.userId) {
+      localStorage.setItem('twitter_oauth1_user_id', tokens.userId);
+    }
 
     toast.success('Twitter connected');
     return tokens.oauthToken;
@@ -468,6 +468,7 @@ export const clearTwitterToken = (): void => {
     localStorage.removeItem('twitter_oauth1_token');
     localStorage.removeItem('twitter_oauth1_secret');
     localStorage.removeItem('twitter_oauth1_screen_name');
+    localStorage.removeItem('twitter_oauth1_user_id');
     localStorage.removeItem('twitter_oauth1_redirect');
   } catch (error) {
     console.error('[zkSEND] Failed to clear Twitter token:', error);

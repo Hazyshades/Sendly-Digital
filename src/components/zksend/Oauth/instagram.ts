@@ -114,7 +114,7 @@ export const clearInstagramToken = (): void => {
     sessionStorage.removeItem('instagram_oauth_state');
     sessionStorage.removeItem('instagram_oauth_redirect');
     sessionStorage.removeItem('instagram_code_verifier');
-    toast.success('Instagram token cleared');
+    toast.success('Instagram account disconnected');
   } catch (error) {
     console.error('[zkSEND] Failed to clear Instagram token:', error);
     toast.error('Failed to clear Instagram token');

@@ -72,7 +72,34 @@
       "permanent": true
     }
   ],
+  "headers": [
+    {
+      "source": "/llm.txt",
+      "headers": [
+        { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
+    },
+    {
+      "source": "/llms.txt",
+      "headers": [
+        { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
+    },
+    {
+      "source": "/openapi.json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
+    }
+  ],
   "rewrites": [
+    {
+      "source": "/lepton-hackathon",
+      "destination": "https://eiiprokgcuksmunmszxf.supabase.co/functions/v1/creator-paywall/lepton-hackathon"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"

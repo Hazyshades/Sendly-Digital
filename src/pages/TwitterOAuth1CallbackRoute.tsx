@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { getZkTlsApiUrl } from '@/lib/zk-oauth/apiUrl';
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
@@ -13,7 +14,7 @@ const firstString = (...values: unknown[]): string | undefined => {
 
 const parseOAuth1AccessTokenResponse = (
   raw: unknown
-): { oauthToken: string; oauthTokenSecret: string; screenName?: string } | null => {
+): { oauthToken: string; oauthTokenSecret: string; screenName?: string; userId?: string } | null => {
   const root = asRecord(raw);
   if (!root) return null;
 
@@ -47,29 +48,41 @@ const parseOAuth1AccessTokenResponse = (
     nested?.screen_name,
     nested?.username
   );
+  const userId = firstString(root.userId, root.user_id, nested?.userId, nested?.user_id);
 
   if (!token || !secret) return null;
-  return { oauthToken: token, oauthTokenSecret: secret, screenName };
+  return { oauthToken: token, oauthTokenSecret: secret, screenName, userId };
 };
 
 const getPostMessageTargetOrigin = (): string => {
-  if (typeof document !== 'undefined' && document.referrer) {
-    try {
-      return new URL(document.referrer).origin;
-    } catch {
-      // ignore and fallback to same-origin
+  const openerOrigin = sessionStorage.getItem('twitter_oauth1_opener_origin');
+  if (openerOrigin) return openerOrigin;
+
+  try {
+    if (window.opener && !window.opener.closed) {
+      return window.opener.location.origin;
     }
+  } catch {
+    // ignore and fallback to same-origin
   }
+
   return window.location.origin;
 };
 
-const getZkTlsApiUrl = (): string => {
-  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
-  const envUrl =
-    (import.meta.env.VITE_ZKTLS_SERVICE_URL as string | undefined) ||
-    (import.meta.env.VITE_ZKTLS_API_URL as string | undefined);
-  if (envUrl) return envUrl;
-  return 'http://localhost:3001';
+const persistOAuth1Tokens = (parsed: {
+  oauthToken: string;
+  oauthTokenSecret: string;
+  screenName?: string;
+  userId?: string;
+}) => {
+  localStorage.setItem('twitter_oauth1_token', parsed.oauthToken);
+  localStorage.setItem('twitter_oauth1_secret', parsed.oauthTokenSecret);
+  if (parsed.screenName) {
+    localStorage.setItem('twitter_oauth1_screen_name', parsed.screenName);
+  }
+  if (parsed.userId) {
+    localStorage.setItem('twitter_oauth1_user_id', parsed.userId);
+  }
 };
 
 export function TwitterOAuth1CallbackRoute() {
@@ -116,27 +129,26 @@ export function TwitterOAuth1CallbackRoute() {
         const parsed = parseOAuth1AccessTokenResponse(raw);
 
         if (parsed?.oauthToken && parsed.oauthTokenSecret) {
-          const hasOpener = window.opener && !window.opener.closed;
+          persistOAuth1Tokens(parsed);
+          sessionStorage.removeItem('twitter_oauth1_opener_origin');
 
-          if (!hasOpener) {
-            localStorage.setItem('twitter_oauth1_token', parsed.oauthToken);
-            localStorage.setItem('twitter_oauth1_secret', parsed.oauthTokenSecret);
-            if (parsed.screenName) {
-              localStorage.setItem('twitter_oauth1_screen_name', parsed.screenName);
-            }
-          }
+          const hasOpener = window.opener && !window.opener.closed;
 
           if (hasOpener) {
             const targetOrigin = getPostMessageTargetOrigin();
-            window.opener.postMessage(
-              {
-                type: 'twitter_oauth1_token',
-                oauthToken: parsed.oauthToken,
-                oauthTokenSecret: parsed.oauthTokenSecret,
-                screenName: parsed.screenName,
-              },
-              targetOrigin
-            );
+            try {
+              window.opener.postMessage(
+                {
+                  type: 'twitter_oauth1_token',
+                  oauthToken: parsed.oauthToken,
+                  oauthTokenSecret: parsed.oauthTokenSecret,
+                  screenName: parsed.screenName,
+                },
+                targetOrigin,
+              );
+            } catch (error) {
+              console.warn('[OAuth1 Callback] postMessage failed, parent can read localStorage:', error);
+            }
             window.close();
             return;
           }
