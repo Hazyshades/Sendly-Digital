@@ -1,6 +1,8 @@
-#docs
-docs/
-docs/env.example
+# docs — ignore contents except product architecture (docs/ blocks re-include; use docs/*)
+docs/*
+!docs/Architecture.md
+!docs/Agent-Treasury.md
+!docs/OpenSpec-Traceability.md
 # Logs
 .env copy
 logs
@@ -72,6 +74,8 @@ tmp/
 /download.png
 
 *.md
+!docs/Architecture.md
+!docs/Agent-Treasury.md
 /artifacts/
 /cache/
 /contracts/
