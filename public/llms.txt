@@ -1,8 +1,8 @@
-# Sendly Creator Paywall
+# Sendly Agent Settlement API
 
 Agent documentation:
 
-`https://sendly.digital/llm.txt`
+`https://sendly.digital/llms.txt`
 
 OpenAPI spec:
 
@@ -12,27 +12,19 @@ OpenAPI spec:
 
 ## Arc USDC / ZkSend / Social Identity Settlement
 
-Sendly Creator Paywall uses HTTP `402 Payment Required` to unlock paid content through Arc Testnet USDC settlement.
-
-Payments are executed with:
-
-`ZkSend.createPayment`
-
-The recipient is a social identity, not a wallet address.
+Sendly settles USDC on Arc Testnet via `ZkSend.createPayment` to a **social identity**, not a wallet address.
 
 Canonical recipient format:
 
 `<platform>:<handle>`
 
-Supported platforms:
+Primary treasury platforms:
 
-`twitter`, `github`, `twitch`, `gmail`, `linkedin`, `telegram`
+`github`, `twitch`
 
-Important: the platform is not always `github`. Always read the recipient platform from the `402` response:
+HTTP `402 Payment Required` is the agent payment protocol when an endpoint requires on-chain settlement before access.
 
-`paywall.recipient.platform`
-
-Using the wrong platform will produce a payment that does not match the expected `identityHash`.
+Always read `platform` and `identityHash` from the `402` response body. Wrong platform produces a payment that does not match the expected identity hash.
 
 ---
 
@@ -76,69 +68,38 @@ Examples:
 
 ---
 
-# Paywall Unlock Flow
+# HTTP 402 Agent Payment
 
-## 1. Request paid content
+When a protected endpoint returns HTTP `402`, read payment instructions from the JSON body.
 
-`GET /paywall/{slug}`
+Typical fields:
 
-Example:
-
-`GET https://eiiprokgcuksmunmszxf.supabase.co/functions/v1/creator-paywall/paywall/leonissx/lepton-agents-hackathon`
-
-Demo article (live): **5 USDC**, recipient platform `twitter`, handle `leonissx`.
-
----
-
-## 2. If response is HTTP 402, read payment instructions
-
-The `402` response contains the paywall object.
-
-Required fields:
-
-`paywall.slug`
-`paywall.priceUsdc`
-`paywall.recipient.platform`
-`paywall.recipient.handle`
-`paywall.recipient.identityHash`
-`paywall.settlement.chainId`
-`paywall.settlement.usdcAddress`
-`paywall.settlement.contractAddress`
-`paywall.settlement.method`
+`priceUsdc`
+`recipient.platform`
+`recipient.handle`
+`identityHash`
+`chainId`
+`usdcAddress`
+`contractAddress`
 
 Example recipient:
 
 ```json
 {
   "platform": "github",
-  "handle": "hazyshades",
-  "identity": "github:hazyshades",
-  "identityHash": "0x..."
+  "handle": "hazyshades"
 }
 ```
 
-Important:
-
-Do not assume the recipient platform. Use the exact value from:
-
-`paywall.recipient.platform`
-
-Examples:
-
-`github`
-`twitter`
-`twitch`
-`telegram`
+Do not assume the platform. Use the exact value from the `402` response.
 
 ---
 
-## 3. Execute payment on Arc
-
-Approve USDC spending first.
+## Execute payment on Arc
 
 Approve:
 
-`USDC.approve(paywall.settlement.contractAddress, amountAtomic)`
+`USDC.approve(contractAddress, amountAtomic)`
 
 Then call:
 
@@ -146,49 +107,17 @@ Then call:
 
 Where:
 
-`identityHash = paywall.recipient.identityHash`
-`platform = paywall.recipient.platform`
+`identityHash` and `platform` come from the `402` response
 `amountAtomic = priceUsdc * 1_000_000`
-`usdcAddress = paywall.settlement.usdcAddress`
+`usdcAddress` from the `402` response
 
 Agent execution may use Circle Wallet execution if available.
 
-Circle Agent Stack hint:
-
-`circle wallet execute --chain ARC-TESTNET`
-
-The Circle command is optional implementation detail. The protocol requirement is the Arc USDC ZkSend transaction.
-
 ---
 
-## 4. Optionally index the payment
+## Retry with payment proof
 
-After the transaction is submitted, index the payment if the payment index service is available.
-
-Recommended indexed fields:
-
-`paymentId`
-`txHash`
-`slug`
-`platform`
-`handle`
-`identityHash`
-`amountUsdc`
-`amountAtomic`
-`chainId`
-`source`
-
-If using `/zk-sender/payments`, make sure the endpoint is available in the current deployment or documented as a separate service.
-
----
-
-## 5. Retry content request with payment headers
-
-Retry:
-
-`GET /paywall/{slug}`
-
-Headers:
+After the Arc transaction is submitted, retry the original request with:
 
 `X-Sendly-Payment-Id: <paymentId>`
 `X-Sendly-Tx-Hash: <txHash>`
@@ -201,73 +130,15 @@ Allowed source values:
 
 ---
 
-## 6. Success response
-
-If payment is valid, the server returns HTTP `200` with unlocked content.
-
-The response contains:
-
-`content_body`
-
----
-
-# Creator Profiles
-
-## Public creator profile
-
-`GET /creator/{platform}/{handle}`
-
-Example:
-
-`GET /creator/github/hazyshades`
-
-Returns public creator profile and article metadata.
-
-Does not return:
-
-`content_body`
-
-Use this endpoint for browsing a creator’s active articles.
-
----
-
-## Create or update creator profile
-
-`POST /creator/profile`
-
-Idempotent upsert.
-
-GitHub ownership is server-verified.
-
-Other supported platforms are OAuth-attested.
-
----
-
-## Update creator profile
-
-`PATCH /creator/profile`
-
-Owner-only update.
-
-Editable fields:
-
-`display_name`
-`bio`
-`avatar_url`
-
----
-
 # PR Payout Agent
 
-Hero use case for Lepton.
-
-Maintainers can configure a repo treasury policy. When eligible GitHub events happen, Sendly pays contributors by GitHub identity using ZkSend.
+Maintainers configure a repo treasury policy. Eligible GitHub events trigger autonomous USDC payouts to GitHub identity via ZkSend.
 
 Recipient format:
 
 `github:<author_login>`
 
-Contributor does not need to provide a wallet upfront.
+Contributor does not need a wallet upfront.
 
 Contributor claims through Sendly zkTLS GitHub ownership verification.
 
@@ -472,8 +343,6 @@ Reviewers are paid when the PR merges.
 
 # Twitch Stream Treasury / Raid-to-Pay
 
-Hero Twitch use case for Lepton.
-
 Canonical Twitch identity:
 
 `twitch:uid:{user_id}`
@@ -624,58 +493,9 @@ Required context message:
 
 ---
 
-# Citation via 402
-
-Citation sources can be paid through the same 402 settlement rail.
-
-Attribution becomes settlement.
-
----
-
-## 1. Register citation sources
-
-`GET /citation/sources`
-
-`POST /citation/sources`
-
-A citation source can be:
-
-an existing paywall slug
-an external URL registered for attribution
-
----
-
-## 2. Run demo research agent
-
-`POST /citation/demo-run`
-
-Example body:
-
-```json
-{
-  "question": "What are the latest Sendly payment flows?"
-}
-```
-
-The demo agent pays each registered paywall slug through real Arc transactions and returns a cited answer.
-
----
-
-## 3. Settlement
-
-Citation payments use the same settlement flow as paywall unlock:
-
-HTTP `402`
-read `paywall.recipient`
-pay through Arc USDC ZkSend
-retry with payment headers
-receive unlocked content or cited result
-
----
-
 # Pricing
 
-Minimum price:
+Minimum on-chain payout:
 
 `0.5 USDC`
 
@@ -683,14 +503,12 @@ Use USDC atomic units when paying:
 
 `0.5 USDC = 500000`
 `1 USDC = 1000000`
-`5 USDC = 5000000`
 `10 USDC = 10000000`
 
 ## Live demo snapshot (Jul 2026)
 
 | Surface | Amount |
 | --- | --- |
-| Paywall `leonissx/lepton-agents-hackathon` | 5 USDC |
 | GitHub merge PR | 10 USDC |
 | GitHub release pool | 20 USDC (split) |
 | GitHub review | 15 USDC / reviewer |
@@ -698,24 +516,7 @@ Use USDC atomic units when paying:
 | Twitch campaign budget | 10 USDC |
 | Twitch raid | 0.01 USDC/viewer, min 5 viewers, cap 2 USDC/event, 10 USDC/day |
 
-Machine-readable: `https://sendly.digital/openapi.json` (see `x-demo-pricing`).
-
----
-
-# Platform Verification
-
-Supported platforms:
-
-`twitter`
-`github`
-`twitch`
-`gmail`
-`linkedin`
-`telegram`
-
-GitHub ownership is server-verified.
-
-Other platforms are OAuth-attested unless a stronger verification method is configured.
+Machine-readable: `GET /openapi.json` (see `x-demo-pricing`).
 
 ---
 
@@ -723,30 +524,22 @@ Other platforms are OAuth-attested unless a stronger verification method is conf
 
 Never assume the platform is GitHub.
 
-Always read:
-
-`paywall.recipient.platform`
-
-Always use the matching identity hash:
-
-`paywall.recipient.identityHash`
+Always read `platform` and `identityHash` from the `402` response or treasury receipt.
 
 Always pay in USDC atomic units.
 
 Do not use ETH wei for USDC amounts.
 
-Always retry the original request with:
+For HTTP 402 flows, retry with:
 
 `X-Sendly-Payment-Id`
 `X-Sendly-Tx-Hash`
 `X-Sendly-Source`
 
-If the payment succeeds but unlock fails, check:
+If payment succeeds but access fails, check:
 
 wrong platform
 wrong identityHash
 wrong amount decimals
 wrong chain
-missing payment index
 missing retry headers
-unsupported source value

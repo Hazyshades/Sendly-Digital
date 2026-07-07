@@ -1,33 +1,21 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Sendly Creator Paywall",
+    "title": "Sendly Agent Settlement API",
     "version": "1.0.0",
-    "description": "HTTP 402 paywall API with Arc USDC settlement via ZkSend to a social identity (twitter, github, twitch, gmail, linkedin, telegram). Clients should read the target platform and handle from the 402 response at paywall.recipient."
+    "description": "Arc USDC settlement via ZkSend to social identity (github, twitch). HTTP 402 agent payment protocol plus GitHub Repo Treasury and Twitch Raid-to-Pay webhooks. Read recipient.platform and identityHash from 402 responses or treasury receipts."
   },
   "servers": [
     {
       "url": "https://sendly.digital",
-      "description": "Agent docs mirror (llm.txt, openapi.json)"
+      "description": "Agent docs mirror (llms.txt, openapi.json)"
     },
     {
       "url": "https://eiiprokgcuksmunmszxf.supabase.co/functions/v1/creator-paywall",
       "description": "Supabase Edge (production API)"
-    },
-    {
-      "url": "https://zk.localhost:3000",
-      "description": "Local zk host (paywall UI; API still hits Supabase)"
     }
   ],
   "tags": [
-    {
-      "name": "Paywall",
-      "description": "Paid content access and paywall creation"
-    },
-    {
-      "name": "Creator",
-      "description": "Creator profiles and public creator pages"
-    },
     {
       "name": "GitHub Treasury",
       "description": "Repo treasury payouts triggered by GitHub events"
@@ -37,296 +25,11 @@
       "description": "Raid-to-pay campaigns and Twitch EventSub payouts"
     },
     {
-      "name": "Citations",
-      "description": "Citation source registration and paid research demo flows"
-    },
-    {
       "name": "Settlement",
       "description": "Arc USDC settlement metadata"
     }
   ],
   "paths": {
-    "/paywall/{slug}": {
-      "get": {
-        "tags": [
-          "Paywall"
-        ],
-        "operationId": "getPaywallContent",
-        "summary": "Access paid content",
-        "description": "Returns unlocked content when a valid Sendly payment ID or Arc transaction hash is provided. Otherwise returns HTTP 402 with payment instructions.",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/SlugPath"
-          },
-          {
-            "$ref": "#/components/parameters/XSendlyPaymentId"
-          },
-          {
-            "$ref": "#/components/parameters/XSendlyTxHash"
-          },
-          {
-            "$ref": "#/components/parameters/XSendlySource"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Unlocked content",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UnlockedContentResponse"
-                },
-                "examples": {
-                  "unlocked": {
-                    "value": {
-                      "status": "unlocked",
-                      "content": {
-                        "slug": "arc-agent-payments",
-                        "title": "Arc Agent Payments",
-                        "contentBody": "Full article body..."
-                      },
-                      "payment": {
-                        "paymentId": "pay_01HX...",
-                        "txHash": "0xabc123...",
-                        "status": "confirmed"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "402": {
-            "description": "Payment required - pay via ZkSend.createPayment on Arc",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaywallRequiredResponse"
-                },
-                "examples": {
-                  "paymentRequired": {
-                    "value": {
-                      "error": "payment_required",
-                      "paywall": {
-                        "slug": "leonissx/lepton-agents-hackathon",
-                        "title": "Lepton Agents Hackathon",
-                        "priceUsdc": "5",
-                        "recipient": {
-                          "platform": "twitter",
-                          "handle": "leonissx"
-                        },
-                        "settlement": {
-                          "chainId": "5042002",
-                          "usdcAddress": "0x3600000000000000000000000000000000000000",
-                          "contractAddress": "0x33783a585504025e66b8f8f6451de0c23158a3cb",
-                          "method": "ZkSend.createPayment"
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/paywall": {
-      "post": {
-        "tags": [
-          "Paywall"
-        ],
-        "operationId": "createPaywall",
-        "summary": "Create paywall",
-        "description": "Creates a paid content page. Creator must be authenticated. GitHub identities are verified; other platforms are attested.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreatePaywallRequest"
-              },
-              "examples": {
-                "leptonDemoArticle": {
-                  "value": {
-                    "slug": "leonissx/lepton-agents-hackathon",
-                    "platform": "twitter",
-                    "handle": "leonissx",
-                    "priceUsdc": 5,
-                    "title": "Lepton Agents Hackathon",
-                    "contentBody": "Full article body..."
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Paywall created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaywallMetadata"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "409": {
-            "$ref": "#/components/responses/Conflict"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/creator/{platform}/{handle}": {
-      "get": {
-        "tags": [
-          "Creator"
-        ],
-        "operationId": "getPublicCreatorProfile",
-        "summary": "Get public creator profile",
-        "description": "Returns a public creator profile and active article metadata. Does not return contentBody.",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/PlatformPath"
-          },
-          {
-            "$ref": "#/components/parameters/HandlePath"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Profile and active article list",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreatorProfileResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/creator/profile": {
-      "post": {
-        "tags": [
-          "Creator"
-        ],
-        "operationId": "upsertCreatorProfile",
-        "summary": "Upsert creator profile",
-        "description": "Idempotent upsert of creator profile. GitHub identities are verified; other platforms are attested.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpsertCreatorProfileRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Creator profile upserted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreatorProfile"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      },
-      "patch": {
-        "tags": [
-          "Creator"
-        ],
-        "operationId": "updateCreatorProfile",
-        "summary": "Update creator profile",
-        "description": "Updates displayName, bio, and avatarUrl for the authenticated profile owner.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateCreatorProfileRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Creator profile updated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreatorProfile"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
     "/webhooks/github": {
       "post": {
         "tags": [
@@ -497,110 +200,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RepoPayoutPolicy"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/citation/sources": {
-      "get": {
-        "tags": [
-          "Citations"
-        ],
-        "operationId": "listCitationSources",
-        "summary": "List active citation sources",
-        "responses": {
-          "200": {
-            "description": "Active citation sources",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CitationSourceListResponse"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Citations"
-        ],
-        "operationId": "registerCitationSource",
-        "summary": "Register citation source",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegisterCitationSourceRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Citation source registered",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CitationSource"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          }
-        }
-      }
-    },
-    "/citation/demo-run": {
-      "post": {
-        "tags": [
-          "Citations"
-        ],
-        "operationId": "runCitationDemo",
-        "summary": "Run demo research agent",
-        "description": "Runs a demo research agent and performs real 402-style payments for registered paywall slugs.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CitationDemoRunRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Demo run completed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CitationDemoRunResponse"
                 }
               }
             }
@@ -1854,7 +1453,10 @@
           },
           "splitMode": {
             "type": "string",
-            "enum": ["equal", "weighted_by_prs"],
+            "enum": [
+              "equal",
+              "weighted_by_prs"
+            ],
             "example": "equal"
           },
           "reviewAmountUsdc": {
@@ -2309,12 +1911,6 @@
   },
   "x-demo-pricing": {
     "note": "Live demo snapshot (Jul 2026). Raid formula: min(viewers * ratePerViewerUsdc, maxPerEventUsdc).",
-    "paywall": {
-      "slug": "leonissx/lepton-agents-hackathon",
-      "priceUsdc": 5,
-      "platform": "twitter",
-      "handle": "leonissx"
-    },
     "githubRepoTreasury": {
       "repoFullName": "Hazyshades/Sendly-Test-Repo",
       "perPrAmountUsdc": 10,
@@ -2341,14 +1937,10 @@
     "contractAddress": "0x33783a585504025e66b8f8f6451de0c23158a3cb",
     "usdcAddress": "0x3600000000000000000000000000000000000000",
     "method": "ZkSend.createPayment",
-    "platformSource": "Read per-paywall from the 402 response: paywall.recipient.platform",
+    "platformSource": "Read platform and identityHash from the 402 response body or treasury receipt",
     "supportedPlatforms": [
-      "twitter",
       "github",
-      "twitch",
-      "gmail",
-      "linkedin",
-      "telegram"
+      "twitch"
     ],
     "minPriceUsdc": "0.5"
   }
