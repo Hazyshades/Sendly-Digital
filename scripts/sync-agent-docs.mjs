@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -13,10 +13,44 @@ const candidates = [
 
 const src = candidates.find((p) => existsSync(join(p, 'llm.txt')));
 
+function filesEqual(a, b) {
+  try {
+    return readFileSync(a).equals(readFileSync(b));
+  } catch {
+    return false;
+  }
+}
+
+function syncFile(sourceName, destName) {
+  const sourcePath = join(src, sourceName);
+  const destPath = join(pub, destName);
+
+  if (!existsSync(sourcePath)) return;
+
+  if (existsSync(destPath) && filesEqual(sourcePath, destPath)) {
+    return;
+  }
+
+  if (process.env.CI) {
+    console.warn(
+      `[sync:agent-docs] Skipping ${destName}: local creator-paywall source differs from committed public/ copy.`,
+    );
+    return;
+  }
+
+  if (existsSync(destPath) && !filesEqual(sourcePath, destPath)) {
+    console.warn(
+      `[sync:agent-docs] Overwriting public/${destName} from local creator-paywall checkout. Commit public/ if this should ship.`,
+    );
+  }
+
+  copyFileSync(sourcePath, destPath);
+}
+
 if (src) {
-  copyFileSync(join(src, 'llm.txt'), join(pub, 'llm.txt'));
-  copyFileSync(join(src, 'llm.txt'), join(pub, 'llms.txt'));
-  copyFileSync(join(src, 'openapi.json'), join(pub, 'openapi.json'));
+  syncFile('llm.txt', 'llm.txt');
+  syncFile('llm.txt', 'llms.txt');
+  syncFile('openapi.json', 'openapi.json');
   console.log(`Synced agent docs from ${src} -> ${pub}`);
   process.exit(0);
 }

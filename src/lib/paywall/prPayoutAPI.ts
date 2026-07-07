@@ -100,18 +100,27 @@ export function formatUsdcAmount(value: string | number | undefined | null): str
 }
 
 export async function fetchPrPayoutReceipts(): Promise<PrPayoutReceipt[]> {
-  const data = (await prFetch('/pr-payouts')) as { receipts?: PrPayoutReceipt[] };
-  return data.receipts ?? [];
+  const data = (await prFetch('/pr-payouts')) as {
+    items?: PrPayoutReceipt[];
+    receipts?: PrPayoutReceipt[];
+  };
+  return data.items ?? data.receipts ?? [];
 }
 
 export async function fetchPrPayoutPolicies(): Promise<PrPayoutPolicy[]> {
-  const data = (await prFetch('/pr-payout-policy')) as { policies?: PrPayoutPolicy[] };
-  return data.policies ?? [];
+  const data = (await prFetch('/pr-payout-policy')) as {
+    items?: PrPayoutPolicy[];
+    policies?: PrPayoutPolicy[];
+  };
+  return data.items ?? data.policies ?? [];
 }
 
 export async function fetchActiveIssueBounties(): Promise<IssueBounty[]> {
-  const data = (await prFetch('/repo-bounties')) as { bounties?: IssueBounty[] };
-  return data.bounties ?? [];
+  const data = (await prFetch('/repo-bounties')) as {
+    items?: IssueBounty[];
+    bounties?: IssueBounty[];
+  };
+  return data.items ?? data.bounties ?? [];
 }
 
 export function getCreatorPaywallBase(): string {

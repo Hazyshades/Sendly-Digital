@@ -64,20 +64,27 @@ export type TwitchPayoutReceipt = {
 };
 
 export async function fetchTwitchCampaigns(): Promise<TwitchCampaign[]> {
-  const data = (await twitchFetch('/twitch/campaigns')) as { campaigns?: TwitchCampaign[] };
-  return data.campaigns ?? [];
+  const data = (await twitchFetch('/twitch/campaigns')) as {
+    items?: TwitchCampaign[];
+    campaigns?: TwitchCampaign[];
+  };
+  return data.items ?? data.campaigns ?? [];
 }
 
 export async function fetchTwitchPayoutPolicies(): Promise<TwitchRaidPolicy[]> {
   const data = (await twitchFetch('/twitch/payout-policies')) as {
+    items?: TwitchRaidPolicy[];
     policies?: TwitchRaidPolicy[];
   };
-  return data.policies ?? [];
+  return data.items ?? data.policies ?? [];
 }
 
 export async function fetchTwitchPayoutReceipts(): Promise<TwitchPayoutReceipt[]> {
-  const data = (await twitchFetch('/twitch-payouts')) as { receipts?: TwitchPayoutReceipt[] };
-  return data.receipts ?? [];
+  const data = (await twitchFetch('/twitch-payouts')) as {
+    items?: TwitchPayoutReceipt[];
+    receipts?: TwitchPayoutReceipt[];
+  };
+  return data.items ?? data.receipts ?? [];
 }
 
 export async function createTwitchCampaign(input: {

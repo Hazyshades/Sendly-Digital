@@ -173,8 +173,8 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
       const currentHasZkSocial = zk && !!zkOAuthIdentity;
 
       if (isConnected && address) {
-        // If MetaMask is connected - check wallet by address
-        checkWallet().finally(() => {
+        // Prefer EOA-linked wallet, then fall back to zk OAuth / Privy social wallets.
+        checkWalletWithFallback().finally(() => {
           isCheckingRef.current = false;
         });
       } else if (zk && zkOAuthLoading) {
@@ -212,17 +212,72 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
     }
   }, [wallet]);
 
-  const checkWallet = async () => {
+  const findWalletByLinkedSocial = async (): Promise<DeveloperWallet | null> => {
+    if (zk && zkOAuthIdentity) {
+      try {
+        const zkWallet = await DeveloperWalletService.getWalletBySocial(
+          zkOAuthIdentity.platform,
+          zkOAuthIdentity.socialUserId,
+          blockchain,
+        );
+        if (zkWallet) return zkWallet;
+      } catch (error) {
+        console.error('[DeveloperWallet] Error checking zk OAuth wallet:', error);
+      }
+    }
+
+    if (!authenticated || !privyUser) return null;
+
+    const socialPlatforms = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'] as const;
+    for (const platform of socialPlatforms) {
+      let socialUserId: string | null = null;
+
+      if (platform === 'twitter' && privyUser.twitter) {
+        socialUserId = (privyUser.twitter as any).subject;
+      } else if (platform === 'twitch' && privyUser.twitch) {
+        socialUserId = (privyUser.twitch as any).subject;
+      } else if (platform === 'telegram' && privyUser.telegram) {
+        socialUserId = privyUser.telegram.telegramUserId || (privyUser.telegram as any).subject;
+      } else if (platform === 'tiktok' && privyUser.tiktok) {
+        socialUserId = (privyUser.tiktok as any).subject;
+      } else if (platform === 'instagram' && (privyUser as any).instagram) {
+        socialUserId = ((privyUser as any).instagram as any).subject;
+      }
+
+      if (!socialUserId) continue;
+
+      try {
+        const foundWallet = await DeveloperWalletService.getWalletBySocial(
+          platform,
+          socialUserId,
+          blockchain,
+        );
+        if (foundWallet) return foundWallet;
+      } catch (error) {
+        console.error(`[DeveloperWallet] Error checking ${platform} wallet:`, error);
+      }
+    }
+
+    return null;
+  };
+
+  const checkWalletWithFallback = async () => {
     if (!address) {
       setChecking(false);
       return;
     }
-    
+
     try {
       setChecking(true);
       const wallets = await DeveloperWalletService.getWallets(address);
-      const existingWallet = wallets.find(w => w.blockchain === blockchain);
-      setWallet(existingWallet || null);
+      const existingWallet = wallets.find((w) => w.blockchain === blockchain);
+      if (existingWallet) {
+        setWallet(existingWallet);
+        return;
+      }
+
+      const socialWallet = await findWalletByLinkedSocial();
+      setWallet(socialWallet);
     } catch (error) {
       console.error('Error checking wallet:', error);
       toast.error('Failed to check wallet');
@@ -239,11 +294,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
 
     try {
       setChecking(true);
-      const foundWallet = await DeveloperWalletService.getWalletBySocial(
-        zkOAuthIdentity.platform,
-        zkOAuthIdentity.socialUserId,
-        blockchain,
-      );
+      const foundWallet = await findWalletByLinkedSocial();
       setWallet(foundWallet || null);
     } catch (error) {
       console.error('[DeveloperWallet] Error checking zk OAuth wallet:', error);
@@ -254,64 +305,16 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
 
   const checkSocialWallet = async () => {
     if (!authenticated || !privyUser) {
-      console.log('[DeveloperWallet] No authenticated user or privyUser');
       setChecking(false);
       return;
     }
-    
+
     try {
       setChecking(true);
-      console.log('[DeveloperWallet] Checking social wallet for authenticated user');
-      // Check for a Internal Wallet for linked social networks
-      const socialPlatforms = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'];
-      
-      let walletFound = false;
-      
-      for (const platform of socialPlatforms) {
-        let socialUserId: string | null = null;
-        
-        if (platform === 'twitter' && privyUser.twitter) {
-          socialUserId = (privyUser.twitter as any).subject;
-          console.log('[DeveloperWallet] Found Twitter account, subject:', socialUserId);
-        } else if (platform === 'twitch' && privyUser.twitch) {
-          socialUserId = (privyUser.twitch as any).subject;
-          console.log('[DeveloperWallet] Found Twitch account, subject:', socialUserId);
-        } else if (platform === 'telegram' && privyUser.telegram) {
-          socialUserId = privyUser.telegram.telegramUserId || (privyUser.telegram as any).subject;
-          console.log('[DeveloperWallet] Found Telegram account, userId:', socialUserId);
-        } else if (platform === 'tiktok' && privyUser.tiktok) {
-          socialUserId = (privyUser.tiktok as any).subject;
-          console.log('[DeveloperWallet] Found TikTok account, subject:', socialUserId);
-        } else if (platform === 'instagram' && (privyUser as any).instagram) {
-          socialUserId = ((privyUser as any).instagram as any).subject;
-          console.log('[DeveloperWallet] Found Instagram account, subject:', socialUserId);
-        }
-
-        if (socialUserId) {
-          console.log(`[DeveloperWallet] Checking wallet for ${platform} with userId: ${socialUserId}`);
-          const foundWallet = await DeveloperWalletService.getWalletBySocial(
-            platform as 'twitter' | 'twitch' | 'telegram' | 'tiktok' | 'instagram',
-            socialUserId,
-            blockchain
-          );
-          
-          console.log(`[DeveloperWallet] Wallet check result for ${platform}:`, foundWallet ? 'FOUND' : 'NOT FOUND');
-          
-          if (foundWallet) {
-            console.log('[DeveloperWallet] Setting wallet:', foundWallet);
-            setWallet(foundWallet);
-            walletFound = true;
-            break;
-          }
-        }
-      }
-      
-      if (!walletFound) {
-        console.log('[DeveloperWallet] No wallet found for any social platform');
-      }
+      const foundWallet = await findWalletByLinkedSocial();
+      setWallet(foundWallet);
     } catch (error) {
       console.error('[DeveloperWallet] Error checking social wallet:', error);
-      // Do not show an error to the user; simply treat as no wallet found
     } finally {
       setChecking(false);
     }

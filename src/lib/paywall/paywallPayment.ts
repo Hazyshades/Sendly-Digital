@@ -17,6 +17,84 @@ const FEE_BPS = 10n;
 const BPS_DENOMINATOR = 10000n;
 const DECIMALS = 1_000_000;
 
+function parseAmountToWei(amount: string): bigint {
+  return BigInt(Math.floor(parseFloat(amount) * DECIMALS));
+}
+
+/** Total USDC charged at checkout (list price + platform fee). */
+export function formatPaywallChargeUsdc(priceUsdc: string): string {
+  const amountWei = parseAmountToWei(priceUsdc);
+  const feeWei = (amountWei * FEE_BPS) / BPS_DENOMINATOR;
+  const totalWei = amountWei + feeWei;
+  return (Number(totalWei) / DECIMALS).toFixed(2);
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function resolvePaymentIdFromChain(params: {
+  publicClient: ReturnType<typeof createPublicClient>;
+  txHash: string;
+  zksendAddress: `0x${string}`;
+  identityHash: `0x${string}`;
+  senderAddress: `0x${string}`;
+  amountWei: bigint;
+}): Promise<string | null> {
+  const { publicClient, txHash, zksendAddress, identityHash, senderAddress, amountWei } = params;
+
+  for (let attempt = 0; attempt < 8; attempt++) {
+    try {
+      const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
+      if (receipt?.logs?.length) {
+        const parsed = parseEventLogs({
+          abi: ZkSendABI,
+          logs: receipt.logs,
+          eventName: 'PaymentCreated',
+        });
+        const ev = parsed?.[0] as { args?: { paymentId?: bigint } } | undefined;
+        if (ev?.args?.paymentId != null) return ev.args.paymentId.toString();
+      }
+    } catch {
+      // receipt may not be indexed yet
+    }
+    if (attempt < 7) await sleep(750);
+  }
+
+  try {
+    const pendingIds = (await publicClient.readContract({
+      address: zksendAddress,
+      abi: ZkSendABI,
+      functionName: 'getPendingPayments',
+      args: [identityHash],
+    })) as bigint[];
+
+    const normalizedSender = senderAddress.toLowerCase();
+    for (const id of pendingIds) {
+      const payment = (await publicClient.readContract({
+        address: zksendAddress,
+        abi: ZkSendABI,
+        functionName: 'getPayment',
+        args: [id],
+      })) as {
+        paymentId?: bigint;
+        sender?: string;
+        amount?: bigint;
+        claimed?: boolean;
+      };
+
+      if (payment.claimed) continue;
+      if (payment.sender?.toLowerCase() !== normalizedSender) continue;
+      if (payment.amount !== amountWei) continue;
+      return BigInt(payment.paymentId ?? id).toString();
+    }
+  } catch (err) {
+    console.warn('[paywall] paymentId fallback lookup failed:', err);
+  }
+
+  return null;
+}
+
 async function pollTransactionStatus(transactionId: string): Promise<string> {
   const maxAttempts = 30;
   const pollInterval = 1000;
@@ -33,10 +111,6 @@ async function pollTransactionStatus(transactionId: string): Promise<string> {
     if (status?.transactionState === 'COMPLETE' && status?.txHash) return status.txHash;
   }
   throw new Error('Transaction status timeout');
-}
-
-function parseAmountToWei(amount: string): bigint {
-  return BigInt(Math.floor(parseFloat(amount) * DECIMALS));
 }
 
 export type PaywallPaymentResult = {
@@ -112,22 +186,19 @@ export async function payPaywallViaDeveloperWallet(params: {
   }
   if (!txHash) throw new Error('Missing transaction hash');
 
-  let paymentId: string | null = null;
-  try {
-    const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
-    if (receipt?.logs) {
-      const parsed = parseEventLogs({
-        abi: ZkSendABI,
-        logs: receipt.logs,
-        eventName: 'PaymentCreated',
-      });
-      const ev = parsed?.[0] as { args?: { paymentId?: bigint } } | undefined;
-      if (ev?.args?.paymentId != null) paymentId = ev.args.paymentId.toString();
-    }
-  } catch {
-    // ignore
+  const paymentId = await resolvePaymentIdFromChain({
+    publicClient,
+    txHash,
+    zksendAddress: contracts.zksend as `0x${string}`,
+    identityHash,
+    senderAddress: developerWallet.wallet_address as `0x${string}`,
+    amountWei,
+  });
+  if (!paymentId) {
+    throw new Error(
+      'Payment was sent on Arc, but paymentId could not be read yet. Try unlocking again with your transaction hash.',
+    );
   }
-  if (!paymentId) throw new Error('Could not read paymentId from chain');
 
   try {
     await createZkSendPaymentRecord({

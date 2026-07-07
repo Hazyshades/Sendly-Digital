@@ -11,6 +11,7 @@ import type {
   PaywallUnlockedResponse,
 } from '@/lib/paywall/creatorPaywallAPI';
 import { getCreatorProfilePath } from '@/lib/paywall/creatorProfileAPI';
+import { formatPaywallChargeUsdc } from '@/lib/paywall/paywallPayment';
 import { ARC_CHAIN_ID, getExplorerTxUrl } from '@/lib/web3/constants';
 
 const PLATFORM_ICONS: Record<string, LucideIcon> = {
@@ -101,6 +102,8 @@ export function PaywallArticleView({
     return <p className="py-12 text-center text-muted-foreground">Unable to load article.</p>;
   }
 
+  const chargeUsdc = formatPaywallChargeUsdc(instructions.priceUsdc);
+
   return (
     <Card className="bg-white shadow-circle-card rounded-2xl backdrop-blur-sm border-0 overflow-hidden">
       <CardContent className="p-6 sm:p-8">
@@ -111,7 +114,7 @@ export function PaywallArticleView({
             <p className="text-sm text-muted-foreground mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
               <CreatorLink platform={instructions.recipient.platform} handle={instructions.recipient.handle} />
               <span className="inline-flex items-center rounded-full bg-blue-50 text-blue-700 px-2.5 py-0.5 text-xs font-medium">
-                {instructions.priceUsdc} USDC
+                {chargeUsdc} USDC
               </span>
             </p>
           </div>
@@ -119,10 +122,11 @@ export function PaywallArticleView({
 
         <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/60 px-5 py-8 text-center space-y-4 my-6">
           <p className="text-sm text-gray-600">
-            This article is locked. Pay {instructions.priceUsdc} USDC on Arc to read the full content.
+            This article is locked. Pay {chargeUsdc} USDC on Arc to read the full content
+            {chargeUsdc !== instructions.priceUsdc ? ` (includes 0.1% platform fee)` : ''}.
           </p>
           <Button onClick={onPay} disabled={paying || checkingWallet || !hasDeveloperWallet} size="lg">
-            {paying ? 'Paying…' : `Pay ${instructions.priceUsdc} USDC & unlock`}
+            {paying ? 'Paying…' : `Pay ${chargeUsdc} USDC & unlock`}
           </Button>
           {!hasDeveloperWallet && !checkingWallet ? (
             <p className="text-xs text-amber-700">
