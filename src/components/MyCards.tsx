@@ -262,19 +262,22 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
       
       // Received: only rows where recipient is your wallet (after claim sync / DB address path).
       // Pending social cards are listed under Pending Claims, not here.
-      const [allReceivedCards, supabaseSentCards] = await Promise.all([
+      const [allReceivedCards, allSentCardsRaw] = await Promise.all([
         Promise.all(
           recipientAddresses.map((addr) => GiftCardsService.getCardsByRecipientForMyCards(addr, activeChainId))
         ).then((results) => results.flat()),
-        isConnected && address
-          ? GiftCardsService.getCardsBySenderForMyCards(address, activeChainId)
-          : Promise.resolve([]),
+        Promise.all(
+          recipientAddresses.map((addr) => GiftCardsService.getCardsBySenderForMyCards(addr, activeChainId))
+        ).then((results) => results.flat()),
       ]);
 
         // Transform Supabase data to our format
         // Remove duplicates by tokenId
       const uniqueReceivedCards = Array.from(
         new Map(allReceivedCards.map(card => [card.token_id, card])).values()
+      );
+      const uniqueSentCards = Array.from(
+        new Map(allSentCardsRaw.map(card => [card.token_id, card])).values()
       );
       
       const transformedReceivedCards: GiftCard[] = uniqueReceivedCards.map(card => ({
@@ -292,7 +295,7 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
         qrCode: `/spend?tokenId=${card.token_id}`
       }));
 
-      const transformedSentCards: GiftCard[] = supabaseSentCards.map(card => {
+      const transformedSentCards: GiftCard[] = uniqueSentCards.map(card => {
         const username = card.recipient_username ? card.recipient_username.replace(/^@/, '') : null;
         const recipientDisplay = (() => {
           switch (card.recipient_type) {
@@ -314,7 +317,7 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
           design: 'pink',
           message: card.message,
           recipient: recipientDisplay,
-          sender: address || '',
+          sender: card.sender_address || '',
           status: card.redeemed ? 'redeemed' : 'active',
           createdAt: card.created_at ? new Date(card.created_at).toLocaleDateString() : new Date().toLocaleDateString(),
           hasTimer: false,
