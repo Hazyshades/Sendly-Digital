@@ -325,7 +325,7 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'how-it-works',
         title: 'How it works',
         paragraphs: [
-          'On the Create page, pick wallet or username, set USDC or EURC, add an optional message (you can password-protect it), then confirm in your wallet.',
+          'On the Create page, pick wallet or username, set USDC or EURC, add an optional message, then confirm in your wallet.',
           'The contract mints an ERC-721. Metadata and art sit on IPFS (Pinata). If you send by username, the card stays in a vault until the recipient proves they own that account.'
         ]
       },

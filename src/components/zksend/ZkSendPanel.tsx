@@ -5,7 +5,7 @@ import { PendingPayments } from './PendingPayments';
 import { SendPaymentForm, type SendPaymentPreviewValues } from './SendPaymentForm';
 import { IdentitySelector } from './IdentitySelector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { normalizeSocialUsername } from '@/lib/reclaim/identity';
+import { isSocialRecipientValid } from '@/lib/reclaim/identity';
 import { useCircleWallet } from '@/hooks/useCircleWallet';
 import { useZkOAuthIdentity } from '@/lib/zk-oauth/useZkOAuthIdentity';
 import type { WalletSource } from './WalletSourceToggle';
@@ -73,15 +73,15 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
     setReceiveUsername(value);
   };
 
-  const isSendIdentityValid = useMemo(() => {
-    if (sendPlatform === 'address') return /^0x[a-fA-F0-9]{40}$/.test(sendUsername.trim());
-    return !!normalizeSocialUsername(sendUsername.replace(/^@/, ''));
-  }, [sendPlatform, sendUsername]);
+  const isSendIdentityValid = useMemo(
+    () => isSocialRecipientValid(sendPlatform, sendUsername),
+    [sendPlatform, sendUsername],
+  );
 
-  const isReceiveIdentityValid = useMemo(() => {
-    if (receivePlatform === 'address') return /^0x[a-fA-F0-9]{40}$/.test(receiveUsername.trim());
-    return !!normalizeSocialUsername(receiveUsername.replace(/^@/, ''));
-  }, [receivePlatform, receiveUsername]);
+  const isReceiveIdentityValid = useMemo(
+    () => isSocialRecipientValid(receivePlatform, receiveUsername),
+    [receivePlatform, receiveUsername],
+  );
 
   return (
     <div className="space-y-6">

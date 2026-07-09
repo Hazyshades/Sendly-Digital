@@ -661,7 +661,9 @@ export function SendPaymentForm({
           <p className="text-sm text-amber-600 dark:text-amber-500">
             {platform === 'address'
               ? 'Enter a valid wallet address (0x followed by 40 hex characters).'
-              : 'Select a platform above and enter a valid username to send.'}
+              : platform === 'gmail'
+                ? 'Enter a full Gmail address (e.g. user@gmail.com).'
+                : 'Select a platform above and enter a valid username to send.'}
           </p>
         )}
 

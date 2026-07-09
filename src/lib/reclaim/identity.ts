@@ -41,13 +41,34 @@ export function normalizeSocialUsername(username: string): string | null {
   return decoded.toLowerCase();
 }
 
+/** Gmail recipient must be a full @gmail.com address (not a bare username). */
+const GMAIL_ADDRESS_RE = /^[a-z0-9](?:[a-z0-9.+_-]*[a-z0-9])?@gmail\.com$/;
+
+export function normalizeGmailAddress(email: string): string | null {
+  const decoded = safeDecode(String(email ?? '')).trim().toLowerCase();
+  if (!decoded || !GMAIL_ADDRESS_RE.test(decoded)) return null;
+  return decoded;
+}
+
+export function isSocialRecipientValid(platform: string, username: string): boolean {
+  const trimmed = username.trim();
+  if (!trimmed) return false;
+  if (platform === 'address') return /^0x[a-fA-F0-9]{40}$/.test(trimmed);
+  if (platform === 'gmail') return !!normalizeGmailAddress(trimmed);
+  return !!normalizeSocialUsername(trimmed.replace(/^@/, ''));
+}
+
 /**
  * Build normalized social identity: "platform:username".
  */
 export function buildSocialIdentity(platform: string, username: string): string | null {
   const normalizedPlatform = normalizeSocialPlatform(platform);
-  const normalizedUsername = normalizeSocialUsername(username);
-  if (!normalizedPlatform || !normalizedUsername) return null;
+  if (!normalizedPlatform) return null;
+  const normalizedUsername =
+    normalizedPlatform === 'gmail'
+      ? normalizeGmailAddress(username)
+      : normalizeSocialUsername(username.replace(/^@/, ''));
+  if (!normalizedUsername) return null;
   return `${normalizedPlatform}:${normalizedUsername}`;
 }
 

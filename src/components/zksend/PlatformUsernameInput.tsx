@@ -37,6 +37,15 @@ const PREVIEW_DEBOUNCE_MS = 500;
 /** Twitter preview: 3s debounce to reduce Twitter API (twitterapi.io) usage when typing. */
 const TWITTER_PREVIEW_DEBOUNCE_MS = 3000;
 
+const PROFILE_LINK_CLASS =
+  'truncate text-foreground underline decoration-muted-foreground/50 underline-offset-2 hover:decoration-foreground';
+
+function recipientPlaceholder(platform: SendRecipientType): string {
+  if (platform === 'address') return '0x...';
+  if (platform === 'gmail') return 'user@gmail.com';
+  return '@username';
+}
+
 /** Module-level cache for successful Twitter previews (key = normalized username). Survives tab switch. */
 const twitterPreviewCache = new Map<string, TwitterUserPreview>();
 
@@ -411,7 +420,7 @@ export function PlatformUsernameInput({
               id={inputId}
               value={username}
               readOnly
-              placeholder={platform === 'address' ? '0x...' : '@username'}
+              placeholder={recipientPlaceholder(platform)}
               aria-label={platform === 'address' ? 'Recipient wallet address' : ariaLabel}
               className="border-0 rounded-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 pr-4 font-mono cursor-default"
             />
@@ -456,7 +465,7 @@ export function PlatformUsernameInput({
             id={inputId}
             value={username}
             onChange={(e) => onUsernameChange(e.target.value)}
-            placeholder={platform === 'address' ? '0x...' : '@username'}
+            placeholder={recipientPlaceholder(platform)}
             aria-label={platform === 'address' ? 'Recipient wallet address' : ariaLabel}
             className="border-0 rounded-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 pr-10 font-mono"
           />
@@ -618,7 +627,14 @@ export function PlatformUsernameInput({
                 {twitchPreviewData.display_name && twitchPreviewData.display_name !== twitchPreviewData.login && (
                   <span className="truncate text-foreground">{twitchPreviewData.display_name}</span>
                 )}
-                <span className="shrink-0 font-medium text-foreground">{twitchPreviewData.login}</span>
+                <a
+                  href={`https://twitch.tv/${twitchPreviewData.login}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`shrink-0 font-medium ${PROFILE_LINK_CLASS}`}
+                >
+                  {twitchPreviewData.login}
+                </a>
                 <span className="shrink-0 text-muted-foreground">
                   {formatTwitchFollowers(twitchPreviewData.followers_total)} followers
                 </span>
@@ -670,16 +686,16 @@ export function PlatformUsernameInput({
               )}
               <div className="flex min-w-0 flex-1 items-center gap-1.5">
                 {githubPreviewData.name && githubPreviewData.name !== githubPreviewData.login && (
-                  <a
-                    href={`https://github.com/${githubPreviewData.login}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="truncate text-foreground underline decoration-muted-foreground/50 underline-offset-2 hover:decoration-foreground"
-                  >
-                    {githubPreviewData.name}
-                  </a>
+                  <span className="truncate text-foreground">{githubPreviewData.name}</span>
                 )}
-                <span className="shrink-0 font-medium text-foreground">{githubPreviewData.login}</span>
+                <a
+                  href={`https://github.com/${githubPreviewData.login}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`shrink-0 font-medium ${PROFILE_LINK_CLASS}`}
+                >
+                  {githubPreviewData.login}
+                </a>
               </div>
               <CheckCircle2 className="h-4 w-4 shrink-0 text-slate-600 dark:text-slate-400" aria-hidden />
             </div>
@@ -730,7 +746,14 @@ export function PlatformUsernameInput({
                 {telegramPreviewData.name && telegramPreviewData.name !== telegramPreviewData.username && (
                   <span className="truncate text-foreground">{telegramPreviewData.name}</span>
                 )}
-                <span className="shrink-0 font-medium text-foreground">@{telegramPreviewData.username}</span>
+                <a
+                  href={`https://t.me/${telegramPreviewData.username}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`shrink-0 font-medium ${PROFILE_LINK_CLASS}`}
+                >
+                  @{telegramPreviewData.username}
+                </a>
               </div>
               <CheckCircle2 className="h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400" aria-hidden />
             </div>

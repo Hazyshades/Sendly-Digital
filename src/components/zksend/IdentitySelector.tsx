@@ -3,7 +3,7 @@ import { CheckCircle2 } from 'lucide-react';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { PlatformUsernameInput } from './PlatformUsernameInput';
-import { normalizeSocialUsername } from '@/lib/reclaim/identity';
+import { isSocialRecipientValid } from '@/lib/reclaim/identity';
 
 import type { SendRecipientType } from './ZkSendPanel';
 
@@ -18,12 +18,8 @@ type Props = {
   previewProfileImageUrl?: string | null;
 };
 
-const EVM_ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
-
 export function IdentitySelector({ platform, onPlatformChange, username, onUsernameChange, isConnected, readOnly, previewSuggestionLabel, previewProfileImageUrl }: Props) {
-  const normalizedUsername = useMemo(() => normalizeSocialUsername(username.replace(/^@/, '')), [username]);
-  const isValid =
-    platform === 'address' ? EVM_ADDRESS_RE.test(username.trim()) : !!normalizedUsername;
+  const isValid = useMemo(() => isSocialRecipientValid(platform, username), [platform, username]);
   const fieldLabel = platform === 'address' ? 'Recipient address' : 'Username';
 
   return (
@@ -56,7 +52,9 @@ export function IdentitySelector({ platform, onPlatformChange, username, onUsern
             <div className="text-xs text-amber-600">
               {platform === 'address'
                 ? 'Enter a valid wallet address (0x followed by 40 hex characters).'
-                : 'Enter a valid username'}
+                : platform === 'gmail'
+                  ? 'Enter a full Gmail address (e.g. user@gmail.com).'
+                  : 'Enter a valid username'}
             </div>
           )}
 

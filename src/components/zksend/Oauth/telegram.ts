@@ -85,9 +85,7 @@ export const connectTelegram = async (): Promise<string | null> => {
   try {
     const token = await requestTelegramLoginFlow();
     if (!token) {
-      throw new Error(
-        'Telegram authorization failed or was cancelled. Check the domain in BotFather /setdomain.'
-      );
+      throw new Error('Telegram authorization failed or was cancelled. Please try again.');
     }
     toast.success('Telegram connected');
     return token;

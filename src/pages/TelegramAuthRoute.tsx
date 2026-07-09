@@ -125,13 +125,12 @@ export function TelegramAuthRoute() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4">
-      <h2 className="mb-4 text-xl font-semibold">Log in with Telegram</h2>
+      <h2 className="mb-4 text-xl font-semibold">Connect Telegram</h2>
       {botUsername ? (
         <>
           <div ref={containerRef} id="telegram-login-container" />
-          <p className="mt-4 max-w-sm text-center text-xs text-muted-foreground">
-            If you see &quot;Username invalid&quot;, in @BotFather run /setdomain and add this exact origin: <code className="rounded bg-muted px-1">{typeof window !== 'undefined' ? window.location.origin : '…'}</code>
-            <span className="mt-2 block"> If you see &quot;Invalid Telegram widget hash&quot; or connection errors, ensure <strong>zktls-service</strong> is running (e.g. <code className="rounded bg-muted px-1">npm start</code> from project root or <code className="rounded bg-muted px-1">node server.js</code> from zktls-service) and <code className="rounded bg-muted px-1">TELEGRAM_BOT_TOKEN</code> is set in zktls-service/.env.</span>
+          <p className="mt-4 max-w-sm text-center text-sm text-muted-foreground">
+            Please sign in with Telegram to link your account to Sendly.
           </p>
         </>
       ) : (

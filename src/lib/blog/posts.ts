@@ -22,17 +22,6 @@ export const LEGACY_SLUG_MAP: Record<string, string> = {
 
 export const BLOG_POSTS: BlogPostMeta[] = [
   {
-    slug: 'zktls-payments-guide',
-    title: 'User Guide: Payments (zkTLS and zkSend)',
-    description:
-      'Send money to platform:username. The recipient proves they control that account (zkTLS), then the contract sends funds to their wallet.',
-    date: '2026-02-11',
-    category: 'Tutorial',
-    tags: ['zkTLS', 'zkSend', 'Payments'],
-    readTime: '8 min',
-    coverImage: '/SENDLY-ZKTLS.png',
-  },
-  {
     slug: 'nft-gift-cards-guide',
     title: 'NFT Gift Cards - User Guide',
     description:
@@ -42,6 +31,17 @@ export const BLOG_POSTS: BlogPostMeta[] = [
     tags: ['NFT', 'Gift Cards', 'Tutorial'],
     readTime: '8 min',
     coverImage: '/SENDLY GIFT CARD.png',
+  },
+  {
+    slug: 'zktls-payments-guide',
+    title: 'User Guide: Payments (zkTLS and zkSend)',
+    description:
+      'Send money to platform:username. The recipient proves they control that account (zkTLS), then the contract sends funds to their wallet.',
+    date: '2026-02-11',
+    category: 'Tutorial',
+    tags: ['zkTLS', 'zkSend', 'Payments'],
+    readTime: '8 min',
+    coverImage: '/SENDLY-ZKTLS.png',
   },
   {
     slug: 'circle-sdk-wallet-playbook',
@@ -71,9 +71,9 @@ export const BLOG_POSTS: BlogPostMeta[] = [
 
 /** Slugs listed on /blog and served at /blog/:slug */
 export const PUBLIC_BLOG_SLUGS = new Set<string>([
+  'nft-gift-cards-guide',
   'privy-results',
   'circle-sdk-wallet-playbook',
-  // 'nft-gift-cards-guide',
 ]);
 
 export function resolveBlogSlug(slug: string): string {
