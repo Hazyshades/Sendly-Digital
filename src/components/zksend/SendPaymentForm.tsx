@@ -7,6 +7,7 @@ import { createPublicClient, http, parseEventLogs } from 'viem';
 import web3Service from '@/lib/web3/web3Service';
 import {
   generateSocialIdentityHash,
+  normalizeGmailAddress,
   normalizeSocialPlatform,
   normalizeSocialUsername,
 } from '@/lib/reclaim/identity';
@@ -168,7 +169,10 @@ export function SendPaymentForm({
     };
   }, [walletSource, developerWallet?.wallet_address, tokenConfig.address, preview, contracts.rpcUrls]);
 
-  const normalizedUsername = useMemo(() => normalizeSocialUsername(username.replace(/^@/, '')), [username]);
+  const normalizedUsername = useMemo(() => {
+    if (platform === 'gmail') return normalizeGmailAddress(username);
+    return normalizeSocialUsername(username.replace(/^@/, ''));
+  }, [platform, username]);
   const normalizedPlatform = useMemo(() => (platform === 'address' ? null : normalizeSocialPlatform(platform)), [platform]);
 
   const balanceFormatted =

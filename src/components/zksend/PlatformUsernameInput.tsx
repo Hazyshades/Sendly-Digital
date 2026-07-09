@@ -409,6 +409,15 @@ export function PlatformUsernameInput({
 
   const clearUsername = () => onUsernameChange('');
 
+  const handleUsernameBlur = () => {
+    if (readOnly || platform !== 'gmail') return;
+    const trimmed = username.trim();
+    if (!trimmed || trimmed.includes('@')) return;
+    if (/^[a-zA-Z0-9](?:[a-zA-Z0-9.+_-]*)?$/.test(trimmed)) {
+      onUsernameChange(`${trimmed.toLowerCase()}@gmail.com`);
+    }
+  };
+
   if (readOnly) {
     const Icon = currentPlatformOpt.icon;
     return (
@@ -465,6 +474,7 @@ export function PlatformUsernameInput({
             id={inputId}
             value={username}
             onChange={(e) => onUsernameChange(e.target.value)}
+            onBlur={handleUsernameBlur}
             placeholder={recipientPlaceholder(platform)}
             aria-label={platform === 'address' ? 'Recipient wallet address' : ariaLabel}
             className="border-0 rounded-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 pr-10 font-mono"

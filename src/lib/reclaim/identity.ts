@@ -50,6 +50,54 @@ export function normalizeGmailAddress(email: string): string | null {
   return decoded;
 }
 
+/**
+ * Canonical Gmail identity segment: full @gmail.com address.
+ * Expands bare local part (e.g. "user" → "user@gmail.com").
+ */
+export function normalizeGmailIdentity(raw: string): string | null {
+  const decoded = safeDecode(String(raw ?? '')).trim().toLowerCase().replace(/^@/, '');
+  if (!decoded) return null;
+  if (decoded.includes('@')) return normalizeGmailAddress(decoded);
+  if (!/^[a-z0-9](?:[a-z0-9.+_-]*[a-z0-9])?$/.test(decoded)) return null;
+  return `${decoded}@gmail.com`;
+}
+
+/** Legacy on-chain identity: gmail:{localpart} without domain. */
+export function generateLegacyGmailIdentityHash(raw: string): `0x${string}` | null {
+  const canonical = normalizeGmailIdentity(raw);
+  if (!canonical) return null;
+  const localPart = canonical.split('@')[0];
+  if (!localPart) return null;
+  return keccak256(toUtf8Bytes(`gmail:${localPart}`)) as `0x${string}`;
+}
+
+/** Canonical + legacy hashes for pending payment lookup (deduped). */
+export function gmailIdentityHashes(raw: string): `0x${string}`[] {
+  const canonical = normalizeGmailIdentity(raw);
+  if (!canonical) return [];
+  const canonicalHash = generateSocialIdentityHash('gmail', canonical);
+  const legacyHash = generateLegacyGmailIdentityHash(raw);
+  if (!canonicalHash) return legacyHash ? [legacyHash] : [];
+  if (!legacyHash || legacyHash === canonicalHash) return [canonicalHash];
+  return [canonicalHash, legacyHash];
+}
+
+export function gmailUsernamesMatch(a: string, b: string): boolean {
+  const canonicalA = normalizeGmailIdentity(a);
+  const canonicalB = normalizeGmailIdentity(b);
+  if (!canonicalA || !canonicalB) return false;
+  return canonicalA === canonicalB;
+}
+
+export function socialProofUsernamesMatch(platform: string, expected: string, extracted: string): boolean {
+  const extractedNorm = normalizeSocialUsername(extracted);
+  if (!extractedNorm) return true;
+  if (platform === 'gmail') return gmailUsernamesMatch(expected, extractedNorm);
+  const expectedNorm = normalizeSocialUsername(expected.replace(/^@/, ''));
+  if (!expectedNorm) return false;
+  return expectedNorm === extractedNorm;
+}
+
 export function isSocialRecipientValid(platform: string, username: string): boolean {
   const trimmed = username.trim();
   if (!trimmed) return false;
@@ -66,7 +114,7 @@ export function buildSocialIdentity(platform: string, username: string): string 
   if (!normalizedPlatform) return null;
   const normalizedUsername =
     normalizedPlatform === 'gmail'
-      ? normalizeGmailAddress(username)
+      ? normalizeGmailIdentity(username)
       : normalizeSocialUsername(username.replace(/^@/, ''));
   if (!normalizedUsername) return null;
   return `${normalizedPlatform}:${normalizedUsername}`;

@@ -1,3 +1,4 @@
+import { normalizeGmailAddress } from '@/lib/reclaim/identity';
 import type { ZkOAuthIdentity } from './types';
 import { readGmailAccessToken } from './tokenStorage';
 
@@ -14,13 +15,14 @@ export async function resolveGmailIdentity(): Promise<ZkOAuthIdentity | null> {
     if (!response.ok) return null;
     const data = (await response.json()) as { sub?: string; email?: string };
     if (!data.sub) return null;
-    const email = data.email ?? '';
-    const username = email.includes('@') ? email.split('@')[0] : email || data.sub;
+    const email = (data.email ?? '').trim().toLowerCase();
+    const normalizedEmail = normalizeGmailAddress(email);
+    if (!normalizedEmail) return null;
     return {
       platform: 'gmail',
       socialUserId: data.sub,
-      username,
-      displayLabel: email ? `${email} (${PLATFORM_LABEL})` : `${username} (${PLATFORM_LABEL})`,
+      username: normalizedEmail,
+      displayLabel: `${normalizedEmail} (${PLATFORM_LABEL})`,
     };
   } catch {
     return null;

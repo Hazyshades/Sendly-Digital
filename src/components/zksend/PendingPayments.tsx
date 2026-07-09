@@ -7,8 +7,11 @@ import {
   fetchTwitchAuthenticatedUser,
   generateSocialIdentityHash,
   generateTwitchUidIdentityHash,
+  gmailIdentityHashes,
+  normalizeGmailIdentity,
   normalizeSocialPlatform,
   normalizeSocialUsername,
+  socialProofUsernamesMatch,
   twitchUidHandleSegment,
 } from '@/lib/reclaim/identity';
 import { fetchReclaimProofRequestConfig, verifyReclaimProofs } from '@/lib/reclaim/api';
@@ -88,6 +91,11 @@ function shortenAddress(addr: string): string {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
 
+function resolveRecipientUsername(platform: SendRecipientType, raw: string): string | null {
+  if (platform === 'gmail') return normalizeGmailIdentity(raw);
+  return normalizeSocialUsername(raw.replace(/^@/, ''));
+}
+
 function resolveClaimIdentityHash(
   platform: string,
   loginUsername: string,
@@ -95,6 +103,10 @@ function resolveClaimIdentityHash(
 ): `0x${string}` | null {
   if (platform === 'twitch' && twitchUserId) {
     return generateTwitchUidIdentityHash(twitchUserId);
+  }
+  if (platform === 'gmail') {
+    const hashes = gmailIdentityHashes(loginUsername);
+    return hashes[0] ?? null;
   }
   return generateSocialIdentityHash(platform, loginUsername);
 }
@@ -119,7 +131,7 @@ function validateZkFetchExtraction(
     return;
   }
   const extractedUsername = normalizeSocialUsername(String(extracted.username || ''));
-  if (extractedUsername && extractedUsername !== loginUsername) {
+  if (extractedUsername && !socialProofUsernamesMatch(platform, loginUsername, extractedUsername)) {
     throw new Error('Proof username mismatch');
   }
 }
@@ -143,11 +155,13 @@ function toUserFacingErrorMessage(error: unknown, fallback: string): string {
 function ReceiveOAuthStatus({
   connected,
   platformLabel,
+  platform,
   username,
   hasUsername,
 }: {
   connected: boolean;
   platformLabel: string;
+  platform?: SendRecipientType;
   username: string;
   hasUsername: boolean;
 }) {
@@ -160,9 +174,11 @@ function ReceiveOAuthStatus({
     );
   }
   const handle = username.replace(/^@/, '');
+  const display =
+    platform === 'gmail' ? handle : `@${handle}`;
   return (
     <p className="text-sm text-muted-foreground">
-      {platformLabel} connected as <span className="font-medium text-foreground">@{handle}</span>. Pending payments load
+      {platformLabel} connected as <span className="font-medium text-foreground">{display}</span>. Pending payments load
       automatically.
     </p>
   );
@@ -485,16 +501,24 @@ export function PendingPayments({
     };
   }, [authenticated, getAccessToken]);
 
-  const identityHash = useMemo(() => {
+  const identityHashes = useMemo(() => {
     if (platform === 'address') return null;
     if (platform === 'twitch') {
       if (!twitchResolvedUserId) return null;
-      return generateTwitchUidIdentityHash(twitchResolvedUserId);
+      const hash = generateTwitchUidIdentityHash(twitchResolvedUserId);
+      return hash ? [hash] : null;
+    }
+    if (platform === 'gmail') {
+      const hashes = gmailIdentityHashes(username);
+      return hashes.length > 0 ? hashes : null;
     }
     const u = normalizeSocialUsername(username.replace(/^@/, ''));
     if (!u) return null;
-    return generateSocialIdentityHash(platform, u);
+    const hash = generateSocialIdentityHash(platform, u);
+    return hash ? [hash] : null;
   }, [platform, username, twitchResolvedUserId]);
+
+  const primaryIdentityHash = identityHashes?.[0] ?? null;
 
   const addressModeRecipient = useMemo(() => {
     if (platform !== 'address') return null;
@@ -557,7 +581,7 @@ export function PendingPayments({
 
   const startReclaimFlow = async () => {
     if (platform === 'address') throw new Error('Select a social platform to generate a proof');
-    const u = normalizeSocialUsername(username.replace(/^@/, ''));
+    const u = resolveRecipientUsername(platform, username);
     if (!u) throw new Error('Enter username');
     if (!effectiveRecipientAddress) throw new Error('Select a wallet to generate proof');
 
@@ -621,13 +645,16 @@ export function PendingPayments({
         return;
       }
 
-      if (!identityHash) {
+      if (!identityHashes || identityHashes.length === 0) {
         if (platform === 'twitch' && twitchAccessToken) return;
         throw new Error('Enter username');
       }
       setLoadingList(true);
 
-      const ids = await web3Service.getZkSendPendingPayments(identityHash);
+      const idSets = await Promise.all(
+        identityHashes.map((hash) => web3Service.getZkSendPendingPayments(hash))
+      );
+      const ids = [...new Set(idSets.flat())];
       const payments = await Promise.all(ids.map((id) => web3Service.getZkSendPayment(id)));
       setRows(
         payments.map((p) => ({
@@ -660,37 +687,37 @@ export function PendingPayments({
       void loadPending();
       return;
     }
-    if (!identityHash) return;
+    if (!identityHashes || identityHashes.length === 0) return;
 
-    const key = `${platform}:${identityHash}`;
+    const key = `${platform}:${identityHashes.join(',')}`;
     if (lastAutoLoadKeyRef.current === key) return;
     lastAutoLoadKeyRef.current = key;
 
     void loadPending();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive, identityHash, platform, addressModeRecipient, directEscrowEnabled]);
+  }, [isActive, identityHashes, platform, addressModeRecipient, directEscrowEnabled]);
 
   const claim = async (paymentId: string) => {
     try {
       if (!useCircle && (!isConnected || !address || !walletClient)) throw new Error('Connect wallet to claim payment');
       if (useCircle && !developerWallet) throw new Error('Internal Wallet not available');
-      const u = normalizeSocialUsername(username.replace(/^@/, ''));
-      if (!u) throw new Error('Enter username');
-      const normalizedPlatform = normalizeSocialPlatform(platform);
-      if (!normalizedPlatform) throw new Error('Unsupported platform');
-      if (normalizedPlatform === 'twitter') {
-        const hasOAuth1 = Boolean(oauth1Token && oauth1TokenSecret);
-        if (isZkLocalhost()) {
-          if (!hasOAuth1) {
-            throw new Error('Connect Twitter to generate proof');
-          }
-        } else {
-          if (!hasOAuth1 && !accessToken && !privyAccessToken) {
-            throw new Error('Connect Twitter or login with Privy to generate proof');
-          }
+    const u = resolveRecipientUsername(platform, username);
+    if (!u) throw new Error('Enter username');
+    const normalizedPlatform = normalizeSocialPlatform(platform);
+    if (!normalizedPlatform) throw new Error('Unsupported platform');
+    if (normalizedPlatform === 'twitter') {
+      const hasOAuth1 = Boolean(oauth1Token && oauth1TokenSecret);
+      if (isZkLocalhost()) {
+        if (!hasOAuth1) {
+          throw new Error('Connect Twitter to generate proof');
+        }
+      } else {
+        if (!hasOAuth1 && !accessToken && !privyAccessToken) {
+          throw new Error('Connect Twitter or login with Privy to generate proof');
         }
       }
-      if (normalizedPlatform === 'twitch' && !twitchAccessToken) {
+    }
+    if (normalizedPlatform === 'twitch' && !twitchAccessToken) {
         throw new Error('Connect Twitch to generate proof');
       }
       if (normalizedPlatform === 'twitch' && !twitchResolvedUserId) {
@@ -735,7 +762,7 @@ export function PendingPayments({
         const extractedUsername = normalizeSocialUsername(
           String(proofsArray[0]?.extractedParameterValues?.username || '')
         );
-        if (extractedUsername && extractedUsername !== u) {
+        if (extractedUsername && !socialProofUsernamesMatch(normalizedPlatform, u, extractedUsername)) {
           throw new Error('Proof username mismatch');
         }
 
@@ -776,7 +803,7 @@ export function PendingPayments({
 
         const paymentRow = rows.find((row) => row.paymentId === paymentId);
         const identityHashValue =
-          identityHash ?? resolveClaimIdentityHash(platform, u, twitchResolvedUserId);
+          primaryIdentityHash ?? resolveClaimIdentityHash(platform, u, twitchResolvedUserId);
         if (paymentRow && identityHashValue) {
           try {
             await markZkSendPaymentClaimed({
@@ -969,8 +996,8 @@ export function PendingPayments({
           });
 
       const paymentRow = rows.find((row) => row.paymentId === paymentId);
-      const identityHashValue =
-        identityHash ?? resolveClaimIdentityHash(platform, u, twitchResolvedUserId);
+        const identityHashValue =
+          primaryIdentityHash ?? resolveClaimIdentityHash(platform, u, twitchResolvedUserId);
       if (paymentRow && identityHashValue) {
         try {
           await markZkSendPaymentClaimed({
@@ -1012,7 +1039,7 @@ export function PendingPayments({
     try {
       if (!useCircle && (!isConnected || !address || !walletClient)) throw new Error('Connect wallet to claim payment');
       if (useCircle && !developerWallet) throw new Error('Internal Wallet not available');
-      const u = normalizeSocialUsername(username.replace(/^@/, ''));
+      const u = resolveRecipientUsername(platform, username);
       if (!u) throw new Error('Enter username');
       const normalizedPlatform = normalizeSocialPlatform(platform);
       if (!normalizedPlatform) throw new Error('Unsupported platform');
@@ -1052,7 +1079,7 @@ export function PendingPayments({
 
       const paymentIds = rows.map((r) => r.paymentId);
       const identityHashValue =
-        identityHash ?? resolveClaimIdentityHash(platform, u, twitchResolvedUserId);
+        primaryIdentityHash ?? resolveClaimIdentityHash(platform, u, twitchResolvedUserId);
       if (!identityHashValue) {
         throw new Error('Invalid identity');
       }
@@ -1072,7 +1099,7 @@ export function PendingPayments({
         const extractedUsername = normalizeSocialUsername(
           String(proofsArray[0]?.extractedParameterValues?.username || '')
         );
-        if (extractedUsername && extractedUsername !== u) {
+        if (extractedUsername && !socialProofUsernamesMatch(normalizedPlatform, u, extractedUsername)) {
           throw new Error('Proof username mismatch');
         }
         const verify = await verifyReclaimProofs(proofsArray);
@@ -1410,21 +1437,22 @@ export function PendingPayments({
           <ReceiveOAuthStatus
             connected={Boolean((oauth1Token && oauth1TokenSecret) || accessToken || privyAccessToken)}
             platformLabel="Twitter / X"
+            platform={platform}
             username={username}
             hasUsername={isIdentityValid}
           />
         ) : platform === 'twitch' ? (
-          <ReceiveOAuthStatus connected={Boolean(twitchAccessToken)} platformLabel="Twitch" username={username} hasUsername={isIdentityValid} />
+          <ReceiveOAuthStatus connected={Boolean(twitchAccessToken)} platformLabel="Twitch" platform={platform} username={username} hasUsername={isIdentityValid} />
         ) : platform === 'github' ? (
-          <ReceiveOAuthStatus connected={Boolean(githubAccessToken)} platformLabel="GitHub" username={username} hasUsername={isIdentityValid} />
+          <ReceiveOAuthStatus connected={Boolean(githubAccessToken)} platformLabel="GitHub" platform={platform} username={username} hasUsername={isIdentityValid} />
         ) : platform === 'telegram' ? (
-          <ReceiveOAuthStatus connected={Boolean(telegramAccessToken)} platformLabel="Telegram" username={username} hasUsername={isIdentityValid} />
+          <ReceiveOAuthStatus connected={Boolean(telegramAccessToken)} platformLabel="Telegram" platform={platform} username={username} hasUsername={isIdentityValid} />
         ) : platform === 'instagram' ? (
-          <ReceiveOAuthStatus connected={Boolean(instagramAccessToken)} platformLabel="Instagram" username={username} hasUsername={isIdentityValid} />
+          <ReceiveOAuthStatus connected={Boolean(instagramAccessToken)} platformLabel="Instagram" platform={platform} username={username} hasUsername={isIdentityValid} />
         ) : platform === 'gmail' ? (
-          <ReceiveOAuthStatus connected={Boolean(gmailAccessToken)} platformLabel="Gmail" username={username} hasUsername={isIdentityValid} />
+          <ReceiveOAuthStatus connected={Boolean(gmailAccessToken)} platformLabel="Gmail" platform={platform} username={username} hasUsername={isIdentityValid} />
         ) : platform === 'linkedin' ? (
-          <ReceiveOAuthStatus connected={Boolean(linkedinAccessToken)} platformLabel="LinkedIn" username={username} hasUsername={isIdentityValid} />
+          <ReceiveOAuthStatus connected={Boolean(linkedinAccessToken)} platformLabel="LinkedIn" platform={platform} username={username} hasUsername={isIdentityValid} />
         ) : (
           <div className="space-y-2 rounded-xl border bg-background p-3">
             <div className="text-sm font-medium">Reclaim proof</div>
