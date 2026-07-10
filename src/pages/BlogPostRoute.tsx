@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, ArrowLeft, Tag, Clock } from 'lucide-react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
@@ -14,6 +14,12 @@ import { InternalWalletCreatePromptPreview } from '@/components/InternalWalletCr
 import { BlogLayout } from '@/components/BlogLayout';
 import { BlogEngagementBar } from '@/components/blog/BlogEngagementBar';
 import { BlogPostHead } from '@/components/blog/BlogPostHead';
+import { BlogStepFrame } from '@/components/blog/BlogStepFrame';
+import { GiftCardAmountPreview } from '@/components/blog/GiftCardAmountPreview';
+import { GiftCardNavPreview } from '@/components/blog/GiftCardNavPreview';
+import { GiftCardRecipientTypePreview } from '@/components/blog/GiftCardRecipientTypePreview';
+import { GiftCardReviewPreview } from '@/components/blog/GiftCardReviewPreview';
+import { GiftCardWalletSourcePreview } from '@/components/blog/GiftCardWalletSourcePreview';
 import {
   getBlogPostMeta,
   isPublicBlogSlug,
@@ -52,15 +58,42 @@ interface BlogSection {
   paragraphs: (string | React.ReactNode)[];
   bullets?: string[];
   imageId?: string;
+  variant?: 'default' | 'step';
 }
+
+type BlogImageComponentId =
+  | 'verification-infographic'
+  | 'zktls-infographic'
+  | 'zktls-architecture-infographic'
+  | 'privy-oauth-infographic'
+  | 'payments-send-embed'
+  | 'payments-receive-embed'
+  | 'gift-card-create-embed'
+  | 'gift-card-nav-embed'
+  | 'gift-card-wallet-source-embed'
+  | 'gift-card-recipient-type-embed'
+  | 'gift-card-amount-embed'
+  | 'gift-card-review-embed'
+  | 'internal-wallet-dashboard-embed'
+  | 'internal-wallet-create-embed';
 
 interface BlogImage {
   id: string;
   src?: string;
-  componentId?: 'verification-infographic' | 'zktls-infographic' | 'zktls-architecture-infographic' | 'privy-oauth-infographic' | 'payments-send-embed' | 'payments-receive-embed' | 'gift-card-create-embed' | 'internal-wallet-dashboard-embed' | 'internal-wallet-create-embed';
+  componentId?: BlogImageComponentId;
   alt: string;
   caption: string;
 }
+
+const GIFT_CARD_STEP_LIGHTBOX: Partial<
+  Record<BlogImageComponentId, ComponentType<{ compact?: boolean }>>
+> = {
+  'gift-card-nav-embed': GiftCardNavPreview,
+  'gift-card-wallet-source-embed': GiftCardWalletSourcePreview,
+  'gift-card-recipient-type-embed': GiftCardRecipientTypePreview,
+  'gift-card-amount-embed': GiftCardAmountPreview,
+  'gift-card-review-embed': GiftCardReviewPreview,
+};
 
 const blogPosts: Record<string, BlogPost> = {
   'privy-results': {
@@ -296,63 +329,189 @@ const blogPosts: Record<string, BlogPost> = {
   },
   'nft-gift-cards-guide': {
     slug: 'nft-gift-cards-guide',
-    title: 'NFT Gift Cards - User Guide',
+    title: 'Send USDC as a Gift Card to Anyone - User Guide',
     description:
-      'Mint a gift card on-chain. Pick an amount, add a message, and send it to a wallet or to someone\'s social username.',
+      'Create a USDC or EURC gift card and send it to a wallet or verified social username. The recipient can claim it later through Sendly - even if they are new to crypto.',
     date: '2026-02-11',
     category: 'Tutorial',
-    tags: ['NFT', 'Gift Cards', 'Tutorial'],
+    tags: ['Gift Cards', 'USDC', 'Arc Testnet'],
     readTime: '8 min',
     images: [
       {
         id: 'nft-flow',
         componentId: 'gift-card-create-embed',
-        alt: 'Create Gift Card tab (live)',
+        alt: 'Create Gift Card flow in Sendly',
         caption: ''
-      }
+      },
+      {
+        id: 'gift-card-nav',
+        componentId: 'gift-card-nav-embed',
+        alt: 'Sendly navigation with Create tab selected',
+        caption: '',
+      },
+      {
+        id: 'gift-card-wallet-source',
+        componentId: 'gift-card-wallet-source-embed',
+        alt: 'Choose wallet source: Rabby or Internal Wallet',
+        caption: '',
+      },
+      {
+        id: 'gift-card-recipient-type',
+        componentId: 'gift-card-recipient-type-embed',
+        alt: 'Select recipient type and enter Twitter username',
+        caption: '',
+      },
+      {
+        id: 'gift-card-amount',
+        componentId: 'gift-card-amount-embed',
+        alt: 'Enter gift card amount in USDC or EURC',
+        caption: '',
+      },
+      {
+        id: 'gift-card-review',
+        componentId: 'gift-card-review-embed',
+        alt: 'Review gift card details and confirm in wallet',
+        caption: '',
+      },
     ],
     sections: [
       {
         id: 'intro',
-        title: 'Overview',
+        title: 'What is a Sendly Gift Card?',
         paragraphs: [
-          'A gift card here is an on-chain NFT. Set the amount, optional message, and send to a wallet address or a social username.',
-          'After it is claimed, it shows up in the recipient\'s wallet as an ERC-721.'
+          'Sending crypto should not start with “send me your wallet address.”',
+          'With Sendly Gift Cards, you create a funded digital card and send it to someone by wallet address or social username. The recipient can claim it later - even if they are new to crypto.',
+          'It feels like sending a normal gift card. Under the hood, Sendly uses on-chain ownership, stablecoin settlement, and social identity verification to make the claim flow secure.',
+          'A Sendly Gift Card works like a digital prepaid card: you choose an amount, add a message, and send it to someone. For advanced users and developers: the card is represented on-chain as an ERC-721 NFT, which makes ownership and claiming verifiable.',
+          'This guide covers the Arc Testnet version of Sendly Gift Cards. Balances, gas, and contracts run on Arc Testnet - not mainnet production funds.'
         ],
         imageId: 'nft-flow'
+      },
+      {
+        id: 'why',
+        title: 'Why use Sendly Gift Cards?',
+        paragraphs: [
+          'Normally, sending crypto requires the recipient to already have a wallet, choose the right network, and share a long wallet address.',
+          'Sendly removes that friction. You can create a funded gift card now and let the recipient claim it later using a wallet or a verified social account.',
+          'The core idea: send value to identity, not wallet address. You send to @alice on X (Twitter), a Twitch username, or a Gmail address - the recipient proves they own that account when they claim.'
+        ]
       },
       {
         id: 'how-it-works',
         title: 'How it works',
         paragraphs: [
-          'On the Create page, pick wallet or username, set USDC or EURC, add an optional message, then confirm in your wallet.',
-          'The contract mints an ERC-721. Metadata and art sit on IPFS (Pinata). If you send by username, the card stays in a vault until the recipient proves they own that account.'
+          'You pick a recipient (wallet or social username), choose USDC or EURC, set an amount, and add an optional message.',
+          'Sendly locks the value in a smart contract on Arc Testnet. Card metadata and artwork are stored on IPFS.',
+          'If you send by username, the card stays in a vault until the recipient proves they control that account. If you send to a wallet address, the card can land directly after mint.',
+          'After claiming, the recipient can access the funds through Sendly\'s supported claim flow and see the card in their wallet.'
         ]
       },
       {
-        id: 'recipient',
-        title: 'What the recipient does',
+        id: 'sender-flow',
+        title: 'How to create a gift card (for senders)',
         paragraphs: [
-          'Wallet: the NFT lands in that wallet after mint.',
-          'Username: the recipient logs in with that platform, then claims. If they have no wallet yet, Circle can create one.'
+          'Follow the steps below to create and share a funded gift card on Arc Testnet.',
+          'You can send to a wallet address or a social username -the recipient claims later by proving they own that account.',
+        ],
+        bullets: [
+          'Double-check the wallet address or username before you confirm -on-chain sends cannot be undone.',
+          'You need USDC or EURC on Arc Testnet plus a small amount of gas for the transaction.',
+          'Optional: add a password to protect the claim link.',
+        ],
+      },
+      {
+        id: 'sender-step-open',
+        title: 'Step 1 · Open Create Gift Card',
+        variant: 'step',
+        imageId: 'gift-card-nav',
+        paragraphs: [
+          <>Open <a href="https://www.sendly.digital/create" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Sendly</a> and select <strong>Create</strong> in the navigation bar.</>,
+        ],
+      },
+      {
+        id: 'sender-step-wallet',
+        title: 'Step 2 · Choose your wallet source',
+        variant: 'step',
+        imageId: 'gift-card-wallet-source',
+        paragraphs: [
+          'Connect MetaMask, Rabby, or another browser wallet -or use your Circle Internal Wallet if you already have one in Sendly.',
+          'The wallet you select here pays gas and signs the transaction when you create the card.',
+        ],
+      },
+      {
+        id: 'sender-step-recipient',
+        title: 'Step 3 · Select recipient type',
+        variant: 'step',
+        imageId: 'gift-card-recipient-type',
+        paragraphs: [
+          'Pick wallet address or a social platform: X (Twitter), Twitch, Telegram, Gmail, and more.',
+          'Enter the recipient’s username -for example, sama on X.',
+        ],
+      },
+      {
+        id: 'sender-step-amount',
+        title: 'Step 4 · Enter amount & message',
+        variant: 'step',
+        imageId: 'gift-card-amount',
+        paragraphs: [
+          'Set the amount in USDC or EURC. Add an optional personal message on the form below the amount field.',
+        ],
+      },
+      {
+        id: 'sender-step-review',
+        title: 'Step 5 · Review & confirm',
+        variant: 'step',
+        imageId: 'gift-card-review',
+        paragraphs: [
+          'Choose card design and currency, check the preview, then click Create a card.',
+          'Confirm the transaction in your wallet to mint the card and share the claim link with the recipient.',
+        ],
+      },
+      {
+        id: 'recipient-flow',
+        title: 'How the recipient claims it',
+        paragraphs: [
+          'Steps:',
+          '(1) Open the claim link or log in to Sendly with the social account that should receive the card.',
+          '(2) Verify ownership of the username or wallet (OAuth or wallet signature, depending on the path).',
+          '(3) Click Claim and confirm in the wallet.',
+          '(4) Use a Circle Internal Wallet (created automatically if needed) or connect an external wallet to receive the card and access the funds.'
+        ],
+        bullets: [
+          'Wallet recipient: the card can appear in that wallet after mint.',
+          'Username recipient: the recipient logs in with that platform, proves ownership, then claims.',
+          'No wallet yet? Sendly can create a Circle Internal Wallet so they can still claim.'
+        ]
+      },
+      {
+        id: 'wallet-vs-username',
+        title: 'Wallet vs social username',
+        paragraphs: [
+          'Wallet address: best when the recipient already has a crypto wallet on Arc Testnet. The card goes straight to that address.',
+          'Social username: best when you only know their @handle, Twitch login, or Gmail. They claim later by proving they own that account - no wallet address needed upfront.',
+          'Pick the path that matches how you know the person. Username sends are what make Sendly different from a normal crypto transfer.'
         ]
       },
       {
         id: 'after-claiming',
         title: 'After claiming',
         paragraphs: [
-          'After claim, the card is in the recipient\'s wallet. Any app that supports these NFTs can use it.',
-          'Value is in USDC or EURC; redemption depends on the app.'
+          'The card carries value in USDC or EURC. In Sendly, the recipient can claim the card and access the funds through the supported claim flow.',
+          'After claiming, the recipient can see the card in their wallet. Other apps may display the NFT differently depending on their support for this standard.',
+          'For developers: the card is represented as an ERC-721 NFT after claim; metadata lives on IPFS (Pinata).'
         ]
       },
       {
         id: 'requirements',
         title: 'Requirements',
-        paragraphs: [],
+        paragraphs: [
+          'This guide applies to Sendly Gift Cards on Arc Testnet.'
+        ],
         bullets: [
-          'Wallet: MetaMask, Rabby, or Circle wallet',
-          'Tokens: USDC or EURC on ARC Testnet',
-          'A supported social account (if sending or receiving by username)'
+          'Wallet: MetaMask, Rabby, or Circle Internal Wallet',
+          'Tokens: USDC or EURC on Arc Testnet',
+          'A supported social account (if sending or receiving by username)',
+          'A small amount of gas on Arc Testnet for mint and claim transactions'
         ]
       },
       {
@@ -360,18 +519,46 @@ const blogPosts: Record<string, BlogPost> = {
         title: 'Common issues',
         paragraphs: [],
         bullets: [
-          'No card: log in with the account that should receive it.',
-          'Claim errors: stay on ARC Testnet and keep a little gas for fees.',
-          'Wrong person: on-chain sends cannot be undone. Check the address or username before you confirm.',
-          'Lost password: only whoever set it can help; we do not have it.'
+          'No card showing: log in with the account that should receive it, then refresh.',
+          'Claim errors: stay on Arc Testnet and keep a little gas for fees.',
+          'Wrong recipient: on-chain sends cannot be undone. Check the address or username before you confirm.',
+          'Lost password: only whoever set it can help; Sendly does not store or recover it.',
+          'Username mismatch: make sure platform and spelling match what the sender used.'
         ]
       },
       {
         id: 'security',
-        title: 'Security notes',
+        title: 'Security checklist',
         paragraphs: [
-          'Smart contracts on ARC Testnet hold the rules. We do not store private keys.',
-          'With Circle, Circle manages keys. Do not sign transactions you do not understand.'
+          'Smart contracts on Arc Testnet enforce the rules. Sendly does not store private keys. With Circle Internal Wallet, Circle manages keys on the backend.',
+          'Do not sign transactions you do not understand.'
+        ],
+        bullets: [
+          'Always check the recipient username or wallet address before confirming.',
+          'Sendly cannot reverse completed on-chain transactions.',
+          'Never share your wallet seed phrase or private keys.',
+          'If you receive a claim link, make sure it comes from the official Sendly domain (sendly.digital).',
+          'If a card is protected by a password, only the person who created the card knows it.'
+        ]
+      },
+      {
+        id: 'faq',
+        title: 'FAQ',
+        paragraphs: [],
+        bullets: [
+          'Do recipients need a wallet before I send? No - send by username and they can claim later, optionally with a new Internal Wallet.',
+          'Is this real money? This guide is for Arc Testnet. Use test tokens only; do not treat testnet balances as production funds.',
+          'What is the NFT part? It is how ownership is tracked on-chain. You do not need to understand NFTs to send or claim a gift card.',
+          'Can I send to Gmail? Yes - use the full @gmail.com address or the supported username flow in the Create form.',
+          'What if I sent to the wrong person? On-chain transactions are final. Always verify the recipient before confirming.'
+        ]
+      },
+      {
+        id: 'get-started',
+        title: 'Get started',
+        paragraphs: [
+          'Ready to try it?',
+          <> <a href="https://www.sendly.digital/create" target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors mr-3 mb-3">Create a Gift Card</a> <a href="https://www.sendly.digital" target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-5 py-2.5 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 transition-colors mr-3 mb-3">Try Sendly</a> <a href="https://www.zk.sendly.digital/payments" target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-5 py-2.5 border border-gray-300 text-gray-900 rounded-xl font-medium hover:bg-gray-50 transition-colors mb-3">Send by Username</a> </>
         ]
       }
     ],
@@ -680,6 +867,22 @@ export function BlogPostRoute() {
   ) => {
     const imageMap = new Map(images.map((image) => [image.id, image]));
 
+    const renderGiftCardStepEmbed = (
+      img: BlogImage,
+      Preview: ComponentType<{ compact?: boolean }>
+    ) => (
+      <button
+        type="button"
+        onClick={() => setActiveImage(img)}
+        className="group w-full text-left"
+        aria-label={`Open: ${img.alt}`}
+      >
+        <BlogStepFrame compact>
+          <Preview compact />
+        </BlogStepFrame>
+      </button>
+    );
+
     const renderImage = (img: BlogImage) => {
       if (img.componentId === 'verification-infographic') {
         return (<button type="button" onClick={() => setActiveImage(img)} className="w-full text-left rounded-xl overflow-hidden bg-[#FAFAFA]" aria-label={`Open: ${img.caption}`}><VerificationInfographic compact />{img.caption && <div className="mt-3 text-sm text-gray-600">{img.caption}</div>}</button>);
@@ -695,6 +898,21 @@ export function BlogPostRoute() {
       }
       if (img.componentId === 'gift-card-create-embed') {
         return (<button type="button" onClick={() => setActiveImage(img)} className="w-full text-left rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden" aria-label={`Open: ${img.alt}`}><div className="p-2 min-h-[200px]"><CreateGiftCardPreview compact /></div></button>);
+      }
+      if (img.componentId === 'gift-card-nav-embed') {
+        return renderGiftCardStepEmbed(img, GiftCardNavPreview);
+      }
+      if (img.componentId === 'gift-card-wallet-source-embed') {
+        return renderGiftCardStepEmbed(img, GiftCardWalletSourcePreview);
+      }
+      if (img.componentId === 'gift-card-recipient-type-embed') {
+        return renderGiftCardStepEmbed(img, GiftCardRecipientTypePreview);
+      }
+      if (img.componentId === 'gift-card-amount-embed') {
+        return renderGiftCardStepEmbed(img, GiftCardAmountPreview);
+      }
+      if (img.componentId === 'gift-card-review-embed') {
+        return renderGiftCardStepEmbed(img, GiftCardReviewPreview);
       }
       if (img.componentId === 'payments-send-embed') {
         return (<button type="button" onClick={() => setActiveImage(img)} className="w-full text-left rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden" aria-label={`Open: ${img.alt}`}><div className="p-4 min-h-[200px]"><ZkSendPanel initialTab="send" preview previewValues={paymentsPreviewValues ?? PAYMENTS_SEND_PREVIEW_FALLBACK} /></div></button>);
@@ -712,10 +930,16 @@ export function BlogPostRoute() {
       return (<button type="button" onClick={() => setActiveImage(img)} className={`w-full text-left ${isSR ? 'border-0 shadow-none ring-0 outline-none' : ''}`} aria-label={`Open image: ${img.alt}`}><img src={img.src} alt={img.alt} loading="lazy" className={`w-full h-40 object-cover ${isSR ? 'rounded-xl border-0 shadow-none' : 'rounded-xl'}`} />{!isSR && img.caption && <div className="mt-3 text-sm text-gray-600">{img.caption}</div>}</button>);
     };
 
-    const renderSectionText = (section: BlogSection, isLast: boolean) => (
+    const renderSectionText = (section: BlogSection, isLast: boolean) => {
+      const isStep = section.variant === 'step';
+      return (
       <section key={section.id} id={section.id} className="scroll-mt-28">
-        <div className={cohereStyle ? `px-4 md:px-6 ${isLast ? 'pb-12' : 'pb-8'}` : `px-12 md:px-22 ${isLast ? 'pb-12 md:pb-22' : ''}`}>
-          <h2 className={cohereStyle ? 'text-2xl md:text-3xl font-medium text-gray-900 mb-6 tracking-tight' : 'text-3xl md:text-4xl font-bold text-gray-900 mb-4'}>{section.title}</h2>
+        <div className={cohereStyle ? `px-4 md:px-6 ${isLast ? 'pb-12' : isStep ? 'pb-6' : 'pb-8'}` : `px-12 md:px-22 ${isLast ? 'pb-12 md:pb-22' : ''}`}>
+          {isStep ? (
+            <h3 className="text-xl md:text-2xl font-medium text-gray-900 mb-4 tracking-tight">{section.title}</h3>
+          ) : (
+            <h2 className={cohereStyle ? 'text-2xl md:text-3xl font-medium text-gray-900 mb-6 tracking-tight' : 'text-3xl md:text-4xl font-bold text-gray-900 mb-4'}>{section.title}</h2>
+          )}
           <div className={cohereStyle ? 'space-y-5 text-gray-600 text-lg leading-[1.7] font-normal' : 'space-y-4 text-gray-700 text-lg leading-relaxed'}>
             {section.paragraphs.map((p, i) => <p key={typeof p === 'string' ? p : i}>{p}</p>)}
           </div>
@@ -727,6 +951,7 @@ export function BlogPostRoute() {
         </div>
       </section>
     );
+    };
 
     // Group: each image-section + all following no-image sections share one grid row.
     const groups: { image: BlogImage | null; sections: BlogSection[] }[] = [];
@@ -863,7 +1088,11 @@ export function BlogPostRoute() {
                     <a
                       key={section.id}
                       href={`#${section.id}`}
-                      className="block px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                      className={`block rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors ${
+                        section.variant === 'step'
+                          ? 'pl-6 pr-3 py-1.5 text-xs'
+                          : 'px-3 py-2 text-sm'
+                      }`}
                     >
                       {section.title}
                     </a>
@@ -1043,6 +1272,17 @@ export function BlogPostRoute() {
             ) : activeImage.componentId === 'gift-card-create-embed' ? (
               <div className="bg-white rounded-xl overflow-hidden p-6 max-h-[85vh] overflow-y-auto">
                 <CreateGiftCardPreview />
+              </div>
+            ) : activeImage.componentId && GIFT_CARD_STEP_LIGHTBOX[activeImage.componentId] ? (
+              <div className="max-h-[85vh] overflow-y-auto p-2">
+                {(() => {
+                  const StepPreview = GIFT_CARD_STEP_LIGHTBOX[activeImage.componentId!]!;
+                  return (
+                    <BlogStepFrame>
+                      <StepPreview />
+                    </BlogStepFrame>
+                  );
+                })()}
               </div>
             ) : activeImage.componentId === 'payments-send-embed' || activeImage.id === 'send-tab' ? (
               <div className="bg-white rounded-xl overflow-hidden p-6 max-h-[85vh] overflow-y-auto">

@@ -535,7 +535,7 @@ export function LeptonHubPage() {
         </p>
       </header>
 
-      {/* Hero modules — uniform 2×2 grid */}
+      {/* Hero modules - uniform 2×2 grid */}
       <section className="grid gap-4 sm:grid-cols-2">
         <Link
           to="/lepton/pr-bounty"

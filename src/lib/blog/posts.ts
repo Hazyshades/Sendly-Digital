@@ -23,12 +23,12 @@ export const LEGACY_SLUG_MAP: Record<string, string> = {
 export const BLOG_POSTS: BlogPostMeta[] = [
   {
     slug: 'nft-gift-cards-guide',
-    title: 'NFT Gift Cards - User Guide',
+    title: 'Send USDC as a Gift Card to Anyone - User Guide',
     description:
-      "Mint a gift card on-chain. Pick an amount, add a message, and send it to a wallet or to someone's social username.",
+      'Create a USDC or EURC gift card and send it to a wallet or verified social username. The recipient can claim it later through Sendly - even if they are new to crypto.',
     date: '2026-02-11',
     category: 'Tutorial',
-    tags: ['NFT', 'Gift Cards', 'Tutorial'],
+    tags: ['Gift Cards', 'USDC', 'Arc Testnet'],
     readTime: '8 min',
     coverImage: '/SENDLY GIFT CARD.png',
   },

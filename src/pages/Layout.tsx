@@ -154,14 +154,12 @@ export function Layout({ children }: LayoutProps) {
               </button>
             ) : null}
             {!zk ? (
-              <button
-                type="button"
-                disabled
-                aria-disabled="true"
-                className="bg-white/70 border border-gray-200 text-gray-400 px-4 py-2 rounded-2xl flex items-center gap-2 font-medium cursor-not-allowed"
+              <Link
+                to="/payments"
+                className="bg-white border border-gray-200 text-gray-900 hover:bg-gray-50 px-4 py-2 rounded-2xl transition-[transform,background-color] duration-200 ease-[var(--ease-out)] active:scale-[0.97] flex items-center gap-2 font-medium motion-reduce:transition-none motion-reduce:active:scale-100"
               >
                 Payments
-              </button>
+              </Link>
             ) : null}
             <ConnectButton />
           </div>

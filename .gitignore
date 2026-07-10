@@ -1,4 +1,4 @@
-# docs — ignore contents except product architecture (docs/ blocks re-include; use docs/*)
+# docs - ignore contents except product architecture (docs/ blocks re-include; use docs/*)
 docs/*
 !docs/Architecture.md
 !docs/Agent-Treasury.md

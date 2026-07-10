@@ -16,9 +16,9 @@ For the full Sendly product (gift cards, zkTLS direct payments, bridge, gateway)
 
 **Explicitly out of scope:**
 
-- Creator paywall (HTTP 402 article unlock) — separate product surface
-- Citation demo — not product-documented here
-- In-file OpenSpec requirement → code traceability tables — see [OpenSpec Traceability](./OpenSpec-Traceability.md)
+- Creator paywall (HTTP 402 article unlock) - separate product surface
+- Citation demo - not product-documented here
+- In-file OpenSpec requirement → code traceability tables - see [OpenSpec Traceability](./OpenSpec-Traceability.md)
 
 ## Architectural Decisions
 
@@ -29,7 +29,7 @@ For the full Sendly product (gift cards, zkTLS direct payments, bridge, gateway)
 | Backend future | Split into **one function per capability** when the surface area grows |
 | Database & migrations | Source of truth: **`sendly-supabase`** |
 | Agent machine docs | Source of truth: `sendly-supabase/functions/arc/creator-paywall/llm.txt` and `openapi.json`, synced to frontend `public/` at build time |
-| Settlement rail | Reuse existing `ZkSend` contract and zkTLS claim — no new on-chain protocol for treasury |
+| Settlement rail | Reuse existing `ZkSend` contract and zkTLS claim - no new on-chain protocol for treasury |
 
 ## Source of Truth
 

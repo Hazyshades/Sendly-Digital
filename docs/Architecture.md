@@ -14,7 +14,7 @@ For autonomous agent settlement (GitHub repo treasury, Twitch raid-to-pay), see 
 | Circle Developer-Controlled Wallets | Implemented | `DeveloperWalletService`, backend Circle API calls |
 | Bridge Kit / CCTP | Implemented | `@circle-fin/bridge-kit` + viem adapter |
 | Payments via zkTLS | Implemented | `zkSEND` contract + social identity hash + zkTLS verification |
-| Agent Treasury (GitHub / Twitch) | Implemented | `creator-paywall` Edge Function, sponsor pool → `ZkSend`, receipts API, Lepton UI — see [Agent Treasury](./Agent-Treasury.md) |
+| Agent Treasury (GitHub / Twitch) | Implemented | `creator-paywall` Edge Function, sponsor pool → `ZkSend`, receipts API, Lepton UI - see [Agent Treasury](./Agent-Treasury.md) |
 
 ## Planned Next
 
@@ -65,7 +65,7 @@ The wallet layer resolves that connected social account to a Circle wallet throu
 2. Linked social account: platform, social user ID, and username.
 3. Privy user ID as the final identity anchor.
 
-On the **zk host** (`sendly.digital`), identity also resolves via **zk OAuth** (OAuth tokens in local storage). Privy and zk OAuth are **parallel stacks** — not a migration path. Wallet lookup on the zk host tries the connected EOA first, then zk OAuth social identity, then Privy-linked social where applicable. Agent treasury claim flows on the zk host use this OAuth path; see [Agent Treasury](./Agent-Treasury.md#platform-support-claim-path).
+On the **zk host** (`sendly.digital`), identity also resolves via **zk OAuth** (OAuth tokens in local storage). Privy and zk OAuth are **parallel stacks** - not a migration path. Wallet lookup on the zk host tries the connected EOA first, then zk OAuth social identity, then Privy-linked social where applicable. Agent treasury claim flows on the zk host use this OAuth path; see [Agent Treasury](./Agent-Treasury.md#platform-support-claim-path).
 
 The resolved wallet metadata is stored in `developer_wallets`, including Circle wallet IDs, wallet set IDs, blockchain, account type, state, and social identity fields.
 
