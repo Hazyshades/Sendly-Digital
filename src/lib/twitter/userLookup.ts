@@ -1,7 +1,7 @@
 /**
  * Twitter/X user lookup for handle input preview (avatar + name).
- * First checks Supabase cache (twitter_user_cache) to avoid hitting Twitter API;
- * only calls zk-sender Edge Function GET /zk-sender/twitter/user on cache miss or stale cache.
+ * Prefer Supabase `twitter_user_cache`. Never call Twitter API when the DB
+ * already has a profile_image_url (unless explicit refresh / skipCache).
  */
 
 import { getApiUrl, supabase } from '@/lib/supabase/client';
@@ -9,12 +9,7 @@ import { publicAnonKey } from '@/lib/supabase/info';
 
 const TWITTER_USER_CACHE_TABLE = 'twitter_user_cache';
 
-/**
- * Soft TTL for proactive revalidation.
- * Keep this aligned with backend TWITTER_USER_CACHE_DAYS (7d) so we do not
- * burn twitterapi.io credits on every revisit - avatar URL 404 still triggers
- * a one-shot refresh when the profile picture actually changed.
- */
+/** Memory / soft TTL for in-app preview cache (does not force Twitter API). */
 export const TWITTER_CACHE_SOFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface TwitterUserPreview {
@@ -65,13 +60,6 @@ export function upgradeTwitterAvatarUrl(url: string): string | null {
   return null;
 }
 
-function isCacheFresh(updatedAt: string | null | undefined, now = Date.now()): boolean {
-  if (!updatedAt) return false;
-  const ts = Date.parse(updatedAt);
-  if (!Number.isFinite(ts)) return false;
-  return now - ts < TWITTER_CACHE_SOFT_TTL_MS;
-}
-
 function previewFromRow(row: {
   username: string;
   name?: string | null;
@@ -84,6 +72,21 @@ function previewFromRow(row: {
     profile_image_url: row.profile_image_url ?? null,
     updated_at: row.updated_at ?? null,
   };
+}
+
+async function readTwitterUserCache(normalized: string): Promise<TwitterUserPreview | null> {
+  try {
+    const { data: row, error: dbError } = await supabase
+      .from(TWITTER_USER_CACHE_TABLE)
+      .select('username, name, profile_image_url, updated_at')
+      .ilike('username', normalized)
+      .maybeSingle();
+
+    if (dbError || !row?.username) return null;
+    return previewFromRow(row);
+  } catch {
+    return null;
+  }
 }
 
 async function fetchTwitterUserFromEdge(
@@ -138,12 +141,19 @@ export interface FetchTwitterUserPreviewOptions {
   skipCache?: boolean;
   /** Append refresh=1 so backend force-refreshes from Twitter API. */
   refresh?: boolean;
+  /**
+   * Only read Supabase cache — never call Edge / Twitter API.
+   * Returns CACHE_MISS when the row is absent (or has no avatar when requireImage is true).
+   */
+  cacheOnly?: boolean;
+  /** With cacheOnly, treat a row without profile_image_url as a miss. Default true. */
+  requireImage?: boolean;
 }
 
 /**
  * Fetch Twitter user profile by username for preview.
- * Fresh cache (< soft TTL) returns immediately. Stale cache triggers Edge refresh;
- * if refresh fails, stale cache is returned so the UI still works.
+ * If `twitter_user_cache` already has profile_image_url → return it and do not call Twitter API.
+ * API is used only on cache miss (or explicit refresh / skipCache).
  */
 export async function fetchTwitterUserPreview(
   username: string,
@@ -155,36 +165,23 @@ export async function fetchTwitterUserPreview(
   }
 
   const forceRefresh = options?.skipCache === true || options?.refresh === true;
-
-  let stale: TwitterUserPreview | null = null;
+  const requireImage = options?.requireImage !== false;
 
   if (!forceRefresh) {
-    try {
-      const { data: row, error: dbError } = await supabase
-        .from(TWITTER_USER_CACHE_TABLE)
-        .select('username, name, profile_image_url, updated_at')
-        .ilike('username', normalized)
-        .maybeSingle();
-
-      if (!dbError && row?.username) {
-        const preview = previewFromRow(row);
-        if (isCacheFresh(row.updated_at)) {
-          return { success: true, fromCache: true, data: preview };
-        }
-        stale = preview;
+    const cached = await readTwitterUserCache(normalized);
+    if (cached) {
+      const hasImage = Boolean(cached.profile_image_url);
+      if (hasImage || !requireImage) {
+        return { success: true, fromCache: true, data: cached };
       }
-    } catch {
-      // Supabase unavailable or table missing: fall through to Edge Function
+      if (options?.cacheOnly) {
+        return { success: false, error: 'Not in cache', code: 'CACHE_MISS' };
+      }
+      // Row without image: fall through to Edge once to populate avatar.
+    } else if (options?.cacheOnly) {
+      return { success: false, error: 'Not in cache', code: 'CACHE_MISS' };
     }
   }
 
-  const edge = await fetchTwitterUserFromEdge(normalized, forceRefresh || Boolean(stale));
-  if (edge.success) return edge;
-
-  // Keep serving stale cache when live refresh fails (broken API / rate limit).
-  if (stale) {
-    return { success: true, fromCache: true, data: stale };
-  }
-
-  return edge;
+  return fetchTwitterUserFromEdge(normalized, forceRefresh);
 }

@@ -34,8 +34,10 @@ import {
 import type { SendRecipientType } from './ZkSendPanel';
 
 const PREVIEW_DEBOUNCE_MS = 500;
-/** Twitter preview: 3s debounce to reduce Twitter API (twitterapi.io) usage when typing. */
+/** Twitter: wait this long before calling Edge/API (cache-only check is faster). */
 const TWITTER_PREVIEW_DEBOUNCE_MS = 3000;
+/** Twitter: quick Supabase cache lookup so known handles preview without waiting for API debounce. */
+const TWITTER_CACHE_DEBOUNCE_MS = 400;
 
 const PROFILE_LINK_CLASS =
   'truncate text-foreground underline decoration-muted-foreground/50 underline-offset-2 hover:decoration-foreground';
@@ -127,6 +129,7 @@ export function PlatformUsernameInput({
   const [twitchPreviewData, setTwitchPreviewData] = useState<TwitchUserPreview | null>(null);
   const [twitchPreviewError, setTwitchPreviewError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const twitterCacheDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRequestRef = useRef<string>('');
   const inFlightRequestRef = useRef<string>('');
   const twitchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -173,6 +176,10 @@ export function PlatformUsernameInput({
         clearTimeout(debounceRef.current);
         debounceRef.current = null;
       }
+      if (twitterCacheDebounceRef.current) {
+        clearTimeout(twitterCacheDebounceRef.current);
+        twitterCacheDebounceRef.current = null;
+      }
       return;
     }
 
@@ -190,20 +197,41 @@ export function PlatformUsernameInput({
       setPreviewStatus('success');
       setPreviewData(memoryStale);
       setPreviewError(null);
-    }
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!memoryStale) {
+    } else {
       setPreviewStatus('loading');
       setPreviewError(null);
     }
 
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (twitterCacheDebounceRef.current) clearTimeout(twitterCacheDebounceRef.current);
+
+    let resolvedFromDb = Boolean(memoryStale?.profile_image_url);
+    const requested = normalizedUsername;
+    lastRequestRef.current = requested;
+
+    // Phase 1 (fast): Supabase cache only — no Twitter API.
+    twitterCacheDebounceRef.current = setTimeout(() => {
+      twitterCacheDebounceRef.current = null;
+      fetchTwitterUserPreview(requested, { cacheOnly: true })
+        .then((result) => {
+          if (lastRequestRef.current !== requested) return;
+          if (result.success) {
+            resolvedFromDb = true;
+            setTwitterMemoryCache(requested, result.data);
+            setPreviewStatus('success');
+            setPreviewData(result.data);
+            setPreviewError(null);
+          }
+        })
+        .catch(() => {});
+    }, TWITTER_CACHE_DEBOUNCE_MS);
+
+    // Phase 2 (slow): only if DB miss — may call Edge / Twitter API once.
     debounceRef.current = setTimeout(() => {
       debounceRef.current = null;
-      const requested = normalizedUsername;
+      if (resolvedFromDb || getFreshTwitterMemoryCache(requested)?.profile_image_url) return;
       if (inFlightRequestRef.current === requested) return;
       inFlightRequestRef.current = requested;
-      lastRequestRef.current = requested;
 
       fetchTwitterUserPreview(requested)
         .then((result) => {
@@ -213,7 +241,7 @@ export function PlatformUsernameInput({
             setPreviewStatus('success');
             setPreviewData(result.data);
             setPreviewError(null);
-          } else if (!memoryStale) {
+          } else if (!memoryStale && !resolvedFromDb) {
             setPreviewStatus('error');
             setPreviewData(null);
             setPreviewError(result.error);
@@ -228,6 +256,10 @@ export function PlatformUsernameInput({
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
         debounceRef.current = null;
+      }
+      if (twitterCacheDebounceRef.current) {
+        clearTimeout(twitterCacheDebounceRef.current);
+        twitterCacheDebounceRef.current = null;
       }
     };
   }, [showTwitterPreview, normalizedUsername]);
