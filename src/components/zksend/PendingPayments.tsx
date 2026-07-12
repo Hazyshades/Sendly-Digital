@@ -84,6 +84,8 @@ type Props = {
   hasDeveloperWallet?: boolean;
   /** Override card title (default: Receive). */
   title?: string;
+  /** Payment to visually identify when opened from a remit claim link. */
+  highlightPaymentId?: string | null;
 };
 
 function shortenAddress(addr: string): string {
@@ -195,6 +197,7 @@ export function PendingPayments({
   developerWallet = null,
   hasDeveloperWallet = false,
   title = 'Receive',
+  highlightPaymentId = null,
 }: Props) {
   const connectedChainId = useChainId();
   const activeChainId = connectedChainId || ARC_CHAIN_ID;
@@ -1581,7 +1584,9 @@ export function PendingPayments({
               {rows.map((p) => (
                 <div
                   key={p.paymentId}
-                  className="flex flex-col gap-2 rounded-lg border p-3 md:flex-row md:items-center md:justify-between"
+                  className={`flex flex-col gap-2 rounded-lg border p-3 md:flex-row md:items-center md:justify-between ${
+                    highlightPaymentId === p.paymentId ? 'border-emerald-400 bg-emerald-50/70 dark:bg-emerald-950/20' : ''
+                  }`}
                 >
                   <div className="space-y-1">
                     <div className="text-sm font-medium">Payment</div>

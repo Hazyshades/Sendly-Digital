@@ -13,7 +13,7 @@ function TelegramIcon({ className, ...props }: React.SVGAttributes<SVGSVGElement
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { fetchTwitterUserPreview, normalizeTwitterHandle, type TwitterUserPreview } from '@/lib/twitter';
+import { fetchTwitterUserPreview, normalizeTwitterHandle, upgradeTwitterAvatarUrl, TWITTER_CACHE_SOFT_TTL_MS, type TwitterUserPreview } from '@/lib/twitter';
 import {
   fetchTwitchUserPreview,
   normalizeTwitchLogin,
@@ -47,7 +47,18 @@ function recipientPlaceholder(platform: SendRecipientType): string {
 }
 
 /** Module-level cache for successful Twitter previews (key = normalized username). Survives tab switch. */
-const twitterPreviewCache = new Map<string, TwitterUserPreview>();
+const twitterPreviewCache = new Map<string, { data: TwitterUserPreview; fetchedAt: number }>();
+
+function getFreshTwitterMemoryCache(username: string): TwitterUserPreview | null {
+  const entry = twitterPreviewCache.get(username);
+  if (!entry) return null;
+  if (Date.now() - entry.fetchedAt >= TWITTER_CACHE_SOFT_TTL_MS) return null;
+  return entry.data;
+}
+
+function setTwitterMemoryCache(username: string, data: TwitterUserPreview) {
+  twitterPreviewCache.set(username, { data, fetchedAt: Date.now() });
+}
 
 /** Module-level cache for successful Twitch previews (key = normalized login). Survives tab switch. */
 const twitchPreviewCache = new Map<string, TwitchUserPreview>();
@@ -130,8 +141,8 @@ export function PlatformUsernameInput({
   const telegramDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const telegramLastRequestRef = useRef<string>('');
   const telegramInFlightRequestRef = useRef<string>('');
-  /** After 404 Twitter avatar, do one refetch with skipCache. Reset when username changes. */
-  const twitterAvatarRetryRef = useRef(false);
+  /** Avatar recovery: none → try CDN size → quiet API refresh → drop image. Reset when username changes. */
+  const twitterAvatarRetryPhaseRef = useRef<'none' | 'upgraded' | 'refreshed'>('none');
   const lastTwitterUsernameRef = useRef<string>('');
 
   const currentPlatformOpt = PLATFORM_OPTIONS.find((o) => o.value === platform) ?? PLATFORM_OPTIONS[0];
@@ -146,7 +157,7 @@ export function PlatformUsernameInput({
 
   if (lastTwitterUsernameRef.current !== normalizedUsername) {
     lastTwitterUsernameRef.current = normalizedUsername;
-    twitterAvatarRetryRef.current = false;
+    twitterAvatarRetryPhaseRef.current = 'none';
   }
 
   useEffect(() => {
@@ -162,17 +173,27 @@ export function PlatformUsernameInput({
       return;
     }
 
-    const cached = twitterPreviewCache.get(normalizedUsername);
-    if (cached) {
+    const memoryFresh = getFreshTwitterMemoryCache(normalizedUsername);
+    if (memoryFresh) {
       setPreviewStatus('success');
-      setPreviewData(cached);
+      setPreviewData(memoryFresh);
       setPreviewError(null);
       return;
     }
 
+    // Soft-stale memory: show immediately, still revalidate below.
+    const memoryStale = twitterPreviewCache.get(normalizedUsername)?.data ?? null;
+    if (memoryStale) {
+      setPreviewStatus('success');
+      setPreviewData(memoryStale);
+      setPreviewError(null);
+    }
+
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    setPreviewStatus('loading');
-    setPreviewError(null);
+    if (!memoryStale) {
+      setPreviewStatus('loading');
+      setPreviewError(null);
+    }
 
     debounceRef.current = setTimeout(() => {
       debounceRef.current = null;
@@ -185,11 +206,11 @@ export function PlatformUsernameInput({
         .then((result) => {
           if (lastRequestRef.current !== requested) return;
           if (result.success) {
-            twitterPreviewCache.set(requested, result.data);
+            setTwitterMemoryCache(requested, result.data);
             setPreviewStatus('success');
             setPreviewData(result.data);
             setPreviewError(null);
-          } else {
+          } else if (!memoryStale) {
             setPreviewStatus('error');
             setPreviewData(null);
             setPreviewError(result.error);
@@ -208,26 +229,54 @@ export function PlatformUsernameInput({
     };
   }, [showTwitterPreview, normalizedUsername]);
 
+  /**
+   * Image CDN failed (often after avatar change): try CDN size upgrade, then quiet API refresh.
+   * Never clear the successful preview / show "Twitter API error" - keep name + handle.
+   */
   const handleTwitterAvatarError = () => {
-    if (twitterAvatarRetryRef.current || !normalizedUsername) return;
-    twitterAvatarRetryRef.current = true;
-    twitterPreviewCache.delete(normalizedUsername);
-    setPreviewStatus('loading');
-    setPreviewError(null);
-    fetchTwitterUserPreview(normalizedUsername, { skipCache: true })
-      .then((result) => {
-        if (result.success) {
-          twitterPreviewCache.set(normalizedUsername, result.data);
+    const phase = twitterAvatarRetryPhaseRef.current;
+    const handle = normalizedUsername;
+    if (!handle) return;
+
+    if (phase === 'none') {
+      const currentUrl = previewData?.profile_image_url;
+      const upgraded = currentUrl ? upgradeTwitterAvatarUrl(currentUrl) : null;
+      if (upgraded && previewData) {
+        twitterAvatarRetryPhaseRef.current = 'upgraded';
+        const next = { ...previewData, profile_image_url: upgraded };
+        setTwitterMemoryCache(handle, next);
+        setPreviewData(next);
+        return;
+      }
+    }
+
+    if (phase !== 'refreshed') {
+      twitterAvatarRetryPhaseRef.current = 'refreshed';
+      fetchTwitterUserPreview(handle, { refresh: true }).then((result) => {
+        if (lastTwitterUsernameRef.current !== handle) return;
+        if (result.success && result.data.profile_image_url) {
+          setTwitterMemoryCache(handle, result.data);
           setPreviewStatus('success');
           setPreviewData(result.data);
           setPreviewError(null);
-        } else {
-          setPreviewStatus('error');
-          setPreviewData(null);
-          setPreviewError(result.error);
+          return;
         }
-      })
-      .finally(() => {});
+        setPreviewData((current) => {
+          if (!current) return current;
+          const fallback = { ...current, profile_image_url: null };
+          setTwitterMemoryCache(normalizeTwitterHandle(current.username), fallback);
+          return fallback;
+        });
+      });
+      return;
+    }
+
+    setPreviewData((current) => {
+      if (!current) return current;
+      const fallback = { ...current, profile_image_url: null };
+      setTwitterMemoryCache(normalizeTwitterHandle(current.username), fallback);
+      return fallback;
+    });
   };
 
   useEffect(() => {
@@ -568,6 +617,7 @@ export function PlatformUsernameInput({
                   className="h-8 w-8 shrink-0 rounded-full object-cover"
                   width={32}
                   height={32}
+                  referrerPolicy="no-referrer"
                   onError={handleTwitterAvatarError}
                 />
               ) : (
