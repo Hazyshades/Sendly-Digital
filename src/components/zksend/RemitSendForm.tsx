@@ -142,7 +142,7 @@ export function RemitSendForm() {
 
   if (outcome) {
     return (
-      <Card className="overflow-hidden border-emerald-100 bg-white/95 shadow-[0_24px_80px_-32px_rgba(16,185,129,0.45)]">
+      <Card className="w-full min-w-0 overflow-hidden border-emerald-100 bg-white/95 shadow-[0_24px_80px_-32px_rgba(16,185,129,0.45)]">
         <CardContent className="space-y-7 p-6 sm:p-10">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
             <CheckCircle2 className="h-8 w-8" />
@@ -180,7 +180,7 @@ export function RemitSendForm() {
   }
 
   return (
-    <Card className="overflow-hidden border-white/90 bg-white/95 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.38)]">
+    <Card className="w-full min-w-0 overflow-hidden border-white/90 bg-white/95 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.38)]">
       <CardContent className="space-y-6 p-5 sm:p-8">
         <div className="flex items-start justify-between gap-4">
           <div>
