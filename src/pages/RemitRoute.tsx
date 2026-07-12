@@ -9,7 +9,7 @@ export function RemitRoute() {
           <p className="remit-kicker text-emerald-700">Sendly Remit</p>
           <h1 className="remit-title mt-2 text-slate-950">UAE to Global Remittance</h1>
           <p className="remit-lede mx-auto mt-3 text-slate-600">
-            Send money to a verified @twitter username. No wallet address required.
+            Send money to a verified social username.
           </p>
         </div>
         <RemitSendForm />

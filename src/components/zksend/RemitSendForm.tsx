@@ -12,7 +12,6 @@ import {
   Loader2,
   Send,
   ShieldCheck,
-  Twitter,
   WalletCards,
 } from 'lucide-react';
 
@@ -26,6 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+import { PlatformUsernameInput } from './PlatformUsernameInput';
 import { getRemitQuote, REMIT_FEE_AED, REMIT_RATE_USDC_PER_AED } from './remitQuote';
 import { submitSocialZkSendPayment, type SocialPaymentOutcome } from './socialPaymentAction';
 import type { WalletSource } from './WalletSourceToggle';
@@ -237,26 +237,19 @@ export function RemitSendForm() {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="remit-recipient" className="remit-label">Recipient</Label>
-          <div className="flex overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm focus-within:ring-2 focus-within:ring-emerald-500/30">
-            <div className="flex items-center px-3 text-slate-400">@</div>
-            <Input
-              id="remit-recipient"
-              value={username.replace(/^@/, '')}
-              onChange={(event) => setUsername(event.target.value)}
-              placeholder="twitter username"
-              className="h-11 border-0 shadow-none focus-visible:ring-0"
-            />
-            <div className="flex items-center gap-1 bg-slate-50 px-3 text-sm font-medium text-slate-700">
-              <Twitter className="h-4 w-4" />
-              Twitter / X
-            </div>
-          </div>
-          {username && !usernameIsValid ? (
-            <p className="text-xs text-rose-600">Enter a valid Twitter/X username.</p>
-          ) : null}
-        </div>
+        <PlatformUsernameInput
+          platform="twitter"
+          onPlatformChange={() => {}}
+          username={username}
+          onUsernameChange={setUsername}
+          label="Recipient"
+          inputId="remit-recipient"
+          ariaLabel="Twitter username"
+          lockPlatform
+        />
+        {username && !usernameIsValid ? (
+          <p className="text-xs text-rose-600">Enter a valid Twitter/X username.</p>
+        ) : null}
 
         <div className="space-y-3">
           <Label className="remit-label">Funding source</Label>
@@ -355,7 +348,7 @@ export function RemitSendForm() {
                   twitter:@{normalizedUsername}
                 </a>
               ) : (
-                <span className="remit-quote-value">twitter:@username</span>
+                <span className="remit-quote-value">social:@username</span>
               )}
             </div>
           </div>
@@ -385,9 +378,7 @@ export function RemitSendForm() {
             Connect an Arc wallet or create an Internal Wallet to complete settlement.
           </p>
         ) : null}
-        <p className="remit-disclaimer text-center text-slate-400">
-          Demo only: AED FX, destination corridors, and card funding are presentation concepts. Settlement uses USDC on Arc testnet.
-        </p>
+
       </CardContent>
     </Card>
   );

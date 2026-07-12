@@ -76,7 +76,7 @@ const PLATFORM_OPTIONS: {
   icon: React.ComponentType<{ className?: string }>;
   disabled?: boolean;
 }[] = [
-  { value: 'twitter', label: 'Twitter / X', hint: 'Send to handle', icon: Twitter },
+  { value: 'twitter', label: 'X', hint: 'Send to handle', icon: Twitter },
   { value: 'twitch', label: 'Twitch', hint: 'Send to username', icon: Twitch },
   { value: 'github', label: 'GitHub', hint: 'Send to username', icon: Github },
   { value: 'telegram', label: 'Telegram', hint: 'Send to username', icon: TelegramIcon },
@@ -96,6 +96,8 @@ type Props = {
   ariaLabel?: string;
   /** Read-only display (e.g. blog embed): no editing, same look, no disabled styling. */
   readOnly?: boolean;
+  /** Hide platform picker and keep the current platform fixed (e.g. Remit → Twitter only). */
+  lockPlatform?: boolean;
   /** In readOnly mode, show this as the suggestion line (e.g. "Arc @arc") without fetching. */
   previewSuggestionLabel?: string;
   /** In readOnly mode, show this avatar in the suggestion line. */
@@ -113,6 +115,7 @@ export function PlatformUsernameInput({
   inputId = 'platform-username-input',
   ariaLabel = 'Username',
   readOnly = false,
+  lockPlatform = false,
   previewSuggestionLabel,
   previewProfileImageUrl,
 }: Props) {
@@ -539,54 +542,69 @@ export function PlatformUsernameInput({
             </button>
           )}
         </div>
-        <Popover open={platformPopoverOpen} onOpenChange={setPlatformPopoverOpen}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className="flex items-center gap-1.5 shrink-0 h-9 pl-2 pr-2 py-1 border-input text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
-              aria-label="Choose platform"
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted dark:bg-muted/80 text-foreground">
-                {(() => {
-                  const Icon = currentPlatformOpt.icon;
-                  return <Icon className="h-4 w-4 shrink-0" />;
-                })()}
-              </span>
-              <ChevronDown
-                className={`h-4 w-4 shrink-0 transition-transform ${platformPopoverOpen ? 'rotate-180' : ''}`}
-                aria-hidden
-              />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-72 p-2" align="end" sideOffset={4}>
-            <div className="space-y-0.5">
-              {PLATFORM_OPTIONS.map((opt) => {
-                const Icon = opt.icon;
-                const isDisabled = opt.disabled;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    disabled={isDisabled}
-                    title={isDisabled ? 'Temporarily unavailable' : undefined}
-                    onClick={() => {
-                      if (isDisabled) return;
-                      onPlatformChange(opt.value);
-                      setPlatformPopoverOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${platform === opt.value ? 'bg-muted/40' : ''} ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted/60'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Icon className="h-4 w-4 shrink-0" />
-                      <span className="font-medium">{opt.label}</span>
-                    </div>
-                    <span className="text-sm text-muted-foreground">{opt.hint}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </PopoverContent>
-        </Popover>
+        {lockPlatform ? (
+          <div
+            className="flex items-center gap-1.5 shrink-0 h-9 pl-2 pr-3 py-1 border-input text-muted-foreground"
+            aria-label={currentPlatformOpt.label}
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted dark:bg-muted/80 text-foreground">
+              {(() => {
+                const Icon = currentPlatformOpt.icon;
+                return <Icon className="h-4 w-4 shrink-0" />;
+              })()}
+            </span>
+            <span className="text-sm font-medium text-foreground">{currentPlatformOpt.label}</span>
+          </div>
+        ) : (
+          <Popover open={platformPopoverOpen} onOpenChange={setPlatformPopoverOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center gap-1.5 shrink-0 h-9 pl-2 pr-2 py-1 border-input text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
+                aria-label="Choose platform"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted dark:bg-muted/80 text-foreground">
+                  {(() => {
+                    const Icon = currentPlatformOpt.icon;
+                    return <Icon className="h-4 w-4 shrink-0" />;
+                  })()}
+                </span>
+                <ChevronDown
+                  className={`h-4 w-4 shrink-0 transition-transform ${platformPopoverOpen ? 'rotate-180' : ''}`}
+                  aria-hidden
+                />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-2" align="end" sideOffset={4}>
+              <div className="space-y-0.5">
+                {PLATFORM_OPTIONS.map((opt) => {
+                  const Icon = opt.icon;
+                  const isDisabled = opt.disabled;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      disabled={isDisabled}
+                      title={isDisabled ? 'Temporarily unavailable' : undefined}
+                      onClick={() => {
+                        if (isDisabled) return;
+                        onPlatformChange(opt.value);
+                        setPlatformPopoverOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${platform === opt.value ? 'bg-muted/40' : ''} ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted/60'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon className="h-4 w-4 shrink-0" />
+                        <span className="font-medium">{opt.label}</span>
+                      </div>
+                      <span className="text-sm text-muted-foreground">{opt.hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
       </div>
 
       {showTwitterPreview && normalizedUsername && (
