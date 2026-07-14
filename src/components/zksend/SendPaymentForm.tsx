@@ -41,6 +41,7 @@ import {
 import { PlatformUsernameInput } from './PlatformUsernameInput';
 import { WalletSourceToggle } from './WalletSourceToggle';
 import { ZKSEND_SUCCESS_COPY, renderTransactionLink } from './transactionFeedback';
+import { submitSocialZkSendPayment } from './socialPaymentAction';
 
 import type { SendRecipientType } from './ZkSendPanel';
 import type { WalletSource } from './WalletSourceToggle';
@@ -206,6 +207,34 @@ export function SendPaymentForm({
   const onSubmit = async () => {
     try {
       setLastCreatedTxHash(null);
+
+      // Social payments share one action with the remit flow. Direct address sends
+      // remain on their existing path below.
+      if (platform !== 'address') {
+        setLoading(true);
+        const outcome = await submitSocialZkSendPayment({
+          amount,
+          tokenType,
+          platform,
+          username,
+          walletSource,
+          chainId: activeChainId,
+          isConnected,
+          address,
+          walletClient,
+          developerWallet,
+          hasDeveloperWallet,
+          privyUserId: privyUser?.id,
+        });
+        if (outcome.txHash) setLastCreatedTxHash(outcome.txHash);
+        toast.success(ZKSEND_SUCCESS_COPY.paymentCreated, {
+          description: outcome.txHash ? (
+            <span className="text-sm">TX: {renderTransactionLink(outcome.chainId, outcome.txHash)}</span>
+          ) : undefined,
+        });
+        return;
+      }
+
       const useCircle = walletSource === 'circle' && hasDeveloperWallet && developerWallet;
       if (useCircle) {
         if (!developerWallet || !amount || Number(amount) <= 0) throw new Error('Enter amount > 0');

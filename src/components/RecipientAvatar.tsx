@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { fetchTwitterUserPreview } from '@/lib/twitter/userLookup';
+import { fetchTwitterUserPreview, upgradeTwitterAvatarUrl } from '@/lib/twitter/userLookup';
 import { fetchTwitchUserPreview } from '@/lib/twitch/userLookup';
 
 type SocialPlatform = 'twitter' | 'twitch' | 'telegram' | 'discord' | 'tiktok' | 'instagram' | '';
@@ -68,21 +68,26 @@ export function RecipientAvatar({ platform = '', counterpart, displayName, alt }
   const key = `${platform}:${counterpart}`;
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => avatarCache.get(key) ?? null);
   const fetchedRef = useRef(false);
-  const retryRef = useRef(false);
+  const retryPhaseRef = useRef<'none' | 'upgraded' | 'refreshed'>('none');
 
   useEffect(() => {
-    if (!canFetchAvatar(platform, counterpart) || fetchedRef.current) return;
+    retryPhaseRef.current = 'none';
+    fetchedRef.current = false;
+    if (!canFetchAvatar(platform, counterpart)) {
+      setAvatarUrl(null);
+      return;
+    }
     if (avatarCache.has(key)) {
       setAvatarUrl(avatarCache.get(key)!);
       return;
     }
     fetchedRef.current = true;
 
-    const fetchAvatar = async (skipCache = false) => {
+    const fetchAvatar = async () => {
       try {
         let url: string | null = null;
         if (platform === 'twitter') {
-          const res = await fetchTwitterUserPreview(counterpart, skipCache ? { skipCache: true } : undefined);
+          const res = await fetchTwitterUserPreview(counterpart);
           if (res.success && res.data.profile_image_url) url = res.data.profile_image_url;
         } else if (platform === 'twitch') {
           const res = await fetchTwitchUserPreview(counterpart);
@@ -102,28 +107,34 @@ export function RecipientAvatar({ platform = '', counterpart, displayName, alt }
   }, [platform, counterpart, key]);
 
   const handleImageError = () => {
-    if (retryRef.current) {
-      setAvatarUrl(null);
+    if (!avatarUrl) return;
+
+    if (retryPhaseRef.current === 'none') {
+      const upgraded = platform === 'twitter' ? upgradeTwitterAvatarUrl(avatarUrl) : null;
+      if (upgraded) {
+        retryPhaseRef.current = 'upgraded';
+        avatarCache.set(key, upgraded);
+        setAvatarUrl(upgraded);
+        return;
+      }
+    }
+
+    if (platform === 'twitter' && retryPhaseRef.current !== 'refreshed') {
+      retryPhaseRef.current = 'refreshed';
+      fetchTwitterUserPreview(counterpart, { refresh: true }).then((res) => {
+        if (res.success && res.data.profile_image_url) {
+          avatarCache.set(key, res.data.profile_image_url);
+          setAvatarUrl(res.data.profile_image_url);
+          return;
+        }
+        avatarCache.delete(key);
+        setAvatarUrl(null);
+      });
       return;
     }
-    retryRef.current = true;
+
     avatarCache.delete(key);
     setAvatarUrl(null);
-    if (platform === 'twitter') {
-      fetchTwitterUserPreview(counterpart, { skipCache: true }).then((res) => {
-        if (res.success && res.data.profile_image_url) {
-          avatarCache.set(key, res.data.profile_image_url!);
-          setAvatarUrl(res.data.profile_image_url);
-        }
-      });
-    } else if (platform === 'twitch') {
-      fetchTwitchUserPreview(counterpart).then((res) => {
-        if (res.success && res.data.profile_image_url) {
-          avatarCache.set(key, res.data.profile_image_url!);
-          setAvatarUrl(res.data.profile_image_url);
-        }
-      });
-    }
   };
 
   const letter = displayName?.charAt(0)?.toUpperCase() || '?';
@@ -136,6 +147,7 @@ export function RecipientAvatar({ platform = '', counterpart, displayName, alt }
           src={avatarUrl}
           alt={alt ?? `Profile of ${displayName}`}
           className="size-10 rounded-full object-cover bg-slate-200 dark:bg-slate-600"
+          referrerPolicy="no-referrer"
           onError={handleImageError}
         />
       ) : (

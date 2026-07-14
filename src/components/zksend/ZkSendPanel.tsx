@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useChainId } from 'wagmi';
+import { useSearchParams } from 'react-router-dom';
 
 import { PendingPayments } from './PendingPayments';
 import { SendPaymentForm, type SendPaymentPreviewValues } from './SendPaymentForm';
@@ -28,15 +29,24 @@ function seedUsernameFromIdentity(username: string): string {
 }
 
 export function ZkSendPanel({ initialTab = 'send', preview = false, previewValues }: ZkSendPanelProps = {}) {
-  const [activeTab, setActiveTab] = useState<'send' | 'receive'>(initialTab);
+  const [searchParams] = useSearchParams();
+  const claimPlatform = searchParams.get('platform') === 'twitter' ? 'twitter' : null;
+  const claimUsername = claimPlatform ? searchParams.get('username')?.replace(/^@/, '') ?? '' : '';
+  const claimPaymentId = claimPlatform ? searchParams.get('paymentId') : null;
+  const claimTab = claimPlatform && claimUsername && searchParams.get('tab') === 'receive' ? 'receive' : null;
+  const [activeTab, setActiveTab] = useState<'send' | 'receive'>(claimTab ?? initialTab);
 
   // Send tab: always manual, never seeded from the connected identity.
   const [sendPlatform, setSendPlatform] = useState<SendRecipientType>(preview && previewValues ? previewValues.platform : 'twitter');
   const [sendUsername, setSendUsername] = useState(preview && previewValues ? previewValues.username : '');
 
   // Receive tab: auto-filled from the primary identity unless manually edited.
-  const [receivePlatform, setReceivePlatform] = useState<SendRecipientType>(preview && previewValues ? previewValues.platform : 'twitter');
-  const [receiveUsername, setReceiveUsername] = useState(preview && previewValues ? previewValues.username : '');
+  const [receivePlatform, setReceivePlatform] = useState<SendRecipientType>(
+    preview && previewValues ? previewValues.platform : claimPlatform ?? 'twitter'
+  );
+  const [receiveUsername, setReceiveUsername] = useState(
+    preview && previewValues ? previewValues.username : claimUsername
+  );
   const receiveEditedRef = useRef(false);
 
   const { identity } = useZkOAuthIdentity();
@@ -47,6 +57,14 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
   const isInternalWalletDisabled =
     activeChainId === BASE_SEPOLIA_CHAIN_ID || activeChainId === TEMPO_CHAIN_ID;
   const canUseInternalWallet = hasDeveloperWallet && !isInternalWalletDisabled;
+
+  useEffect(() => {
+    if (preview || !claimTab || !claimPlatform || !claimUsername) return;
+    receiveEditedRef.current = true;
+    setActiveTab('receive');
+    setReceivePlatform(claimPlatform);
+    setReceiveUsername(claimUsername);
+  }, [claimPlatform, claimTab, claimUsername, preview]);
 
   useEffect(() => {
     if (preview || !identity || receiveEditedRef.current) return;
@@ -129,6 +147,7 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
             onWalletSourceChange={setWalletSource}
             developerWallet={developerWallet}
             hasDeveloperWallet={canUseInternalWallet}
+            highlightPaymentId={claimPaymentId}
           />
         </TabsContent>
       </Tabs>
