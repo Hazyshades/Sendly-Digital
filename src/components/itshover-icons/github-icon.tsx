@@ -1,11 +1,11 @@
-import { forwardRef, useCallback, useImperativeHandle } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle } from 'react';
 import { Github } from 'lucide-react';
 import { motion, useAnimate } from 'motion/react';
 
 import type { AnimatedIconHandle, AnimatedIconProps } from './types';
 
 const GithubIcon = forwardRef<AnimatedIconHandle, AnimatedIconProps>(
-  ({ size = 24, color = 'currentColor', className = '' }, ref) => {
+  ({ size = 24, color = 'currentColor', className = '', active }, ref) => {
     const [scope, animate] = useAnimate();
 
     const start = useCallback(() => {
@@ -19,6 +19,15 @@ const GithubIcon = forwardRef<AnimatedIconHandle, AnimatedIconProps>(
     const stop = useCallback(() => {
       animate(scope.current, { scale: 1, rotate: 0 }, { duration: 0.2, ease: 'easeOut' });
     }, [animate, scope]);
+
+    useEffect(() => {
+      if (typeof active !== 'boolean') return;
+      if (active) {
+        void start();
+      } else {
+        stop();
+      }
+    }, [active, start, stop]);
 
     useImperativeHandle(ref, () => ({
       startAnimation: start,

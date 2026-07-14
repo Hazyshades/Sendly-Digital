@@ -1,10 +1,10 @@
-import { forwardRef, useCallback, useImperativeHandle } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle } from 'react';
 import { motion, useAnimate } from 'motion/react';
 
 import type { AnimatedIconHandle, AnimatedIconProps } from './types';
 
 const GmailIcon = forwardRef<AnimatedIconHandle, AnimatedIconProps>(
-  ({ size = 24, color = 'currentColor', strokeWidth = 2, className = '' }, ref) => {
+  ({ size = 24, color = 'currentColor', strokeWidth = 2, className = '', active }, ref) => {
     const [scope, animate] = useAnimate();
 
     const start = useCallback(async () => {
@@ -16,6 +16,15 @@ const GmailIcon = forwardRef<AnimatedIconHandle, AnimatedIconProps>(
     const stop = useCallback(() => {
       animate('.envelope-top, .envelope-flap, .sides', { pathLength: 1, opacity: 1, scaleY: 1 }, { duration: 0.2 });
     }, [animate]);
+
+    useEffect(() => {
+      if (typeof active !== 'boolean') return;
+      if (active) {
+        void start();
+      } else {
+        stop();
+      }
+    }, [active, start, stop]);
 
     useImperativeHandle(ref, () => ({
       startAnimation: start,

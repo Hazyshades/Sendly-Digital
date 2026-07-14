@@ -20,6 +20,7 @@ export interface AnimatedIconProps extends Omit<
   color?: string;
   strokeWidth?: number;
   className?: string;
+  active?: boolean;
 }
 
 export interface AnimatedIconHandle {

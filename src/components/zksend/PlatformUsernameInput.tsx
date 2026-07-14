@@ -1,14 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Twitter, Twitch, Github, Instagram, Linkedin, Mail, Wallet, ChevronDown, Loader2, CheckCircle2 } from 'lucide-react';
-
-/** Telegram logo SVG - official silhouette of a plane. */
-function TelegramIcon({ className, ...props }: React.SVGAttributes<SVGSVGElement>) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 32 32" className={className} {...props}>
-      <path d="M26.07 3.996a2.974 2.974 0 0 0-.933.223h-.004c-.285.113-1.64.683-3.7 1.547l-7.382 3.109c-5.297 2.23-10.504 4.426-10.504 4.426l.062-.024s-.359.118-.734.375a2.03 2.03 0 0 0-.586.567c-.184.27-.332.683-.277 1.11.09.722.558 1.155.894 1.394.34.242.664.355.664.355h.008l4.883 1.645c.219.703 1.488 4.875 1.793 5.836.18.574.355.933.574 1.207.106.14.23.257.379.351a1.119 1.119 0 0 0 .246.106l-.05-.012c.015.004.027.016.038.02.04.011.067.015.118.023.773.234 1.394-.246 1.394-.246l.035-.028 2.883-2.625 4.832 3.707.11.047c1.007.442 2.027.196 2.566-.238.543-.437.754-.996.754-.996l.035-.09 3.734-19.129c.106-.472.133-.914.016-1.343a1.807 1.807 0 0 0-.781-1.047 1.872 1.872 0 0 0-1.067-.27Zm-.101 2.05c-.004.063.008.056-.02.177v.011l-3.699 18.93c-.016.027-.043.086-.117.145-.078.062-.14.101-.465-.028l-5.91-4.531-3.57 3.254.75-4.79 9.656-9c.398-.37.265-.448.265-.448.028-.454-.601-.133-.601-.133l-12.176 7.543-.004-.02-5.836-1.965v-.004l-.015-.003a.27.27 0 0 0 .03-.012l.032-.016.031-.011s5.211-2.196 10.508-4.426c2.652-1.117 5.324-2.242 7.379-3.11 2.055-.863 3.574-1.496 3.66-1.53.082-.032.043-.032.102-.032Z" />
-    </svg>
-  );
-}
+import { X, Twitter, Twitch, Github, Linkedin, Mail, Wallet, ChevronDown, Loader2, CheckCircle2, MessageCircle } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,6 +21,12 @@ import {
   normalizeTelegramUsername,
   type TelegramUserPreview,
 } from '@/lib/telegram';
+import BrandTelegramIcon from '@/components/itshover-icons/brand-telegram-icon';
+import BrandTwitchIcon from '@/components/itshover-icons/brand-twitch-icon';
+import GithubIcon from '@/components/itshover-icons/github-icon';
+import GmailIcon from '@/components/itshover-icons/gmail-icon';
+import LinkedinIcon from '@/components/itshover-icons/linkedin-icon';
+import TwitterXIcon from '@/components/itshover-icons/twitter-x-icon';
 
 import type { SendRecipientType } from './ZkSendPanel';
 
@@ -76,17 +73,81 @@ const PLATFORM_OPTIONS: {
   label: string;
   hint: string;
   icon: React.ComponentType<{ className?: string }>;
+  hoverIcon?: React.ComponentType<{ className?: string; active?: boolean }>;
   disabled?: boolean;
 }[] = [
-  { value: 'twitter', label: 'X', hint: 'Send to handle', icon: Twitter },
-  { value: 'twitch', label: 'Twitch', hint: 'Send to username', icon: Twitch },
-  { value: 'github', label: 'GitHub', hint: 'Send to username', icon: Github },
-  { value: 'telegram', label: 'Telegram', hint: 'Send to username', icon: TelegramIcon },
-  { value: 'instagram', label: 'Instagram', hint: 'Send to username', icon: Instagram, disabled: true },
-  { value: 'gmail', label: 'Gmail', hint: 'Send to email', icon: Mail },
-  { value: 'linkedin', label: 'LinkedIn', hint: 'Send to username', icon: Linkedin },
+  { value: 'twitter', label: 'X', hint: 'Send to handle', icon: Twitter, hoverIcon: TwitterXIcon },
+  { value: 'twitch', label: 'Twitch', hint: 'Send to username', icon: Twitch, hoverIcon: BrandTwitchIcon },
+  { value: 'github', label: 'GitHub', hint: 'Send to username', icon: Github, hoverIcon: GithubIcon },
+  { value: 'telegram', label: 'Telegram', hint: 'Send to username', icon: MessageCircle, hoverIcon: BrandTelegramIcon },
+  { value: 'gmail', label: 'Gmail', hint: 'Send to email', icon: Mail, hoverIcon: GmailIcon },
+  { value: 'linkedin', label: 'LinkedIn', hint: 'Send to username', icon: Linkedin, hoverIcon: LinkedinIcon },
   { value: 'address', label: 'Address', hint: 'Send to wallet', icon: Wallet },
 ];
+
+function PlatformOptionRow({
+  opt,
+  selected,
+  onSelect,
+  onClose,
+}: {
+  opt: (typeof PLATFORM_OPTIONS)[number];
+  selected: boolean;
+  onSelect: (value: SendRecipientType) => void;
+  onClose: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const isDisabled = opt.disabled;
+  const HoverIcon = !isDisabled ? opt.hoverIcon : undefined;
+  const Icon = HoverIcon ?? opt.icon;
+  const iconProps = HoverIcon ? { active: hovered } : {};
+
+  return (
+    <button
+      type="button"
+      disabled={isDisabled}
+      title={isDisabled ? 'Temporarily unavailable' : undefined}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setHovered(true)}
+      onBlur={() => setHovered(false)}
+      onClick={() => {
+        if (isDisabled) return;
+        onSelect(opt.value);
+        onClose();
+      }}
+      className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${selected ? 'bg-muted/40' : ''} ${
+        isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted/60'
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted dark:bg-muted/80 text-foreground">
+          <Icon className="h-4 w-4 shrink-0" {...iconProps} />
+        </span>
+        <span className="font-medium">{opt.label}</span>
+      </div>
+      <span className="text-sm text-muted-foreground">{opt.hint}</span>
+    </button>
+  );
+}
+
+function PlatformBadge({
+  option,
+  active = false,
+}: {
+  option: (typeof PLATFORM_OPTIONS)[number];
+  active?: boolean;
+}) {
+  const HoverIcon = !option.disabled ? option.hoverIcon : undefined;
+  const Icon = HoverIcon ?? option.icon;
+  const iconProps = HoverIcon ? { active } : {};
+
+  return (
+    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted dark:bg-muted/80 text-foreground">
+      <Icon className="h-4 w-4 shrink-0" {...iconProps} />
+    </span>
+  );
+}
 
 type Props = {
   platform: SendRecipientType;
@@ -122,6 +183,7 @@ export function PlatformUsernameInput({
   previewProfileImageUrl,
 }: Props) {
   const [platformPopoverOpen, setPlatformPopoverOpen] = useState(false);
+  const [triggerHovered, setTriggerHovered] = useState(false);
   const [previewStatus, setPreviewStatus] = useState<PreviewStatus>('idle');
   const [previewData, setPreviewData] = useState<TwitterUserPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -579,12 +641,7 @@ export function PlatformUsernameInput({
             className="flex items-center gap-1.5 shrink-0 h-9 pl-2 pr-3 py-1 border-input text-muted-foreground"
             aria-label={currentPlatformOpt.label}
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted dark:bg-muted/80 text-foreground">
-              {(() => {
-                const Icon = currentPlatformOpt.icon;
-                return <Icon className="h-4 w-4 shrink-0" />;
-              })()}
-            </span>
+            <PlatformBadge option={currentPlatformOpt} active={false} />
             <span className="text-sm font-medium text-foreground">{currentPlatformOpt.label}</span>
           </div>
         ) : (
@@ -592,15 +649,14 @@ export function PlatformUsernameInput({
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="flex items-center gap-1.5 shrink-0 h-9 pl-2 pr-2 py-1 border-input text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 shrink-0 h-9 pl-2 pr-2 py-1 border-input text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer active:scale-[0.97] motion-reduce:active:scale-100"
                 aria-label="Choose platform"
+                onMouseEnter={() => setTriggerHovered(true)}
+                onMouseLeave={() => setTriggerHovered(false)}
+                onFocus={() => setTriggerHovered(true)}
+                onBlur={() => setTriggerHovered(false)}
               >
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted dark:bg-muted/80 text-foreground">
-                  {(() => {
-                    const Icon = currentPlatformOpt.icon;
-                    return <Icon className="h-4 w-4 shrink-0" />;
-                  })()}
-                </span>
+                <PlatformBadge option={currentPlatformOpt} active={triggerHovered || platformPopoverOpen} />
                 <ChevronDown
                   className={`h-4 w-4 shrink-0 transition-transform ${platformPopoverOpen ? 'rotate-180' : ''}`}
                   aria-hidden
@@ -609,30 +665,15 @@ export function PlatformUsernameInput({
             </PopoverTrigger>
             <PopoverContent className="w-72 p-2" align="end" sideOffset={4}>
               <div className="space-y-0.5">
-                {PLATFORM_OPTIONS.map((opt) => {
-                  const Icon = opt.icon;
-                  const isDisabled = opt.disabled;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      disabled={isDisabled}
-                      title={isDisabled ? 'Temporarily unavailable' : undefined}
-                      onClick={() => {
-                        if (isDisabled) return;
-                        onPlatformChange(opt.value);
-                        setPlatformPopoverOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${platform === opt.value ? 'bg-muted/40' : ''} ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted/60'}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon className="h-4 w-4 shrink-0" />
-                        <span className="font-medium">{opt.label}</span>
-                      </div>
-                      <span className="text-sm text-muted-foreground">{opt.hint}</span>
-                    </button>
-                  );
-                })}
+                {PLATFORM_OPTIONS.map((opt) => (
+                  <PlatformOptionRow
+                    key={opt.value}
+                    opt={opt}
+                    selected={platform === opt.value}
+                    onSelect={onPlatformChange}
+                    onClose={() => setPlatformPopoverOpen(false)}
+                  />
+                ))}
               </div>
             </PopoverContent>
           </Popover>
@@ -827,7 +868,7 @@ export function PlatformUsernameInput({
               aria-live="polite"
             >
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                <TelegramIcon className="h-4 w-4 text-muted-foreground" />
+                <MessageCircle className="h-4 w-4 text-muted-foreground" />
               </span>
               <span>@{normalizedTelegramUsername}</span>
               <span>Searching…</span>
@@ -849,7 +890,7 @@ export function PlatformUsernameInput({
                 />
               ) : (
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                  <TelegramIcon className="h-4 w-4 text-muted-foreground" />
+                  <MessageCircle className="h-4 w-4 text-muted-foreground" />
                 </span>
               )}
               <div className="flex min-w-0 flex-1 items-center gap-1.5">

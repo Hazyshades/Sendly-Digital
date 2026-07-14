@@ -1,10 +1,10 @@
-import { forwardRef, useCallback, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react';
 import { motion, useAnimate } from 'motion/react';
 
 import type { AnimatedIconHandle, AnimatedIconProps } from './types';
 
 const BrandTwitchIcon = forwardRef<AnimatedIconHandle, AnimatedIconProps>(
-  ({ size = 24, color = 'currentColor', strokeWidth = 2, className = '' }, ref) => {
+  ({ size = 24, color = 'currentColor', strokeWidth = 2, className = '', active }, ref) => {
     const [scope, animate] = useAnimate();
     const isAnimatingRef = useRef(false);
 
@@ -37,6 +37,15 @@ const BrandTwitchIcon = forwardRef<AnimatedIconHandle, AnimatedIconProps>(
       animate('.twitch-eyes', { scaleY: 1 }, { duration: 0.3 });
       animate('.twitch-path', { x: 0, y: 0 }, { duration: 0.3 });
     }, [animate, color, scope]);
+
+    useEffect(() => {
+      if (typeof active !== 'boolean') return;
+      if (active) {
+        void start();
+      } else {
+        stop();
+      }
+    }, [active, start, stop]);
 
     useImperativeHandle(ref, () => ({
       startAnimation: start,

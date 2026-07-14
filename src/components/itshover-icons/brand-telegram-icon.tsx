@@ -1,10 +1,10 @@
-import { forwardRef, useImperativeHandle } from 'react';
+import { forwardRef, useEffect, useImperativeHandle } from 'react';
 import { motion, useAnimate } from 'motion/react';
 
 import type { AnimatedIconHandle, AnimatedIconProps } from './types';
 
 const BrandTelegramIcon = forwardRef<AnimatedIconHandle, AnimatedIconProps>(
-  ({ size = 24, color = 'currentColor', strokeWidth = 2, className = '' }, ref) => {
+  ({ size = 24, color = 'currentColor', strokeWidth = 2, className = '', active }, ref) => {
     const [scope, animate] = useAnimate();
 
     const start = async () => {
@@ -18,6 +18,15 @@ const BrandTelegramIcon = forwardRef<AnimatedIconHandle, AnimatedIconProps>(
     const stop = () => {
       animate('.plane', { x: 0, y: 0, opacity: 1 });
     };
+
+    useEffect(() => {
+      if (typeof active !== 'boolean') return;
+      if (active) {
+        void start();
+      } else {
+        stop();
+      }
+    }, [active]);
 
     useImperativeHandle(ref, () => ({
       startAnimation: start,
