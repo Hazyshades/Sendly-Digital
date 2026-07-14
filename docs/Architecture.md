@@ -14,6 +14,7 @@ For autonomous agent settlement (GitHub repo treasury, Twitch raid-to-pay), see 
 | Circle Developer-Controlled Wallets | Implemented | `DeveloperWalletService`, backend Circle API calls |
 | Bridge Kit / CCTP | Implemented | `@circle-fin/bridge-kit` + viem adapter |
 | Payments via zkTLS | Implemented | `zkSEND` contract + social identity hash + zkTLS verification |
+| Sendly Remit (`/remit`) | Implemented | AED display UX over the same zkSEND send path; see [Sendly Remit](#sendly-remit) |
 | Agent Treasury (GitHub / Twitch) | Implemented | `creator-paywall` Edge Function, sponsor pool → `ZkSend`, receipts API, Lepton UI - see [Agent Treasury](./Agent-Treasury.md) |
 
 ## Planned Next
@@ -150,6 +151,19 @@ sequenceDiagram
     ZkTLS-->>ZkSend: Submit zk-proof on-chain
     ZkSend-->>Recipient: Transfer stablecoins to recipient wallet
 ```
+
+## Sendly Remit
+
+`/remit` is a remittance-shaped UI over zkTLS Direct Payments. Settlement is still USDC on Arc via `zkSEND`; there is no separate remittance contract or backend rail.
+
+What differs from `/payments`:
+
+- Amount is entered in AED and converted to USDC with a fixed demo FX quote (`remitQuote.ts`) before `submitSocialZkSendPayment`.
+- Recipient platform is locked to Twitter/X.
+- Destination country is display-only.
+- Funding source can be Internal Wallet, External Wallet, or a mock UAE bank card. The card option is visual only; pay-in still settles from a real wallet (Circle or browser).
+
+Claim stays on the existing receive flow (`/payments?tab=receive`).
 
 ## Circle Gateway and Unified Balance
 

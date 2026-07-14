@@ -73,7 +73,10 @@ tmp/
 # Duplicate assets (use public/ only)
 /download.png
 
-*.md
+.agents/
+.cursor - copy/
+.opencode/
+docs-old/
 !docs/Architecture.md
 !docs/Agent-Treasury.md
 /artifacts/
