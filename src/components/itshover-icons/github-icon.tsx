@@ -1,0 +1,38 @@
+import { forwardRef, useCallback, useImperativeHandle } from 'react';
+import { Github } from 'lucide-react';
+import { motion, useAnimate } from 'motion/react';
+
+import type { AnimatedIconHandle, AnimatedIconProps } from './types';
+
+const GithubIcon = forwardRef<AnimatedIconHandle, AnimatedIconProps>(
+  ({ size = 24, color = 'currentColor', className = '' }, ref) => {
+    const [scope, animate] = useAnimate();
+
+    const start = useCallback(() => {
+      animate(
+        scope.current,
+        { scale: [1, 1.08, 1], rotate: [0, -8, 8, 0] },
+        { duration: 0.5, ease: 'easeInOut' },
+      );
+    }, [animate, scope]);
+
+    const stop = useCallback(() => {
+      animate(scope.current, { scale: 1, rotate: 0 }, { duration: 0.2, ease: 'easeOut' });
+    }, [animate, scope]);
+
+    useImperativeHandle(ref, () => ({
+      startAnimation: start,
+      stopAnimation: stop,
+    }));
+
+    return (
+      <motion.div ref={scope} className={`inline-flex ${className}`} style={{ color }}>
+        <Github size={size} strokeWidth={1.9} />
+      </motion.div>
+    );
+  },
+);
+
+GithubIcon.displayName = 'GithubIcon';
+
+export default GithubIcon;
