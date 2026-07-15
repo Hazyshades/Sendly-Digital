@@ -76,12 +76,12 @@ const PLATFORM_OPTIONS: {
   hoverIcon?: React.ComponentType<{ className?: string; active?: boolean }>;
   disabled?: boolean;
 }[] = [
-  { value: 'twitter', label: 'X', hint: 'Send to handle', icon: Twitter, hoverIcon: TwitterXIcon },
+  { value: 'twitter', label: 'Twitter', hint: 'Send to username', icon: Twitter, hoverIcon: TwitterXIcon },
   { value: 'twitch', label: 'Twitch', hint: 'Send to username', icon: Twitch, hoverIcon: BrandTwitchIcon },
   { value: 'github', label: 'GitHub', hint: 'Send to username', icon: Github, hoverIcon: GithubIcon },
   { value: 'telegram', label: 'Telegram', hint: 'Send to username', icon: MessageCircle, hoverIcon: BrandTelegramIcon },
-  { value: 'gmail', label: 'Gmail', hint: 'Send to email', icon: Mail, hoverIcon: GmailIcon },
   { value: 'linkedin', label: 'LinkedIn', hint: 'Send to username', icon: Linkedin, hoverIcon: LinkedinIcon },
+  { value: 'gmail', label: 'Gmail', hint: 'Send to email', icon: Mail, hoverIcon: GmailIcon },
   { value: 'address', label: 'Address', hint: 'Send to wallet', icon: Wallet },
 ];
 
@@ -116,17 +116,17 @@ function PlatformOptionRow({
         onSelect(opt.value);
         onClose();
       }}
-      className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${selected ? 'bg-muted/40' : ''} ${
+      className={`grid w-full grid-cols-[minmax(0,1fr)_7.5rem] items-center gap-2 px-3 py-2.5 rounded-lg text-left transition-colors ${selected ? 'bg-muted/40' : ''} ${
         isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted/60'
       }`}
     >
-      <div className="flex items-center gap-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted dark:bg-muted/80 text-foreground">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-foreground dark:bg-muted/80">
           <Icon className="h-4 w-4 shrink-0" {...iconProps} />
         </span>
-        <span className="font-medium">{opt.label}</span>
+        <span className="whitespace-nowrap font-medium">{opt.label}</span>
       </div>
-      <span className="text-sm text-muted-foreground">{opt.hint}</span>
+      <span className="whitespace-nowrap text-right text-sm text-muted-foreground">{opt.hint}</span>
     </button>
   );
 }

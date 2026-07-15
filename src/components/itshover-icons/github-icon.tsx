@@ -35,8 +35,8 @@ const GithubIcon = forwardRef<AnimatedIconHandle, AnimatedIconProps>(
     }));
 
     return (
-      <motion.div ref={scope} className={`inline-flex ${className}`} style={{ color }}>
-        <Github size={size} strokeWidth={1.9} />
+      <motion.div ref={scope} className={`inline-flex items-center justify-center ${className}`} style={{ color }}>
+        <Github size={size} strokeWidth={1.9} style={{ width: '100%', height: '100%' }} />
       </motion.div>
     );
   },
