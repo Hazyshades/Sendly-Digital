@@ -451,19 +451,24 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
 
       // Redeem gift card on blockchain
       if (useDeveloperWallet) {
+        if (!developerWallet) {
+          throw new Error('Internal wallet not found');
+        }
+
+        const activeDeveloperWallet = developerWallet;
+
         // Use Internal Wallet to redeem
         // Determine privyUserId - if wallet was created with user_id = MetaMask address (and no privy_user_id),
         // use MetaMask address instead of Privy ID for verification
         let privyUserId: string | undefined = undefined;
         
         // Check if wallet was created with user_id = address (no privy_user_id in DB)
-        const walletCreatedWithAddress = developerWallet && 
-          developerWallet.user_id && 
-          developerWallet.user_id.startsWith('0x') && 
-          !developerWallet.privy_user_id &&
+        const walletCreatedWithAddress = activeDeveloperWallet.user_id && 
+          activeDeveloperWallet.user_id.startsWith('0x') && 
+          !activeDeveloperWallet.privy_user_id &&
           isConnected && 
           address &&
-          developerWallet.user_id.toLowerCase() === address.toLowerCase();
+          activeDeveloperWallet.user_id.toLowerCase() === address.toLowerCase();
         
         if (walletCreatedWithAddress) {
           // Wallet was created with user_id = MetaMask address, use address for verification
@@ -507,8 +512,8 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
         }
 
         const txResult = await DeveloperWalletService.sendTransaction({
-          walletId: developerWallet.circle_wallet_id,
-          walletAddress: developerWallet.wallet_address,
+          walletId: activeDeveloperWallet.circle_wallet_id,
+          walletAddress: activeDeveloperWallet.wallet_address,
           contractAddress: contracts.contractAddress ?? contracts.zksend,
           functionName: 'redeemGiftCard',
           args: [BigInt(currentCard.tokenId)],

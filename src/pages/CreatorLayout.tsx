@@ -36,7 +36,7 @@ export function CreatorLayout({ children }: CreatorLayoutProps) {
             </SheetTrigger>
             <SheetContent side="right" className="w-[min(100vw-2rem,22.5rem)] p-0 gap-0">
               <SheetHeader className="px-5 pt-5 pb-2">
-                <SheetTitle>Linked identities</SheetTitle>
+                <SheetTitle>Payment identities</SheetTitle>
               </SheetHeader>
               <div className="overflow-y-auto px-2 pb-6">
                 <ZkSocialConnectionsPanel embedded className="bg-transparent" />

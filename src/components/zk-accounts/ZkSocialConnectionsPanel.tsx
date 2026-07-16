@@ -499,7 +499,7 @@ export function ZkSocialIconRail({ className }: { className?: string }) {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className={cn('flex flex-col items-center gap-2', className)} aria-label="Linked identities">
+      <div className={cn('flex flex-col items-center gap-2', className)} aria-label="Payment identities">
         {platforms.map((platform) => (
           <PlatformRow key={platform.id} platform={platform} compact />
         ))}
@@ -554,20 +554,20 @@ export function ZkSocialConnectionsPanel({
           embedded && 'w-full',
           className,
         )}
-        aria-label="Linked identities"
+        aria-label="Payment identities"
       >
         {!embedded ? (
           <div className="border-b border-gray-200/60 p-3">
             <div className="min-w-0 space-y-1">
-              <h2 className="text-sm font-semibold text-gray-900">Linked identities</h2>
+              <h2 className="text-sm font-semibold text-gray-900">Payment identities</h2>
               <p className="text-xs leading-relaxed text-gray-600">
-                Create Wallet and Receive payments to your social usernames.
+                Link accounts to receive USDC by username or email.
               </p>
             </div>
           </div>
         ) : (
           <div className="space-y-1 border-b border-gray-200/60 px-4 py-3">
-            <h2 className="text-sm font-semibold text-gray-900">Linked identities</h2>
+            <h2 className="text-sm font-semibold text-gray-900">Payment identities</h2>
             <p className="text-xs leading-relaxed text-gray-600">
               Receive payments to your social usernames.
             </p>

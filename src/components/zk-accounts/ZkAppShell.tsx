@@ -95,7 +95,7 @@ export function ZkAppShell({
         <Sheet open={mobileSheetOpen} onOpenChange={onMobileSheetOpenChange}>
           <SheetContent side="left" className="w-[min(100vw-2rem,22.5rem)] p-0 gap-0">
             <SheetHeader className="sr-only">
-              <SheetTitle>Linked identities</SheetTitle>
+              <SheetTitle>Payment identities</SheetTitle>
             </SheetHeader>
             <div className="overflow-y-auto">
               <ZkSocialConnectionsPanel embedded className="bg-transparent" />

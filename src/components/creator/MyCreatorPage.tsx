@@ -109,7 +109,7 @@ export function MyCreatorPage() {
           <CardContent className="p-6 text-center space-y-1">
             <h1 className="text-xl font-semibold text-gray-900">Start your creator profile</h1>
             <p className="text-sm text-muted-foreground">
-              Create Wallet and Receive payments to your social usernames.
+              Link accounts to receive USDC by username or email.
             </p>
           </CardContent>
         </Card>
