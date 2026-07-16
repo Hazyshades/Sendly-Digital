@@ -465,6 +465,33 @@
       transform: translate(-20px, 20px) rotate(240deg);
     }
   }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .animate-splash-float {
+      animation: splash-float 6s ease-in-out infinite;
+    }
+    .animate-splash-shimmer {
+      animation: splash-shimmer 1.5s cubic-bezier(0.23, 1, 0.32, 1) infinite;
+    }
+  }
+
+  @keyframes splash-float {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  @keyframes splash-shimmer {
+    0% {
+      transform: translateX(-130%);
+    }
+    100% {
+      transform: translateX(250%);
+    }
+  }
   
   .no-scrollbar::-webkit-scrollbar {
     display: none;

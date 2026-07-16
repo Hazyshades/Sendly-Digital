@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { SplashScreen } from '@/components/SplashScreen';
+import { DEBUG_SPLASH_HOLD_MS, SplashScreen } from '@/components/SplashScreen';
 import { LandingRoute } from '@/pages/LandingRoute';
 import { AgentRoute } from '@/pages/AgentRoute';
 import { CreateRoute } from '@/pages/CreateRoute';
@@ -92,11 +92,14 @@ function SharedAppRoutes({ zkMode }: { zkMode: boolean }) {
 
 function ZkHostRedirect() {
   useEffect(() => {
-    try {
-      window.location.assign(toZkUrl(window.location.href));
-    } catch (e) {
-      console.error('[zkTLS] Failed to redirect to zk host:', e);
-    }
+    const timer = window.setTimeout(() => {
+      try {
+        window.location.assign(toZkUrl(window.location.href));
+      } catch (e) {
+        console.error('[zkTLS] Failed to redirect to zk host:', e);
+      }
+    }, DEBUG_SPLASH_HOLD_MS);
+    return () => window.clearTimeout(timer);
   }, []);
   return <SplashScreen />;
 }

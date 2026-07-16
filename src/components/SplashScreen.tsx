@@ -1,23 +1,62 @@
-import { Gift } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { MorphingSquare } from '@/components/ui/morphing-square';
+import { useMotionSafe } from '@/hooks/useMotionSafe';
 
+/** DEBUG: force splash to stay visible. Set to 0 to restore production. */
+export const DEBUG_SPLASH_HOLD_MS = 3000;
+
+const SHOW_LOADER_MS = 0;
+const SHOW_MESSAGE_MS = 0;
+
+/**
+ * Lightweight loading fallback (Privy Suspense + ZkHostRedirect).
+ * Delays the loader so fast navigations never flash UI.
+ */
 export function SplashScreen() {
+  const [showLoader, setShowLoader] = useState(SHOW_LOADER_MS === 0);
+  const [showMessage, setShowMessage] = useState(SHOW_MESSAGE_MS === 0);
+  const motionSafe = useMotionSafe();
+
+  useEffect(() => {
+    const loaderTimer =
+      SHOW_LOADER_MS > 0
+        ? window.setTimeout(() => setShowLoader(true), SHOW_LOADER_MS)
+        : undefined;
+    const messageTimer =
+      SHOW_MESSAGE_MS > 0
+        ? window.setTimeout(() => setShowMessage(true), SHOW_MESSAGE_MS)
+        : undefined;
+
+    return () => {
+      if (loaderTimer !== undefined) window.clearTimeout(loaderTimer);
+      if (messageTimer !== undefined) window.clearTimeout(messageTimer);
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen circle-gradient-bg flex items-center justify-center relative">
-      <div className="abstract-shape"></div>
-      <div className="text-center relative z-10">
-        <div className="relative w-24 h-24 bg-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-circle-card">
-          <Gift className="w-12 h-12 text-white" />
-        </div>
-        <h1 className="text-4xl font-semibold text-gray-900 mb-2">Sendly</h1>
-        <p className="text-gray-700 text-lg">Transfers to anyone</p>
-        <div className="mt-8">
-          <div className="inline-flex items-center gap-2">
-            <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-            <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-            <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-          </div>
-        </div>
-      </div>
+    <div
+      className="flex min-h-screen items-center justify-center bg-[#fafaf8]"
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+      aria-label="Connecting securely"
+    >
+      <AnimatePresence>
+        {showLoader ? (
+          <motion.div
+            key="splash-loader"
+            initial={motionSafe ? { opacity: 0 } : false}
+            animate={{ opacity: 1 }}
+            transition={{ duration: motionSafe ? 0.35 : 0, ease: 'easeOut' }}
+          >
+            <MorphingSquare
+              className="h-8 w-8 bg-[#303a80] shadow-[0_0_0_6px_rgba(238,240,250,0.9)]"
+              message={showMessage ? 'Connecting securely…' : undefined}
+            />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

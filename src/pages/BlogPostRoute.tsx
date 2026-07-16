@@ -894,7 +894,7 @@ export function BlogPostRoute() {
         return (<button type="button" onClick={() => setActiveImage(img)} className="w-full text-left rounded-xl overflow-hidden bg-[#FAFAFA]" aria-label={`Open: ${img.caption}`}><ZkTLSArchitectureInfographic compact />{img.caption && <div className="mt-3 text-sm text-gray-600">{img.caption}</div>}</button>);
       }
       if (img.componentId === 'privy-oauth-infographic') {
-        return (<button type="button" onClick={() => setActiveImage(img)} className="w-full text-left rounded-xl overflow-hidden bg-[#FAFAFA]" aria-label={`Open: ${img.caption}`}><PrivyOAuthInfographic compact />{img.caption && <div className="mt-3 text-sm text-gray-600">{img.caption}</div>}</button>);
+        return (<button type="button" onClick={() => setActiveImage(img)} className="w-full text-left rounded-xl overflow-hidden bg-transparent" aria-label={`Open: ${img.caption}`}><PrivyOAuthInfographic compact />{img.caption && <div className="mt-3 text-sm text-gray-600">{img.caption}</div>}</button>);
       }
       if (img.componentId === 'gift-card-create-embed') {
         return (<button type="button" onClick={() => setActiveImage(img)} className="w-full text-left rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden" aria-label={`Open: ${img.alt}`}><div className="p-2 min-h-[200px]"><CreateGiftCardPreview compact /></div></button>);
@@ -1205,9 +1205,6 @@ export function BlogPostRoute() {
                     <VerificationInfographic embedded />
                   </TransformComponent>
                 </TransformWrapper>
-                <p className="px-4 py-2 text-xs text-gray-500 text-center border-t border-gray-100">
-                  Scroll or pinch to zoom · Double-tap to zoom in
-                </p>
               </div>
             ) : activeImage.componentId === 'zktls-infographic' ? (
               <div className="bg-[#FAFAFA] overflow-hidden">
@@ -1225,9 +1222,6 @@ export function BlogPostRoute() {
                     <ZkTLSInfographic embedded />
                   </TransformComponent>
                 </TransformWrapper>
-                <p className="px-4 py-2 text-xs text-gray-500 text-center border-t border-gray-100">
-                  Scroll or pinch to zoom · Double-tap to zoom in
-                </p>
               </div>
             ) : activeImage.componentId === 'zktls-architecture-infographic' ? (
               <div className="bg-[#FAFAFA] overflow-hidden">
@@ -1245,12 +1239,9 @@ export function BlogPostRoute() {
                     <ZkTLSArchitectureInfographic embedded />
                   </TransformComponent>
                 </TransformWrapper>
-                <p className="px-4 py-2 text-xs text-gray-500 text-center border-t border-gray-100">
-                  Scroll or pinch to zoom · Double-tap to zoom in
-                </p>
               </div>
             ) : activeImage.componentId === 'privy-oauth-infographic' ? (
-              <div className="bg-[#FAFAFA] overflow-hidden">
+              <div className="bg-transparent overflow-hidden">
                 <TransformWrapper
                   initialScale={1}
                   minScale={0.5}
@@ -1265,9 +1256,6 @@ export function BlogPostRoute() {
                     <PrivyOAuthInfographic embedded />
                   </TransformComponent>
                 </TransformWrapper>
-                <p className="px-4 py-2 text-xs text-gray-500 text-center border-t border-gray-100">
-                  Scroll or pinch to zoom · Double-tap to zoom in
-                </p>
               </div>
             ) : activeImage.componentId === 'gift-card-create-embed' ? (
               <div className="bg-white rounded-xl overflow-hidden p-6 max-h-[85vh] overflow-y-auto">
