@@ -10,7 +10,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import { Analytics } from '@vercel/analytics/react'
 import App from './App.tsx'
-import { DEBUG_SPLASH_HOLD_MS, SplashScreen } from '@/components/SplashScreen'
+import { SplashScreen } from '@/components/SplashScreen'
 import '@/styles/globals.css'
 import '@rainbow-me/rainbowkit/styles.css'
 import { config } from '@/lib/web3/wagmiConfig'
@@ -50,13 +50,6 @@ const AppContent = () => (
 
 const AppRoot = () => {
   const [privyAuthMode, setPrivyAuthMode] = useState<PrivyAuthMode>(getPrivyAuthMode());
-  const [debugSplashDone, setDebugSplashDone] = useState(DEBUG_SPLASH_HOLD_MS <= 0);
-
-  useEffect(() => {
-    if (DEBUG_SPLASH_HOLD_MS <= 0) return;
-    const timer = window.setTimeout(() => setDebugSplashDone(true), DEBUG_SPLASH_HOLD_MS);
-    return () => window.clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     console.info('[PrivyDebug] AppRoot mount', {
@@ -99,10 +92,6 @@ const AppRoot = () => {
       disablePrivy,
     });
   }, [privyAuthMode, privyAppId]);
-
-  if (!debugSplashDone) {
-    return <SplashScreen />;
-  }
 
   return (
     <HelmetProvider>
