@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
+import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
+import WalletIcon from '@/components/ui/icons/wallet-icon';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
@@ -21,6 +22,7 @@ import { GiftCardsService } from '@/lib/supabase/giftCards';
 import { GiftCardABI } from '@/lib/web3/constants';
 import BridgeDialog from './BridgeDialog';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
+import { useCircleWallet } from '@/hooks/useCircleWallet';
 import { DeveloperWalletService } from '@/lib/circle/developerWalletService';
 
 interface RedeemableCard {
@@ -66,11 +68,9 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
   const activeChain = arcTestnet;
   const activeChainId = ARC_CHAIN_ID;
   const contracts = getContractsForChain(ARC_CHAIN_ID);
-  const { authenticated, user: privyUser } = usePrivySafe();
+  const { user: privyUser } = usePrivySafe();
   const navigate = useNavigate();
-  const [hasDeveloperWallet, setHasDeveloperWallet] = useState(false);
-  const [developerWallet, setDeveloperWallet] = useState<any>(null);
-  const [checkingWallet, setCheckingWallet] = useState(true);
+  const { hasDeveloperWallet, developerWallet, checkingWallet } = useCircleWallet();
   const [cardInput, setCardInput] = useState('');
   const [password, setPassword] = useState('');
   const [currentCard, setCurrentCard] = useState<RedeemableCard | null>(null);
@@ -105,72 +105,6 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
     visa: "https://www.visa.com/en-us",
     circle: "/Circle-Mint"
   };
-
-  // Checking for a Internal Wallet for social networks
-  useEffect(() => {
-    const checkSocialWallet = async () => {
-      // If MetaMask is connected - no need to check a social wallet
-      if (isConnected) {
-        setHasDeveloperWallet(false);
-        setDeveloperWallet(null);
-        setCheckingWallet(false);
-        return;
-      }
-
-      // If no social network is linked - do not check
-      if (!authenticated || !privyUser) {
-        setHasDeveloperWallet(false);
-        setDeveloperWallet(null);
-        setCheckingWallet(false);
-        return;
-      }
-
-      try {
-        setCheckingWallet(true);
-        // Check for a Internal Wallet for linked social networks
-        const socialPlatforms = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'];
-        const blockchain = 'ARC-TESTNET';
-        
-        for (const platform of socialPlatforms) {
-          let socialUserId: string | null = null;
-          
-          if (platform === 'twitter' && privyUser.twitter) {
-            socialUserId = (privyUser.twitter as any).subject;
-          } else if (platform === 'twitch' && privyUser.twitch) {
-            socialUserId = (privyUser.twitch as any).subject;
-          } else if (platform === 'telegram' && privyUser.telegram) {
-            socialUserId = privyUser.telegram.telegramUserId || (privyUser.telegram as any).subject;
-          } else if (platform === 'tiktok' && privyUser.tiktok) {
-            socialUserId = (privyUser.tiktok as any).subject;
-          } else if (platform === 'instagram' && (privyUser as any).instagram) {
-            socialUserId = ((privyUser as any).instagram as any).subject;
-          }
-
-          if (socialUserId) {
-            const foundWallet = await DeveloperWalletService.getWalletBySocial(
-              platform as 'twitter' | 'twitch' | 'telegram' | 'tiktok' | 'instagram',
-              socialUserId,
-              blockchain
-            );
-            
-            if (foundWallet) {
-              setHasDeveloperWallet(true);
-              setDeveloperWallet(foundWallet);
-              break;
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error checking social wallet:', error);
-        setHasDeveloperWallet(false);
-        setDeveloperWallet(null);
-      } finally {
-        setCheckingWallet(false);
-      }
-    };
-
-    checkSocialWallet();
-  }, [isConnected, authenticated, privyUser]);
 
   // Auto-fill Token ID if provided from MyCards
   useEffect(() => {
@@ -674,24 +608,11 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
 
   // Show the message only if there is neither MetaMask nor a social Internal Wallet
   if (!isConnected && !hasDeveloperWallet) {
-    if (checkingWallet) {
-      return (
-        <div className="p-6 text-center">
-          <div className="flex items-center justify-center gap-2">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-            <span className="text-sm text-gray-600">Checking wallet...</span>
-          </div>
-        </div>
-      );
-    }
-
     return (
       <div className="p-6">
-        <Empty>
+        <Empty className="flex-none gap-4 md:p-6">
           <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Gift className="w-12 h-12 opacity-50" />
-            </EmptyMedia>
+            <WalletIcon size={40} className="mb-2 text-foreground opacity-70" strokeWidth={1.75} />
             <EmptyTitle>Connect your wallet</EmptyTitle>
             <EmptyDescription>
               Please connect your wallet or social account to redeem gift cards

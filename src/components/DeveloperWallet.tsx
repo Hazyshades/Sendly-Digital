@@ -8,6 +8,8 @@ import { DeveloperWalletService, DeveloperWallet } from '@/lib/circle/developerW
 import web3Service from '@/lib/web3/web3Service';
 import { USDC_ADDRESS, EURC_ADDRESS, ERC20ABI, getExplorerTxUrl, getExplorerAddressUrl, BASE_SEPOLIA_CHAIN_ID } from '@/lib/web3/constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
+import LinkIcon from '@/components/ui/icons/link-icon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -1121,32 +1123,42 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
     (isConnected || hasSocialIdentity) &&
     !(zk && zkOAuthLoading);
 
+  if (shouldShowConnectMessage) {
+    return (
+      <div className="p-6">
+        <Empty className="flex-none gap-4 md:p-6">
+          <EmptyHeader>
+            <LinkIcon size={40} className="mb-2 text-foreground opacity-70" strokeWidth={1.75} />
+            <EmptyTitle>Internal Wallet</EmptyTitle>
+            <EmptyDescription>
+              {zk
+                ? 'Please connect a social account to create an Internal Wallet.'
+                : 'Please connect your wallet or social account to use platform functionality.'}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </div>
+    );
+  }
+
   return (
     <Card className="bg-white/90 backdrop-blur-sm border border-gray-200 shadow-circle-card gap-2">
   <CardHeader className="pb-0">
     <div className="grid grid-rows-2 items-start gap-3">
       {/* Title with icon - left */}
-      <CardTitle className="flex items-center gap-2">
+      <CardTitle className="flex items-center gap-2 text-lg font-medium tracking-tight">
         <Wallet className="w-5 h-5 text-gray-700" />
         Internal Wallet
       </CardTitle>
 
       {/* Description - center of the card */}
-      <CardDescription className="text-left text-sm text-gray-600 -mt-1">
-        {shouldShowConnectMessage
-          ? zk
-            ? 'Connect Twitter, Twitch, Telegram, GitHub, Gmail, or LinkedIn in the Accounts panel to create an Internal Wallet.'
-            : 'Please connect your wallet or social account to use platform functionality.'
-          : zkOAuthIdentity
-            ? `Connected as ${zkOAuthIdentity.displayLabel}. Create an Internal Wallet to use the platform seamlessly.`
-            : 'Create an Internal Wallet to use the platform seamlessly.'}
+      <CardDescription className="text-left text-sm/relaxed text-muted-foreground font-normal -mt-1">
+        {zkOAuthIdentity
+          ? `Connected as ${zkOAuthIdentity.displayLabel}. Create an Internal Wallet to use the platform seamlessly.`
+          : 'Create an Internal Wallet to use the platform seamlessly.'}
       </CardDescription>
     </div>
   </CardHeader>
-      {shouldShowConnectMessage && zk ? (
-        <CardContent className="pt-2">
-        </CardContent>
-      ) : null}
       {!showCreateWalletUi && zk && zkOAuthLoading ? (
         <CardContent className="pt-2">
           <div className="flex items-center justify-center py-4 text-sm text-gray-600">

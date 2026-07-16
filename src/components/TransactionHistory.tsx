@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
+import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
+import HistoryCircleIcon from '@/components/ui/icons/history-circle-icon';
 import { Spinner } from '@/components/ui/spinner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
@@ -740,25 +741,12 @@ export function TransactionHistory() {
     toast.success('Transactions exported successfully!');
   };
 
-  if (checkingWallet) {
-    return (
-      <div className="p-6 space-y-4">
-        <div className="flex items-center justify-center gap-2">
-          <Spinner className="w-6 h-6" />
-          <p className="text-gray-600">Checking wallet...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (hasSocialIdentity && !hasInternalWallet && !hasExternalWallet) {
+  if (hasSocialIdentity && !hasInternalWallet && !hasExternalWallet && !checkingWallet) {
     return (
       <div className="p-6">
-        <Empty>
+        <Empty className="flex-none gap-4 md:p-6">
           <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Calendar className="w-12 h-12 opacity-50" />
-            </EmptyMedia>
+            <HistoryCircleIcon size={40} className="mb-2 text-foreground opacity-70" strokeWidth={1.75} />
             <EmptyTitle>Create Internal Wallet</EmptyTitle>
             <EmptyDescription>
               Your social account is connected. Create an Internal Wallet on Dashboard to view transaction history.
@@ -775,11 +763,9 @@ export function TransactionHistory() {
   if (!activeAddress) {
     return (
       <div className="p-6">
-        <Empty>
+        <Empty className="flex-none gap-4 md:p-6">
           <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Calendar className="w-12 h-12 opacity-50" />
-            </EmptyMedia>
+            <HistoryCircleIcon size={40} className="mb-2 text-foreground opacity-70" strokeWidth={1.75} />
             <EmptyTitle>Connect your wallet</EmptyTitle>
             <EmptyDescription>
               Please connect your wallet or social account to view transaction history

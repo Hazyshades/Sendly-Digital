@@ -11,7 +11,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
+import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
+import WalletIcon from '@/components/ui/icons/wallet-icon';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -63,7 +64,6 @@ export function CreateGiftCard() {
   const {
     hasDeveloperWallet,
     developerWallet,
-    checkingWallet,
     walletSource,
     setWalletSource
   } = useDeveloperWalletLookup({
@@ -304,24 +304,11 @@ export function CreateGiftCard() {
 
   // Show the message only if there is neither MetaMask nor a social Internal Wallet
   if (!isConnected && !hasDeveloperWallet) {
-    if (checkingWallet) {
-      return (
-        <div className="p-6 text-center">
-          <div className="flex items-center justify-center gap-2">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-            <span className="text-sm text-gray-600">Checking wallet...</span>
-          </div>
-        </div>
-      );
-    }
-
     return (
       <div className="p-6">
-        <Empty>
+        <Empty className="flex-none gap-4 md:p-6">
           <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Gift className="w-12 h-12 opacity-50" />
-            </EmptyMedia>
+            <WalletIcon size={40} className="mb-2 text-foreground opacity-70" strokeWidth={1.75} />
             <EmptyTitle>Connect your wallet</EmptyTitle>
             <EmptyDescription>
               Please connect your wallet or social account to create gift cards

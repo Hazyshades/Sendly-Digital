@@ -1,4 +1,11 @@
-import { useEffect, useState } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useAccount } from 'wagmi';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
 import { DeveloperWalletService, type DeveloperWallet } from '@/lib/circle/developerWalletService';
@@ -45,13 +52,13 @@ export type UseCircleWalletResult = {
   checkingWallet: boolean;
 };
 
+const CircleWalletContext = createContext<UseCircleWalletResult | null>(null);
+
 /**
- * Looks up Circle (Internal) wallet for the current user:
- * 1. By connected wallet address (MetaMask/Rabby)
- * 2. By linked social platforms (Privy user)
- * 3. By Privy User ID
+ * Session-scoped Circle (Internal) wallet lookup for the app shell.
+ * Mount once under Wagmi/Privy so tab switches do not remount the check.
  */
-export function useCircleWallet(): UseCircleWalletResult {
+export function CircleWalletProvider({ children }: { children: ReactNode }) {
   const { address, isConnected } = useAccount();
   const { authenticated, user: privyUser } = usePrivySafe();
   const { identity: zkOAuthIdentity, loading: zkOAuthLoading, isZkHost: zk } = useZkOAuthIdentity();
@@ -153,9 +160,26 @@ export function useCircleWallet(): UseCircleWalletResult {
     void check();
   }, [isConnected, address, authenticated, privyUser, zk, zkOAuthIdentity, zkOAuthLoading]);
 
-  return {
-    developerWallet,
-    hasDeveloperWallet: developerWallet != null,
-    checkingWallet,
-  };
+  const value = useMemo<UseCircleWalletResult>(
+    () => ({
+      developerWallet,
+      hasDeveloperWallet: developerWallet != null,
+      checkingWallet,
+    }),
+    [developerWallet, checkingWallet],
+  );
+
+  return <CircleWalletContext.Provider value={value}>{children}</CircleWalletContext.Provider>;
+}
+
+/**
+ * Looks up Circle (Internal) wallet for the current user from the shared session context.
+ * Requires `CircleWalletProvider` above (mounted in AppContent).
+ */
+export function useCircleWallet(): UseCircleWalletResult {
+  const ctx = useContext(CircleWalletContext);
+  if (!ctx) {
+    throw new Error('useCircleWallet must be used within CircleWalletProvider');
+  }
+  return ctx;
 }

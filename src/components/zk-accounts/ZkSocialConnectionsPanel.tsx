@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
-  ChevronLeft,
   Github,
   Instagram,
   Linkedin,
@@ -511,13 +510,13 @@ export function ZkSocialIconRail({ className }: { className?: string }) {
 
 export function ZkSocialConnectionsPanel({
   expanded: expandedProp,
-  onExpandedChange,
+  onExpandedChange: _onExpandedChange,
   className,
   embedded = false,
 }: ZkSocialConnectionsPanelProps) {
   const motionSafe = useMotionSafe();
   const { platforms } = useZkPlatformConnections();
-  const [expandedInternal, setExpandedInternal] = useState(readZkAccountsPanelExpanded);
+  const [expandedInternal] = useState(readZkAccountsPanelExpanded);
   const expanded = embedded ? true : (expandedProp ?? expandedInternal);
 
   const linkedPlatforms = useMemo(
@@ -544,14 +543,6 @@ export function ZkSocialConnectionsPanel({
     });
   }, [linkedPlatforms, primaryId]);
 
-  const setExpanded = (value: boolean) => {
-    if (onExpandedChange) onExpandedChange(value);
-    else setExpandedInternal(value);
-    writeZkAccountsPanelExpanded(value);
-  };
-
-  const toggleExpanded = () => setExpanded(!expanded);
-
   return (
     <TooltipProvider delayDuration={300}>
       <aside
@@ -566,26 +557,13 @@ export function ZkSocialConnectionsPanel({
         aria-label="Linked identities"
       >
         {!embedded ? (
-          <div className="flex items-start justify-between gap-2 border-b border-gray-200/60 p-3">
+          <div className="border-b border-gray-200/60 p-3">
             <div className="min-w-0 space-y-1">
               <h2 className="text-sm font-semibold text-gray-900">Linked identities</h2>
               <p className="text-xs leading-relaxed text-gray-600">
                 Create Wallet and Receive payments to your social usernames.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={toggleExpanded}
-              className={cn(
-                'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
-                'active:scale-[0.97] motion-reduce:active:scale-100',
-              )}
-              aria-expanded={expanded}
-              aria-label="Collapse linked identities panel"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
           </div>
         ) : (
           <div className="space-y-1 border-b border-gray-200/60 px-4 py-3">

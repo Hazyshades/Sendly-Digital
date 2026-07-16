@@ -1,3 +1,7 @@
 export { useIsMobile } from './useIsMobile';
-export { useCircleWallet, getCircleWalletPrivyUserIdForTx } from './useCircleWallet';
+export {
+  useCircleWallet,
+  getCircleWalletPrivyUserIdForTx,
+  CircleWalletProvider,
+} from './useCircleWallet';
 

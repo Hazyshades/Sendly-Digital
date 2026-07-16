@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
+import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
+import WalletIcon from '@/components/ui/icons/wallet-icon';
 import { Spinner } from '@/components/ui/spinner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
@@ -586,11 +587,9 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
   if (!isConnected && !authenticated) {
     return (
       <div className="p-6">
-        <Empty>
+        <Empty className="flex-none gap-4 md:p-6">
           <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Gift className="w-12 h-12 opacity-50" />
-            </EmptyMedia>
+            <WalletIcon size={40} className="mb-2 text-foreground opacity-70" strokeWidth={1.75} />
             <EmptyTitle>Connect your wallet</EmptyTitle>
             <EmptyDescription>
               Please connect your wallet or social account to view your gift cards

@@ -11,6 +11,7 @@ import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import { Analytics } from '@vercel/analytics/react'
 import App from './App.tsx'
 import { SplashScreen } from '@/components/SplashScreen'
+import { CircleWalletProvider } from '@/hooks/useCircleWallet'
 import '@/styles/globals.css'
 import '@rainbow-me/rainbowkit/styles.css'
 import { config } from '@/lib/web3/wagmiConfig'
@@ -41,8 +42,10 @@ const AppContent = () => (
   <WagmiProvider config={config}>
     <QueryClientProvider client={queryClient}>
       <RainbowKitProvider locale="en">
-        <App />
-        <Analytics />
+        <CircleWalletProvider>
+          <App />
+          <Analytics />
+        </CircleWalletProvider>
       </RainbowKitProvider>
     </QueryClientProvider>
   </WagmiProvider>
