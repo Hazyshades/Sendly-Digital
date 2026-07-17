@@ -1,15 +1,18 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
+  Check,
   Github,
   Instagram,
   Linkedin,
   Loader2,
   Mail,
   MessageCircle,
+  MoreHorizontal,
   Twitch,
   Twitter,
   Wallet,
 } from 'lucide-react';
+import { AnimatePresence, LayoutGroup, motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import type { ComponentType } from 'react';
 
@@ -46,6 +49,8 @@ import InstagramIcon from '@/components/itshover-icons/instagram-icon';
 import LinkedinIcon from '@/components/itshover-icons/linkedin-icon';
 import TwitterXIcon from '@/components/itshover-icons/twitter-x-icon';
 
+import './zk-payment-identities-transitions.css';
+
 type PlatformIconComponent = ComponentType<{ className?: string; active?: boolean }>;
 
 const PLATFORM_STATIC_ICONS: Record<ZkPanelPlatformId, ComponentType<{ className?: string }>> = {
@@ -80,17 +85,22 @@ const PLATFORM_HINTS: Record<ZkPanelPlatformId, string> = {
 
 const PRIMARY_IDENTITY_KEY = 'sendly-primary-identity';
 
-const MOTION_CLASS =
-  'transition-[transform,opacity,width] duration-[180ms] ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none';
+const PANEL_COPY = {
+  title: 'Payment identities',
+  description: 'Link accounts to receive USDC by username or email.',
+} as const;
+
+const LAYOUT_EASE = [0.23, 1, 0.32, 1] as const;
+const LAYOUT_DURATION = 0.24;
+
+const CONNECT_BUTTON_CLASS =
+  'relative h-8 min-w-[7.25rem] overflow-hidden rounded-full border border-gray-200/80 bg-white/75 px-3 text-xs font-medium text-gray-700 shadow-none hover:bg-white active:scale-[0.97] motion-reduce:active:scale-100';
 
 export const NAV_PILL_BASE =
   'rounded-2xl transition-[background-color,color,box-shadow] duration-200 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100';
 
 export const NAV_PILL_ACTIVE = 'bg-white text-blue-600 shadow-circle-card';
 export const NAV_PILL_INACTIVE = 'bg-white/70 text-gray-700 hover:bg-white/90 backdrop-blur-sm';
-
-const CONNECT_BUTTON_CLASS =
-  'h-8 min-w-[4.5rem] rounded-full border border-gray-200/80 bg-white/75 px-3 text-xs font-medium text-gray-700 shadow-none hover:bg-white active:scale-[0.97] motion-reduce:active:scale-100';
 
 function isZkPanelPlatformId(value: string): value is ZkPanelPlatformId {
   return value in PLATFORM_STATIC_ICONS;
@@ -185,11 +195,8 @@ function truncateWalletAddress(address: string): string {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
-function buildConnectedStatus(_platform: ZkPlatformConnectionState, isPrimary: boolean): string {
-  const parts: string[] = [];
-  if (isPrimary) parts.push('Primary');
-  parts.push('Connected');
-  return parts.join(' · ');
+function platformLayoutId(id: ZkPanelPlatformId) {
+  return `zk-platform-${id}`;
 }
 
 function PlatformIcon({
@@ -227,38 +234,178 @@ function SectionLabel({ children }: { children: ReactNode }) {
   );
 }
 
+function SuccessCheckIcon({ play }: { play: boolean }) {
+  return (
+    <span
+      className="zk-identities-success-check text-emerald-600"
+      data-state={play ? 'in' : 'out'}
+      aria-hidden
+    >
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path
+          d="M3 7.2L5.8 10L11 3.5"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </span>
+  );
+}
+
+function ConnectedStatus({
+  showSuccessCheck,
+}: {
+  showSuccessCheck: boolean;
+}) {
+  if (showSuccessCheck) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700">
+        <SuccessCheckIcon play />
+        <span>Connected</span>
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700">
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
+      Connected
+    </span>
+  );
+}
+
+function useConnectSuccessPulse(isConnected: boolean) {
+  const wasConnectedRef = useRef(isConnected);
+  const [showSuccessCheck, setShowSuccessCheck] = useState(false);
+  const [iconPulse, setIconPulse] = useState(false);
+
+  useEffect(() => {
+    const wasConnected = wasConnectedRef.current;
+
+    if (!wasConnected && isConnected) {
+      setShowSuccessCheck(true);
+      setIconPulse(true);
+      const successTimer = window.setTimeout(() => setShowSuccessCheck(false), 700);
+      const iconTimer = window.setTimeout(() => setIconPulse(false), 550);
+      wasConnectedRef.current = true;
+      return () => {
+        window.clearTimeout(successTimer);
+        window.clearTimeout(iconTimer);
+      };
+    }
+
+    wasConnectedRef.current = isConnected;
+    if (!isConnected) {
+      setShowSuccessCheck(false);
+      setIconPulse(false);
+    }
+  }, [isConnected]);
+
+  return { showSuccessCheck, iconPulse };
+}
+
+function ConnectButtonContent({
+  connecting,
+  isConnected,
+  motionSafe,
+}: {
+  connecting: boolean;
+  isConnected: boolean;
+  motionSafe: boolean;
+}) {
+  const stateKey = connecting ? 'connecting' : isConnected ? 'connected' : 'idle';
+
+  return (
+    <span className="relative flex h-full w-full items-center justify-center">
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={stateKey}
+          className="inline-flex items-center justify-center gap-1.5"
+          initial={
+            motionSafe
+              ? { opacity: 0, y: 6, filter: 'blur(2px)' }
+              : false
+          }
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          exit={
+            motionSafe
+              ? { opacity: 0, y: -6, filter: 'blur(2px)' }
+              : undefined
+          }
+          transition={{ duration: motionSafe ? 0.18 : 0, ease: 'easeOut' }}
+        >
+          {connecting ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              Connecting…
+            </>
+          ) : isConnected ? (
+            <>
+              <Check className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
+              Connected
+            </>
+          ) : (
+            'Connect'
+          )}
+        </motion.span>
+      </AnimatePresence>
+    </span>
+  );
+}
+
 function ConnectedPlatformRow({
   platform,
   isPrimary,
   onSetPrimary,
+  motionSafe,
 }: {
   platform: ZkPlatformConnectionState;
   isPrimary: boolean;
   onSetPrimary: (id: ZkPanelPlatformId) => void;
+  motionSafe: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
   const busy = platform.connecting || platform.clearing;
+  const { showSuccessCheck, iconPulse } = useConnectSuccessPulse(platform.isConnected);
   const identityLine = platform.displayNameLoading
     ? 'Loading identity…'
     : platform.displayName ?? platform.label;
 
   return (
-    <div
+    <motion.li
+      layout={motionSafe}
+      layoutId={motionSafe ? platformLayoutId(platform.id) : undefined}
+      transition={{ type: 'tween', duration: LAYOUT_DURATION, ease: LAYOUT_EASE }}
       className={cn(
-        'flex min-h-[4.25rem] items-center gap-3 rounded-xl border px-3 py-2.5',
-        'bg-white/65 hover:bg-white/80',
+        'flex min-h-[4.25rem] list-none items-center gap-3 rounded-xl border px-3 py-2.5',
+        'bg-white/65 transition-[background-color,box-shadow,border-color] duration-200',
+        'hover:bg-white/90 hover:shadow-sm',
         isPrimary ? 'border-blue-200/90 bg-white/85' : 'border-gray-200/70',
-        'hover:bg-white/80 motion-reduce:transition-none',
+        'motion-reduce:transition-none motion-reduce:hover:shadow-none',
       )}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onFocusCapture={() => setFocused(true)}
+      onBlurCapture={() => setFocused(false)}
     >
-      <PlatformIcon platform={platform} connected active={hovered} />
+      <PlatformIcon
+        platform={platform}
+        connected
+        active={hovered || focused || iconPulse}
+      />
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium text-gray-900">{platform.label}</div>
         <div className="truncate text-sm text-gray-700">{identityLine}</div>
-        <div className="truncate text-xs text-emerald-700">
-          {buildConnectedStatus(platform, isPrimary)}
+        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+          {isPrimary ? (
+            <span className="inline-flex items-center rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-600">
+              Primary
+            </span>
+          ) : null}
+          <ConnectedStatus showSuccessCheck={showSuccessCheck} />
         </div>
       </div>
       <DropdownMenu>
@@ -267,18 +414,28 @@ function ConnectedPlatformRow({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-8 shrink-0 px-2.5 text-xs text-gray-600 active:scale-[0.97] motion-reduce:active:scale-100"
+            className="h-8 w-8 shrink-0 px-0 text-gray-500 hover:bg-white/80 hover:text-gray-700 active:scale-[0.97] motion-reduce:active:scale-100"
             disabled={busy}
             aria-label={`Manage ${platform.label}`}
           >
             {platform.clearing ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              'Manage'
+              <MoreHorizontal className="h-4 w-4" aria-hidden />
             )}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-[10rem]">
+        <DropdownMenuContent
+          align="end"
+          className={cn(
+            'zk-identities-menu min-w-[10rem]',
+            'data-[state=open]:animate-none data-[state=closed]:animate-none',
+            'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
+            'data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100',
+            'data-[side=bottom]:slide-in-from-top-0 data-[side=top]:slide-in-from-bottom-0',
+            'data-[side=left]:slide-in-from-right-0 data-[side=right]:slide-in-from-left-0',
+          )}
+        >
           {!isPrimary ? (
             <DropdownMenuItem onClick={() => onSetPrimary(platform.id)}>
               Set as primary
@@ -293,59 +450,90 @@ function ConnectedPlatformRow({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    </div>
+    </motion.li>
   );
 }
 
-function AvailablePlatformRow({ platform }: { platform: ZkPlatformConnectionState }) {
+function AvailablePlatformRow({
+  platform,
+  motionSafe,
+}: {
+  platform: ZkPlatformConnectionState;
+  motionSafe: boolean;
+}) {
   const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
   const busy = platform.connecting || platform.clearing;
+  const interactive = !platform.disabled && !busy;
+
+  const runConnect = () => {
+    if (!interactive) return;
+    void platform.connect();
+  };
 
   return (
-    <div
-      className="flex min-h-[4rem] items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-white/45"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+    <motion.li
+      layout={motionSafe}
+      layoutId={motionSafe ? platformLayoutId(platform.id) : undefined}
+      transition={{ type: 'tween', duration: LAYOUT_DURATION, ease: LAYOUT_EASE }}
+      className="list-none"
     >
-      <PlatformIcon platform={platform} connected={false} active={hovered} />
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium text-gray-900">{platform.label}</div>
-        <div className="truncate text-xs text-gray-500">{PLATFORM_HINTS[platform.id]}</div>
-      </div>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className={CONNECT_BUTTON_CLASS}
-        onClick={() => void platform.connect()}
-        disabled={busy}
+      <div
+        className={cn(
+          'relative flex min-h-[4rem] items-center gap-3 rounded-xl px-3 py-2.5',
+          'transition-[background-color,box-shadow] duration-200',
+          !platform.disabled && 'hover:bg-white/45',
+          platform.disabled && 'cursor-not-allowed opacity-60',
+        )}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
       >
-        {platform.connecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Connect'}
-      </Button>
-    </div>
+        {!platform.disabled ? (
+          <button
+            type="button"
+            className="absolute inset-0 z-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+            aria-label={`Connect ${platform.label}`}
+            disabled={!interactive}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onClick={runConnect}
+          />
+        ) : null}
+        <div className="relative z-10 flex min-w-0 flex-1 items-center gap-3 pointer-events-none">
+          <PlatformIcon
+            platform={platform}
+            connected={false}
+            active={!platform.disabled && (hovered || focused)}
+          />
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-medium text-gray-900">{platform.label}</div>
+            <div className="truncate text-xs text-gray-500">{PLATFORM_HINTS[platform.id]}</div>
+          </div>
+        </div>
+        {!platform.disabled ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={cn(CONNECT_BUTTON_CLASS, 'relative z-10')}
+            onClick={(event) => {
+              event.stopPropagation();
+              runConnect();
+            }}
+            disabled={busy}
+            aria-busy={platform.connecting || undefined}
+          >
+            <ConnectButtonContent
+              connecting={platform.connecting}
+              isConnected={platform.isConnected}
+              motionSafe={motionSafe}
+            />
+          </Button>
+        ) : null}
+      </div>
+    </motion.li>
   );
 }
-
-// function ComingSoonPlatformRow({ platform }: { platform: ZkPlatformConnectionState }) {
-//   const row = (
-//     <div className="flex min-h-[3.75rem] items-center gap-3 rounded-xl px-3 py-2 opacity-60">
-//       <PlatformIcon platform={platform} connected={false} />
-//       <div className="min-w-0 flex-1">
-//         <div className="truncate text-sm font-medium text-gray-900">{platform.label}</div>
-//         <div className="truncate text-xs text-gray-500">Coming soon</div>
-//       </div>
-//     </div>
-//   );
-//
-//   return (
-//     <Tooltip>
-//       <TooltipTrigger asChild>
-//         <div>{row}</div>
-//       </TooltipTrigger>
-//       <TooltipContent>Instagram connect is coming soon</TooltipContent>
-//     </Tooltip>
-//   );
-// }
 
 function PlatformRow({
   platform,
@@ -487,7 +675,7 @@ export function ZkSocialNavToggle({
         className,
       )}
       aria-expanded={expanded}
-      aria-label={`${expanded ? 'Collapse' : 'Expand'} linked identities panel`}
+      aria-label={`${expanded ? 'Collapse' : 'Expand'} payment identities panel`}
     >
       Identities
     </button>
@@ -527,10 +715,6 @@ export function ZkSocialConnectionsPanel({
     () => platforms.filter((platform) => !platform.isConnected && !platform.disabled),
     [platforms],
   );
-  // const comingSoonPlatforms = useMemo(
-  //   () => platforms.filter((platform) => platform.disabled),
-  //   [platforms],
-  // );
 
   const { primaryId, setPrimary } = usePrimaryIdentity(linkedPlatforms);
 
@@ -547,7 +731,6 @@ export function ZkSocialConnectionsPanel({
     <TooltipProvider delayDuration={300}>
       <aside
         className={cn(
-          MOTION_CLASS,
           'origin-right',
           !embedded &&
             'w-[20rem] rounded-2xl border border-gray-200/80 bg-white/90 shadow-circle-card backdrop-blur-sm',
@@ -555,73 +738,57 @@ export function ZkSocialConnectionsPanel({
           className,
         )}
         aria-label="Payment identities"
+        data-expanded={expanded ? 'true' : 'false'}
       >
         {!embedded ? (
           <div className="border-b border-gray-200/60 p-3">
             <div className="min-w-0 space-y-1">
-              <h2 className="text-sm font-semibold text-gray-900">Payment identities</h2>
-              <p className="text-xs leading-relaxed text-gray-600">
-                Link accounts to receive USDC by username or email.
-              </p>
+              <h2 className="text-sm font-semibold text-gray-900">{PANEL_COPY.title}</h2>
+              <p className="text-xs leading-relaxed text-gray-600">{PANEL_COPY.description}</p>
             </div>
           </div>
         ) : (
           <div className="space-y-1 border-b border-gray-200/60 px-4 py-3">
-            <h2 className="text-sm font-semibold text-gray-900">Payment identities</h2>
-            <p className="text-xs leading-relaxed text-gray-600">
-              Receive payments to your social usernames.
-            </p>
+            <h2 className="text-sm font-semibold text-gray-900">{PANEL_COPY.title}</h2>
+            <p className="text-xs leading-relaxed text-gray-600">{PANEL_COPY.description}</p>
           </div>
         )}
 
-        <div
-          className={cn(
-            MOTION_CLASS,
-            'space-y-1 p-2',
-            expanded && motionSafe && 'translate-x-0 opacity-100',
-            expanded && !motionSafe && 'opacity-100',
-          )}
-        >
-          {sortedLinkedPlatforms.length > 0 ? (
-            <>
-              <SectionLabel>{primaryId ? 'Primary identity' : 'Connected'}</SectionLabel>
-              <div className="space-y-1.5">
-                {sortedLinkedPlatforms.map((platform) => (
-                  <ConnectedPlatformRow
-                    key={platform.id}
-                    platform={platform}
-                    isPrimary={platform.id === primaryId}
-                    onSetPrimary={setPrimary}
-                  />
-                ))}
-              </div>
-            </>
-          ) : null}
+        <div className="space-y-1 p-2">
+          <LayoutGroup id="zk-payment-identities">
+            {sortedLinkedPlatforms.length > 0 ? (
+              <>
+                <SectionLabel>Connected identities</SectionLabel>
+                <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+                  {sortedLinkedPlatforms.map((platform) => (
+                    <ConnectedPlatformRow
+                      key={platform.id}
+                      platform={platform}
+                      isPrimary={platform.id === primaryId}
+                      onSetPrimary={setPrimary}
+                      motionSafe={motionSafe}
+                    />
+                  ))}
+                </ul>
+              </>
+            ) : null}
 
-          {availablePlatforms.length > 0 ? (
-            <>
-              <SectionLabel>Available to link</SectionLabel>
-              <div className="space-y-0.5">
-                {availablePlatforms.map((platform) => (
-                  <AvailablePlatformRow key={platform.id} platform={platform} />
-                ))}
-              </div>
-            </>
-          ) : null}
-
-          {/* {comingSoonPlatforms.length > 0 ? (
-            <>
-              <SectionLabel>More soon</SectionLabel>
-              <div className="space-y-0.5">
-                {comingSoonPlatforms.map((platform) => (
-                  <ComingSoonPlatformRow key={platform.id} platform={platform} />
-                ))}
-              </div>
-            </>
-          ) : null} */}
+            {availablePlatforms.length > 0 ? (
+              <>
+                <SectionLabel>Available to connect</SectionLabel>
+                <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
+                  {availablePlatforms.map((platform) => (
+                    <AvailablePlatformRow
+                      key={platform.id}
+                      platform={platform}
+                      motionSafe={motionSafe}
+                    />
+                  ))}
+                </ul>
+              </>
+            ) : null}
+          </LayoutGroup>
         </div>
-
-        {/* {expanded ? <InternalWalletRow compact={false} /> : null} */}
       </aside>
     </TooltipProvider>
   );

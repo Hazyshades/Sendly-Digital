@@ -1,0 +1,164 @@
+/**
+ * Adapted from Transitions.dev patterns (copy/adapt only — not a runtime dependency):
+ * - Menu dropdown (origin-aware)
+ * - Text states swap
+ * - Success check
+ * - Panel reveal
+ * Tuned for Sendly: ≤4px blur, shorter travel, Radix data-state.
+ */
+
+.zk-identities-menu {
+  --dropdown-open-dur: 170ms;
+  --dropdown-close-dur: 130ms;
+  --dropdown-pre-scale: 0.96;
+  --dropdown-y: 4px;
+  --dropdown-blur: 4px;
+  --dropdown-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin, top right);
+  will-change: transform, opacity, filter;
+}
+
+.zk-identities-menu[data-state='open'] {
+  animation: zk-identities-menu-open var(--dropdown-open-dur) var(--dropdown-ease) forwards;
+}
+
+.zk-identities-menu[data-state='closed'] {
+  animation: zk-identities-menu-close var(--dropdown-close-dur) var(--dropdown-ease) forwards;
+}
+
+@keyframes zk-identities-menu-open {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--dropdown-y) * -1)) scale(var(--dropdown-pre-scale));
+    filter: blur(var(--dropdown-blur));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes zk-identities-menu-close {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(calc(var(--dropdown-y) * -1)) scale(0.98);
+    filter: blur(var(--dropdown-blur));
+  }
+}
+
+.zk-identities-success-check {
+  --check-opacity-dur: 420ms;
+  --check-scale-dur: 420ms;
+  --check-blur-dur: 380ms;
+  --check-blur-from: 4px;
+  --check-path-dur: 420ms;
+  --check-path-delay: 60ms;
+  --check-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+  opacity: 0;
+  will-change: transform, opacity, filter;
+}
+
+.zk-identities-success-check svg {
+  display: block;
+  overflow: visible;
+}
+
+.zk-identities-success-check svg path {
+  stroke-dasharray: 14;
+  stroke-dashoffset: 14;
+}
+
+.zk-identities-success-check[data-state='in'] {
+  animation:
+    zk-identities-check-fade var(--check-opacity-dur) var(--check-ease) forwards,
+    zk-identities-check-scale var(--check-scale-dur) var(--check-ease) forwards,
+    zk-identities-check-blur var(--check-blur-dur) var(--check-ease) forwards;
+}
+
+.zk-identities-success-check[data-state='in'] svg path {
+  animation: zk-identities-check-draw var(--check-path-dur) var(--check-ease)
+    var(--check-path-delay) forwards;
+}
+
+@keyframes zk-identities-check-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes zk-identities-check-scale {
+  from {
+    transform: scale(0.86);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes zk-identities-check-blur {
+  from {
+    filter: blur(var(--check-blur-from));
+  }
+  to {
+    filter: blur(0);
+  }
+}
+
+@keyframes zk-identities-check-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.zk-identities-panel-reveal {
+  --panel-open-dur: 220ms;
+  --panel-close-dur: 200ms;
+  --panel-translate-x: 10px;
+  --panel-blur: 2px;
+  --panel-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, opacity, filter;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zk-identities-menu[data-state='open'],
+  .zk-identities-menu[data-state='closed'] {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+
+  .zk-identities-menu[data-state='closed'] {
+    opacity: 0;
+  }
+
+  .zk-identities-success-check {
+    animation: none !important;
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+
+  .zk-identities-success-check svg path {
+    animation: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+
+  .zk-identities-panel-reveal {
+    transition: none !important;
+    filter: none !important;
+  }
+}

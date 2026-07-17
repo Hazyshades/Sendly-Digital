@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 
 import { Card } from '@/components/ui/card';
@@ -17,11 +18,19 @@ import {
   useZkSocialPanelState,
 } from '@/components/zk-accounts/ZkSocialConnectionsPanel';
 import { useZkAccountsPanelLayout } from '@/hooks/useZkAccountsPanelLayout';
+import { useMotionSafe } from '@/hooks/useMotionSafe';
 import { cn } from '@/components/ui/utils';
+
+import './zk-payment-identities-transitions.css';
 
 /** Half of Tailwind `max-w-2xl` (42rem) */
 const MAIN_HALF = '21rem';
 const GAP = '1.25rem';
+
+const PANEL_REVEAL_TRANSITION = {
+  duration: 0.22,
+  ease: [0.22, 1, 0.36, 1] as const,
+};
 
 type ZkNavItem = {
   path: string;
@@ -45,6 +54,7 @@ export function ZkAppShell({
 }: ZkAppShellProps) {
   const { isCompact } = useZkAccountsPanelLayout();
   const { expanded, setExpanded, toggleExpanded } = useZkSocialPanelState();
+  const motionSafe = useMotionSafe();
 
   return (
     <>
@@ -79,16 +89,35 @@ export function ZkAppShell({
           <Card className="w-full min-w-0 bg-white shadow-circle-card rounded-2xl backdrop-blur-sm">{children}</Card>
         </div>
 
-        {!isCompact && expanded ? (
-          <div
-            className="pointer-events-none absolute inset-y-0 left-0 z-10 hidden lg:flex justify-end"
-            style={{ width: `calc(50% - ${MAIN_HALF} - ${GAP})` }}
-          >
-            <div className="pointer-events-auto sticky top-20 mt-[3.25rem] h-fit max-w-full">
-              <ZkSocialConnectionsPanel expanded={expanded} onExpandedChange={setExpanded} />
-            </div>
-          </div>
-        ) : null}
+        <AnimatePresence>
+          {!isCompact && expanded ? (
+            <motion.div
+              key="zk-payment-identities-panel"
+              className="zk-identities-panel-reveal pointer-events-none absolute inset-y-0 left-0 z-10 hidden lg:flex justify-end"
+              style={{ width: `calc(50% - ${MAIN_HALF} - ${GAP})` }}
+              initial={
+                motionSafe
+                  ? { opacity: 0, x: 10, filter: 'blur(2px)' }
+                  : false
+              }
+              animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+              exit={
+                motionSafe
+                  ? { opacity: 0, x: 10, filter: 'blur(2px)' }
+                  : undefined
+              }
+              transition={
+                motionSafe
+                  ? PANEL_REVEAL_TRANSITION
+                  : { duration: 0 }
+              }
+            >
+              <div className="pointer-events-auto sticky top-20 mt-[3.25rem] h-fit max-w-full">
+                <ZkSocialConnectionsPanel expanded={expanded} onExpandedChange={setExpanded} />
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </div>
 
       {isCompact ? (
