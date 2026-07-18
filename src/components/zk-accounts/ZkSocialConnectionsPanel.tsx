@@ -94,7 +94,7 @@ const LAYOUT_EASE = [0.23, 1, 0.32, 1] as const;
 const LAYOUT_DURATION = 0.24;
 
 const CONNECT_BUTTON_CLASS =
-  'relative h-8 min-w-[7.25rem] overflow-hidden rounded-full border border-gray-200/80 bg-white/75 px-3 text-xs font-medium text-gray-700 shadow-none hover:bg-white active:scale-[0.97] motion-reduce:active:scale-100';
+  'relative h-8 min-w-[6rem] overflow-hidden rounded-full border border-gray-200/80 bg-white/75 px-2.5 text-xs font-medium text-gray-700 shadow-none hover:bg-white active:scale-[0.97] motion-reduce:active:scale-100';
 
 export const NAV_PILL_BASE =
   'rounded-2xl transition-[background-color,color,box-shadow] duration-200 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100';
@@ -197,6 +197,22 @@ function truncateWalletAddress(address: string): string {
 
 function platformLayoutId(id: ZkPanelPlatformId) {
   return `zk-platform-${id}`;
+}
+
+const USERNAME_HANDLE_PLATFORMS = new Set<ZkPanelPlatformId>([
+  'twitter',
+  'twitch',
+  'github',
+  'telegram',
+]);
+
+function formatConnectedIdentity(platform: ZkPlatformConnectionState): string {
+  if (platform.displayNameLoading) return 'Loading identity…';
+  if (!platform.displayName) return platform.label;
+  if (USERNAME_HANDLE_PLATFORMS.has(platform.id)) {
+    return `@${platform.displayName.replace(/^@/, '')}`;
+  }
+  return platform.displayName;
 }
 
 function PlatformIcon({
@@ -370,9 +386,7 @@ function ConnectedPlatformRow({
   const [focused, setFocused] = useState(false);
   const busy = platform.connecting || platform.clearing;
   const { showSuccessCheck, iconPulse } = useConnectSuccessPulse(platform.isConnected);
-  const identityLine = platform.displayNameLoading
-    ? 'Loading identity…'
-    : platform.displayName ?? platform.label;
+  const identityLine = formatConnectedIdentity(platform);
 
   return (
     <motion.li
@@ -398,10 +412,10 @@ function ConnectedPlatformRow({
       />
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium text-gray-900">{platform.label}</div>
-        <div className="truncate text-sm text-gray-700">{identityLine}</div>
+        <div className="text-sm text-gray-700">{identityLine}</div>
         <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
           {isPrimary ? (
-            <span className="inline-flex items-center rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-600">
+            <span className="inline-flex items-center rounded bg-blue-50/70 px-1 py-px text-[9px] font-medium uppercase tracking-wide text-blue-500/90">
               Primary
             </span>
           ) : null}
@@ -414,7 +428,7 @@ function ConnectedPlatformRow({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-8 w-8 shrink-0 px-0 text-gray-500 hover:bg-white/80 hover:text-gray-700 active:scale-[0.97] motion-reduce:active:scale-100"
+            className="h-8 w-8 shrink-0 rounded-lg bg-transparent px-0 text-gray-500 shadow-none hover:bg-gray-100/70 hover:text-gray-700 active:scale-[0.97] motion-reduce:active:scale-100"
             disabled={busy}
             aria-label={`Manage ${platform.label}`}
           >
@@ -507,7 +521,7 @@ function AvailablePlatformRow({
           />
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-medium text-gray-900">{platform.label}</div>
-            <div className="truncate text-xs text-gray-500">{PLATFORM_HINTS[platform.id]}</div>
+            <div className="text-xs leading-snug text-gray-500">{PLATFORM_HINTS[platform.id]}</div>
           </div>
         </div>
         {!platform.disabled ? (
