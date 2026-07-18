@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Trophy, RefreshCw, Users, Copy, CheckCircle2, Search, Twitter, Zap, Wallet, TrendingUp, Twitch, Send } from 'lucide-react';
-import { CardHeader, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -656,7 +656,7 @@ export function Leaderboard() {
   };
 
   return (
-    <>
+    <Card className="gap-0 overflow-hidden bg-white/90 shadow-circle-card backdrop-blur-sm">
       <CardHeader className="border-b border-gray-100">
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
@@ -1321,6 +1321,6 @@ export function Leaderboard() {
           </>
         )}
       </CardContent>
-    </>
+    </Card>
   );
 }

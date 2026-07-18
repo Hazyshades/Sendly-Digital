@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 
-import { Card } from '@/components/ui/card';
 import {
   Sheet,
   SheetContent,
@@ -86,9 +85,7 @@ export function ZkAppShell({
             </div>
           </nav>
 
-          <Card className="w-full min-w-0 gap-0 overflow-hidden bg-white shadow-circle-card rounded-2xl backdrop-blur-sm">
-            {children}
-          </Card>
+          <div className="w-full min-w-0">{children}</div>
         </div>
 
         <AnimatePresence>

@@ -59,12 +59,6 @@ export function Layout({ children }: LayoutProps) {
 
   const isActive = (path: string) => location.pathname === path;
 
-  const pageCard = (
-    <Card className="gap-0 overflow-hidden bg-white shadow-circle-card rounded-2xl backdrop-blur-sm">
-      {children}
-    </Card>
-  );
-
   const mainContent = (
     <>
       <nav className="mb-4">
@@ -85,7 +79,14 @@ export function Layout({ children }: LayoutProps) {
         </div>
       </nav>
 
-      {pageCard}
+      {/* Non-zk pages still use a shared page shell; Dashboard owns its own Card. */}
+      {location.pathname === '/dashboard' || location.pathname === '/agent' ? (
+        children
+      ) : (
+        <Card className="gap-0 overflow-hidden bg-white shadow-circle-card rounded-2xl backdrop-blur-sm">
+          {children}
+        </Card>
+      )}
     </>
   );
 

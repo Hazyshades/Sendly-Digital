@@ -780,8 +780,8 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
 
   if (isInternalWalletDisabled) {
     return (
-      <Card className="border-0 bg-transparent shadow-none opacity-60 pointer-events-none">
-        <CardHeader className="pb-6">
+      <Card className="gap-0 bg-white/90 shadow-circle-card opacity-60 pointer-events-none backdrop-blur-sm">
+        <CardHeader className="pb-4">
           <div className="grid grid-rows-2 items-start gap-3">
             <CardTitle className="flex items-center gap-2">
               <Wallet className="w-5 h-5 text-gray-700" />
@@ -799,12 +799,10 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
 
   if (checking) {
     return (
-      <Card className="border-0 bg-transparent shadow-none">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-            <span className="ml-2 text-gray-600">Checking wallet...</span>
-          </div>
+      <Card className="gap-0 bg-white/90 shadow-circle-card backdrop-blur-sm">
+        <CardContent className="flex items-center justify-center gap-2 py-5">
+          <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+          <span className="text-sm text-gray-600">Checking wallet...</span>
         </CardContent>
       </Card>
     );
@@ -815,18 +813,19 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
 
   if (wallet) {
     return (
-      <Card className="border-0 bg-transparent shadow-none">
+      <Card className="gap-0 bg-white/90 shadow-circle-card backdrop-blur-sm">
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between relative" style={{ top: -5 }}>
+          <CardHeader className="py-4">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-green-50 border border-green-100">
-                  <Wallet className="w-5 h-5 text-green-600" />
+                <div className="rounded-lg border border-green-100 bg-green-50 p-2">
+                  <Wallet className="h-5 w-5 text-green-600" />
                 </div>
                 <div>
                   <CardTitle className="text-lg font-semibold">Internal Wallet</CardTitle>
-                  <CardDescription className="text-xs mt-0.5">
-                  Smart wallet for quick receipt and sending of funds                  </CardDescription>
+                  <CardDescription className="mt-0.5 text-xs">
+                    Smart wallet for quick receipt and sending of funds
+                  </CardDescription>
                 </div>
               </div>
               <CollapsibleTrigger asChild>
@@ -1125,24 +1124,26 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
 
   if (shouldShowConnectMessage) {
     return (
-      <div className="p-6">
-        <Empty className="flex-none gap-4 md:p-6">
-          <EmptyHeader>
-            <LinkIcon size={40} className="mb-2 text-foreground opacity-70" strokeWidth={1.75} />
-            <EmptyTitle>Internal Wallet</EmptyTitle>
-            <EmptyDescription>
-              {zk
-                ? 'Please connect a social account to create an Internal Wallet.'
-                : 'Please connect your wallet or social account to use platform functionality.'}
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      </div>
+      <Card className="gap-0 bg-white/90 shadow-circle-card backdrop-blur-sm">
+        <CardContent className="p-6">
+          <Empty className="flex-none gap-4 md:p-6">
+            <EmptyHeader>
+              <LinkIcon size={40} className="mb-2 text-foreground opacity-70" strokeWidth={1.75} />
+              <EmptyTitle>Internal Wallet</EmptyTitle>
+              <EmptyDescription>
+                {zk
+                  ? 'Please connect a social account to create an Internal Wallet.'
+                  : 'Please connect your wallet or social account to use platform functionality.'}
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <Card className="border-0 bg-transparent shadow-none gap-2">
+    <Card className="gap-2 bg-white/90 shadow-circle-card backdrop-blur-sm">
   <CardHeader className="pb-0">
     <div className="grid grid-rows-2 items-start gap-3">
       {/* Title with icon - left */}
