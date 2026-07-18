@@ -60,7 +60,7 @@ export function Layout({ children }: LayoutProps) {
   const isActive = (path: string) => location.pathname === path;
 
   const pageCard = (
-    <Card className="bg-white shadow-circle-card rounded-2xl backdrop-blur-sm">
+    <Card className="gap-0 overflow-hidden bg-white shadow-circle-card rounded-2xl backdrop-blur-sm">
       {children}
     </Card>
   );

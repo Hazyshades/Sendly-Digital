@@ -780,7 +780,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
 
   if (isInternalWalletDisabled) {
     return (
-      <Card className="bg-white/90 backdrop-blur-sm border border-gray-200 shadow-circle-card opacity-60 pointer-events-none">
+      <Card className="border-0 bg-transparent shadow-none opacity-60 pointer-events-none">
         <CardHeader className="pb-6">
           <div className="grid grid-rows-2 items-start gap-3">
             <CardTitle className="flex items-center gap-2">
@@ -799,7 +799,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
 
   if (checking) {
     return (
-      <Card className="bg-white/90 backdrop-blur-sm border border-gray-200 shadow-circle-card">
+      <Card className="border-0 bg-transparent shadow-none">
         <CardContent className="pt-6">
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
@@ -815,7 +815,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
 
   if (wallet) {
     return (
-      <Card className="bg-white/90 backdrop-blur-sm border border-gray-200 shadow-circle-card">
+      <Card className="border-0 bg-transparent shadow-none">
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between relative" style={{ top: -5 }}>
@@ -1142,7 +1142,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
   }
 
   return (
-    <Card className="bg-white/90 backdrop-blur-sm border border-gray-200 shadow-circle-card gap-2">
+    <Card className="border-0 bg-transparent shadow-none gap-2">
   <CardHeader className="pb-0">
     <div className="grid grid-rows-2 items-start gap-3">
       {/* Title with icon - left */}

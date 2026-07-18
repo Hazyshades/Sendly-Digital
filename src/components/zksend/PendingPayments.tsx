@@ -1411,7 +1411,7 @@ export function PendingPayments({
   };
 
   return (
-    <Card>
+    <Card className="border-0 bg-transparent shadow-none">
       <CardHeader className="flex flex-row items-center justify-between gap-2">
         <CardTitle>{title}</CardTitle>
         {!truncateAddresses && onWalletSourceChange ? (
