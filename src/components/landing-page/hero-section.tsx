@@ -1,44 +1,43 @@
 import { useEffect, useRef, useState } from "react"
+import { Link } from "react-router-dom"
 import gsap from "gsap"
 import { useMotionSafe } from "@/hooks/useMotionSafe"
+import { GitHubIcon, GmailIcon, TwitchIcon, XIcon } from "./platform-icons"
 
-const ADDRESSES = [
+const SEND_EXAMPLES = [
   '100 USDC on X → @ZachXBT',
   'Tips on GitHub → @steipete',
   '$15 donation on Twitch → @Trainwreckstv',
   '50 EURC through Gmail DM → caroline@gmail.com',
 ]
 
-export function HeroSection() {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [typedAddress, setTypedAddress] = useState('')
-  const motionSafe = useMotionSafe()
+/** Type-and-delete cycle over SEND_EXAMPLES; static first line under reduced motion. */
+function useTypewriter(motionSafe: boolean): string {
+  const [typed, setTyped] = useState('')
 
   useEffect(() => {
     if (!motionSafe) {
-      setTypedAddress(ADDRESSES[0])
+      setTyped(SEND_EXAMPLES[0])
       return
     }
 
     let charIndex = 0
     let lineIndex = 0
     let isDeleting = false
-    let currentText = ''
-    const timeouts: ReturnType<typeof setTimeout>[] = []
+    const timeouts: number[] = []
 
     const schedule = (fn: () => void, ms: number) => {
-      const id = setTimeout(fn, ms)
+      const id = window.setTimeout(fn, ms)
       timeouts.push(id)
     }
 
     schedule(() => {
       const typeLine = () => {
-        const targetLine = ADDRESSES[lineIndex % ADDRESSES.length]
+        const targetLine = SEND_EXAMPLES[lineIndex % SEND_EXAMPLES.length]
 
         if (!isDeleting) {
           if (charIndex < targetLine.length) {
-            currentText = targetLine.slice(0, charIndex + 1)
-            setTypedAddress(currentText)
+            setTyped(targetLine.slice(0, charIndex + 1))
             charIndex++
             schedule(typeLine, 50 + Math.random() * 50)
           } else {
@@ -49,8 +48,7 @@ export function HeroSection() {
           }
         } else {
           if (charIndex > 0) {
-            currentText = targetLine.slice(0, charIndex - 1)
-            setTypedAddress(currentText)
+            setTyped(targetLine.slice(0, charIndex - 1))
             charIndex--
             schedule(typeLine, 25)
           } else {
@@ -67,34 +65,99 @@ export function HeroSection() {
     return () => timeouts.forEach(clearTimeout)
   }, [motionSafe])
 
+  return typed
+}
+
+function SendMockup({ typed, motionSafe }: { typed: string; motionSafe: boolean }) {
+  return (
+    <div className="overflow-hidden rounded-[30px] border border-white/40 bg-white glow-ring-soft md:rounded-[36px]">
+      <div className="flex items-center justify-between border-b border-black/5 px-5 py-3.5 md:px-7">
+        <div className="flex items-center gap-2.5">
+          <img src="/sendly-wordmark.svg" alt="Sendly" className="h-5 w-auto" />
+          <span className="hidden text-xs font-medium tracking-[-0.02em] text-smoke md:inline">
+            New transfer
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5" aria-hidden="true">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#e8e8e8]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#e8e8e8]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#e8e8e8]" />
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-[1fr_260px]">
+        <div className="px-5 py-6 md:px-7 md:py-8">
+          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-smoke">Recipient</p>
+          <div className="mt-2 flex min-h-[44px] items-center rounded-2xl border border-black/10 bg-mist px-4 py-2.5">
+            <span className="font-mono text-sm text-graphite md:text-base">
+              {typed}
+              {motionSafe ? (
+                <span className="animate-cursor-blink ml-0.5 inline-block h-4 w-0.5 bg-signal align-middle" />
+              ) : null}
+            </span>
+          </div>
+
+          <p className="mt-5 text-[10px] font-medium uppercase tracking-[0.18em] text-smoke">Platforms</p>
+          <div className="mt-2 flex items-center gap-2">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-ink">
+              <XIcon className="h-4 w-4 text-white" />
+            </span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#24292f]">
+              <GitHubIcon className="h-4 w-4 text-white" />
+            </span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#9146ff]">
+              <TwitchIcon className="h-4 w-4 text-white" />
+            </span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-black/10 bg-white">
+              <GmailIcon className="h-4 w-4" />
+            </span>
+          </div>
+        </div>
+
+        <div className="border-t border-black/5 px-5 py-6 md:border-l md:border-t-0 md:px-6 md:py-8">
+          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-smoke">Amount</p>
+          <p className="mt-1 font-serif-display text-4xl leading-none text-ink">
+            100 <span className="text-xl text-smoke">USDC</span>
+          </p>
+          <p className="mt-1.5 text-xs tracking-[-0.02em] text-smoke">≈ $100.00 · gas covered</p>
+          <div className="mt-5 w-full rounded-full bg-signal py-2.5 text-center text-sm font-semibold text-white">
+            Send 100 USDC
+          </div>
+          <p className="mt-2.5 text-center text-[10px] leading-[1.4] text-smoke">
+            Recipient claims with an identity proof
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function HeroSection() {
+  const containerRef = useRef<HTMLElement>(null)
+  const motionSafe = useMotionSafe()
+  const typed = useTypewriter(motionSafe)
+
   useEffect(() => {
     if (!motionSafe) return
 
     const ctx = gsap.context(() => {
-      const tl = gsap.timeline({ delay: 0.3 })
+      const tl = gsap.timeline({ delay: 0.2 })
 
-      tl.from('.hero-money', {
-        y: 40,
+      tl.from('.hero-copy > *', {
+        y: 28,
         opacity: 0,
         duration: 0.6,
+        stagger: 0.12,
         ease: 'power3.out',
-      })
-      .from('.hero-social', {
-        y: 50,
-        opacity: 0,
-        duration: 0.7,
-        ease: 'power3.out',
-      }, '-=0.4')
-      .fromTo(
-        '.hero-typed',
-        { opacity: 0, x: -16 },
+      }).from(
+        '.hero-mockup',
         {
-          opacity: 1,
-          x: 0,
-          duration: 0.4,
-          ease: 'power2.out',
+          y: 48,
+          opacity: 0,
+          duration: 0.7,
+          ease: 'power3.out',
         },
-        '-=0.5'
+        '-=0.3'
       )
     }, containerRef)
 
@@ -105,44 +168,37 @@ export function HeroSection() {
     <section
       id="hero"
       ref={containerRef}
-      className="relative h-[100dvh] w-full overflow-hidden flex items-center"
+      className="dusk-hero relative flex min-h-[100dvh] w-full flex-col overflow-hidden"
     >
-      <div className="relative z-10 w-full p-8 md:p-16 lg:p-24">
-        <div className="max-w-5xl">
-          <div className="hero-money mb-4">
-            <span className="font-jakarta font-bold text-gray-800 text-lg md:text-xl uppercase tracking-[0.3em]">
-              Money is
-            </span>
-          </div>
+      <div className="landing-star-field" aria-hidden="true" />
+      <img
+        src="/images/landing/hero-scenery.svg"
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-[46%] w-full select-none"
+      />
 
-          <div className="hero-social mb-8">
-            <h1
-              className="font-cormorant italic text-[5rem] md:text-[7rem] lg:text-[9rem] leading-none font-bold"
-              style={{
-                lineHeight: 0.9,
-                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-            >
-              Social.
-            </h1>
-          </div>
+      <div className="hero-copy relative z-10 mx-auto flex w-full max-w-[600px] flex-col items-center px-6 pt-32 text-center md:pt-40">
+        <h1 className="font-serif-display text-[clamp(2.25rem,5.5vw,3.25rem)] leading-[1.04] text-white">
+          Send money to anyone.
+          <br />
+          No wallet, just a username.
+        </h1>
+        <p className="mt-5 max-w-[480px] text-sm leading-[1.5] tracking-[-0.02em] text-white/85 md:text-base">
+          Sendly delivers USDC to a social identity — an X handle, a GitHub account,
+          a Twitch channel, or an email. Recipients claim with a proof of identity.
+          No wallet address, no seed phrase, no gas.
+        </p>
+        <Link
+          to="/create"
+          className="mt-8 rounded-full bg-white px-6 py-3 text-sm font-semibold tracking-[-0.02em] text-ink transition-transform duration-200 hover:scale-[1.03]"
+        >
+          Start sending
+        </Link>
+      </div>
 
-          <div className="hero-typed flex items-center gap-4">
-            <div className="font-mono text-sm md:text-base text-gray-600 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl border border-gray-200 shadow-circle-card">
-              {typedAddress}
-              {motionSafe ? (
-                <span className="animate-cursor-blink inline-block w-0.5 h-4 ml-1 bg-[#6366f1] align-middle" />
-              ) : null}
-            </div>
-          </div>
-
-          <div className="absolute bottom-8 right-8 md:right-16 lg:right-24 flex flex-col items-center gap-2 text-gray-400">
-            <span className="font-mono text-xs uppercase tracking-widest">Scroll</span>
-            <div className="w-px h-12 bg-gradient-to-b from-gray-400 to-transparent" />
-          </div>
-        </div>
+      <div className="hero-mockup relative z-10 mx-auto mt-12 w-full max-w-[900px] px-4 pb-16 md:mt-16 md:pb-20">
+        <SendMockup typed={typed} motionSafe={motionSafe} />
       </div>
     </section>
   )

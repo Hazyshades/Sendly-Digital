@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 620" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+  <defs>
+    <linearGradient id="ridgeFar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a892d8" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#8f7ac2" stop-opacity="0.8"/>
+    </linearGradient>
+    <linearGradient id="ridgeMid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#75629f" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#5d4d8a" stop-opacity="0.95"/>
+    </linearGradient>
+    <linearGradient id="ridgeNear" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a3f78"/>
+      <stop offset="1" stop-color="#39306a"/>
+    </linearGradient>
+    <radialGradient id="sunGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffe3b8" stop-opacity="0.8"/>
+      <stop offset="0.55" stop-color="#f7b98c" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#f7b98c" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+    <g id="pine">
+      <path d="M0,-34 L9,-16 L4.5,-16 L13,2 L6.5,2 L15,20 L-15,20 L-6.5,2 L-13,2 L-4.5,-16 L-9,-16 Z"/>
+      <rect x="-2" y="20" width="4" height="7"/>
+    </g>
+  </defs>
+
+  <!-- sunset glow near the horizon -->
+  <ellipse cx="1280" cy="470" rx="460" ry="170" fill="url(#sunGlow)"/>
+
+  <!-- far ridge -->
+  <path fill="url(#ridgeFar)" d="M0,400 C120,368 260,330 420,352 C560,371 660,318 810,338 C950,357 1060,306 1210,330 C1370,356 1520,318 1680,344 C1770,358 1850,352 1920,342 L1920,620 L0,620 Z"/>
+
+  <!-- mist between ridges -->
+  <rect x="0" y="392" width="1920" height="70" fill="#ffffff" opacity="0.1" filter="url(#soft)"/>
+
+  <!-- mid ridge (angular peaks) -->
+  <path fill="url(#ridgeMid)" d="M0,470 L90,440 L170,462 L270,404 L360,452 L450,428 L540,470 L640,398 L730,450 L830,418 L920,468 L1010,430 L1090,458 L1190,372 L1290,448 L1380,424 L1470,466 L1560,436 L1650,470 L1740,446 L1830,472 L1920,452 L1920,620 L0,620 Z"/>
+
+  <!-- sunset rim light on the sun-facing peaks -->
+  <path fill="none" stroke="#ffcf9e" stroke-opacity="0.75" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" d="M1010,430 L1090,458 L1190,372 L1290,448 L1380,424"/>
+  <path fill="none" stroke="#ffcf9e" stroke-opacity="0.35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" d="M640,398 L730,450 L830,418"/>
+
+  <!-- second mist band -->
+  <rect x="0" y="480" width="1920" height="56" fill="#ffffff" opacity="0.08" filter="url(#soft)"/>
+
+  <!-- near ridge (rolling) -->
+  <path fill="url(#ridgeNear)" d="M0,540 C90,522 170,508 260,522 C350,536 420,502 510,514 C610,528 690,548 790,540 C880,533 950,512 1050,522 C1150,532 1240,556 1340,548 C1450,539 1540,516 1640,528 C1740,540 1830,534 1920,544 L1920,620 L0,620 Z"/>
+
+  <!-- conifers on the near ridge -->
+  <g fill="#2b2454">
+    <use href="#pine" transform="translate(196,516) scale(1.05)"/>
+    <use href="#pine" transform="translate(232,520) scale(0.8)"/>
+    <use href="#pine" transform="translate(268,514) scale(1.2)"/>
+    <use href="#pine" transform="translate(305,520) scale(0.9)"/>
+    <use href="#pine" transform="translate(492,512) scale(1.0)"/>
+    <use href="#pine" transform="translate(528,516) scale(1.25)"/>
+    <use href="#pine" transform="translate(566,514) scale(0.85)"/>
+    <use href="#pine" transform="translate(1592,526) scale(1.1)"/>
+    <use href="#pine" transform="translate(1630,528) scale(0.85)"/>
+    <use href="#pine" transform="translate(1668,524) scale(1.25)"/>
+    <use href="#pine" transform="translate(1706,530) scale(0.95)"/>
+  </g>
+
+  <!-- foreground base -->
+  <path fill="#262148" d="M0,584 C160,572 300,578 460,584 C620,590 760,578 920,582 C1080,586 1240,576 1400,582 C1560,588 1740,580 1920,586 L1920,620 L0,620 Z"/>
+
+  <!-- paper plane gliding in from the right -->
+  <path fill="none" stroke="#ffffff" stroke-opacity="0.45" stroke-width="2" stroke-dasharray="2 9" stroke-linecap="round" d="M1648,138 C1712,120 1782,108 1876,102"/>
+  <g transform="translate(1576,128) rotate(7)">
+    <path d="M0,18 L64,0 L50,22 Z" fill="#fffdf8"/>
+    <path d="M0,18 L50,22 L60,34 Z" fill="#dccbf0"/>
+  </g>
+</svg>

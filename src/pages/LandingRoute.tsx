@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { CapsuleNav } from '@/components/landing-page/capsule-nav';
 import { HeroSection } from '@/components/landing-page/hero-section';
-import { SignalsSection } from '@/components/landing-page/signals-section';
-import { WorkSection } from '@/components/landing-page/work-section';
-import { PrinciplesSection } from '@/components/landing-page/principles-section';
-import { ColophonSection } from '@/components/landing-page/colophon-section';
-import { SideNav } from '@/components/landing-page/side-nav';
+import { HowItWorksSection } from '@/components/landing-page/how-it-works-section';
+import { PlatformsSection } from '@/components/landing-page/platforms-section';
+import { AgentsSection } from '@/components/landing-page/agents-section';
+import { FooterSection } from '@/components/landing-page/footer-section';
 import { SmoothScroll } from '@/components/landing-page/smooth-scroll';
 import { isZkHost } from '@/lib/runtime/zkHost';
 
@@ -27,16 +27,13 @@ export function LandingRoute() {
 
   return (
     <SmoothScroll>
-      <main className="relative min-h-screen circle-gradient-bg">
-        <div className="abstract-shape" />
-        <SideNav />
-        <div className="relative z-10">
-          <HeroSection />
-          <SignalsSection />
-          <WorkSection />
-          <PrinciplesSection />
-          <ColophonSection />
-        </div>
+      <main className="relative min-h-screen bg-mist">
+        <CapsuleNav />
+        <HeroSection />
+        <HowItWorksSection />
+        <PlatformsSection />
+        <AgentsSection />
+        <FooterSection />
       </main>
     </SmoothScroll>
   );

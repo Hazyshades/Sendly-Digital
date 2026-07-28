@@ -59,6 +59,12 @@ module.exports = {
           lavender: '#f3f0ff',
           void: '#0a0a0f',
         },
+        // Portal twilight-editorial tokens (landing-v2 only)
+        signal: '#007aff',
+        ink: '#000000',
+        graphite: '#3e3e3e',
+        smoke: '#636363',
+        mist: '#f7f7f7',
       },
       fontFamily: {
         'jakarta': ['"Plus Jakarta Sans"', 'sans-serif'],
@@ -66,6 +72,7 @@ module.exports = {
         'cormorant': ['"Cormorant Garamond"', 'serif'],
         'mono': ['"JetBrains Mono"', 'monospace'],
         'space': ['"Space Grotesk"', '"Inter"', 'sans-serif'],
+        'serif-display': ['"Instrument Serif"', 'Georgia', 'serif'],
       },
       borderRadius: {
         lg: "16px",
