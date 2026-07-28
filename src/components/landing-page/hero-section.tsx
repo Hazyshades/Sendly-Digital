@@ -73,7 +73,6 @@ function SendMockup({ typed, motionSafe }: { typed: string; motionSafe: boolean 
     <div className="overflow-hidden rounded-[30px] border border-white/40 bg-white glow-ring-soft md:rounded-[36px]">
       <div className="flex items-center justify-between border-b border-black/5 px-5 py-3.5 md:px-7">
         <div className="flex items-center gap-2.5">
-          <img src="/sendly-wordmark.svg" alt="Sendly" className="h-5 w-auto" />
           <span className="hidden text-xs font-medium tracking-[-0.02em] text-smoke md:inline">
             New transfer
           </span>
@@ -170,7 +169,12 @@ export function HeroSection() {
       ref={containerRef}
       className="dusk-hero relative flex min-h-[100dvh] w-full flex-col overflow-hidden"
     >
-      <div className="landing-star-field" aria-hidden="true" />
+      <img
+        src="/images/landing/hero-mountains.svg"
+        alt=""
+        aria-hidden="true"
+        className="hero-stars pointer-events-none absolute inset-x-0 top-0 h-auto w-full select-none"
+      />
       <img
         src="/images/landing/hero-scenery.svg"
         alt=""
