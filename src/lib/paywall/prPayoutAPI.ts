@@ -1,25 +1,7 @@
-import { getApiUrl } from '@/lib/supabase/client';
-import { publicAnonKey } from '@/lib/supabase/info';
+import { toMicro, fromMicro } from '@/lib/tokenAmount';
+import { creatorPaywallClient, getCreatorPaywallBase, unwrapItems } from '@/lib/paywall/paywallClient';
 
-const BASE =
-  (import.meta.env.VITE_CREATOR_PAYWALL_URL as string | undefined)?.trim().replace(/\/$/, '') ||
-  `${getApiUrl()}/creator-paywall`;
-
-async function prFetch(path: string, init?: RequestInit) {
-  const headers = new Headers(init?.headers);
-  if (!headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${publicAnonKey}`);
-  }
-  if (init?.body && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
-  }
-  const res = await fetch(`${BASE}${path}`, { ...init, headers });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
-  }
-  return data;
-}
+export { getCreatorPaywallBase };
 
 export type PayoutKind = 'merge' | 'bounty' | 'release' | 'review';
 
@@ -90,39 +72,36 @@ export type IssueBounty = {
   status: string;
 };
 
-/** Parse NUMERIC/string USDC values for display. */
+/**
+ * Parse NUMERIC/string USDC values for display.
+ * Uses toMicro/fromMicro so trailing zeros are stripped without float drift.
+ * (formatDisplayAmount alone would turn `5` into `5.00` — not used for that reason.)
+ */
 export function formatUsdcAmount(value: string | number | undefined | null): string {
   if (value == null || value === '') return '0 USDC';
-  const n = typeof value === 'number' ? value : parseFloat(String(value));
-  if (!Number.isFinite(n)) return '0 USDC';
-  const formatted = Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, '');
-  return `${formatted} USDC`;
+  try {
+    const raw = typeof value === 'number' ? String(value) : String(value).trim();
+    if (!raw) return '0 USDC';
+    return `${fromMicro(toMicro(raw))} USDC`;
+  } catch {
+    const n = typeof value === 'number' ? value : parseFloat(String(value));
+    if (!Number.isFinite(n)) return '0 USDC';
+    const formatted = Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, '');
+    return `${formatted} USDC`;
+  }
 }
 
 export async function fetchPrPayoutReceipts(): Promise<PrPayoutReceipt[]> {
-  const data = (await prFetch('/pr-payouts')) as {
-    items?: PrPayoutReceipt[];
-    receipts?: PrPayoutReceipt[];
-  };
-  return data.items ?? data.receipts ?? [];
+  const data = await creatorPaywallClient<Record<string, unknown>>('/pr-payouts');
+  return unwrapItems<PrPayoutReceipt>(data, 'receipts');
 }
 
 export async function fetchPrPayoutPolicies(): Promise<PrPayoutPolicy[]> {
-  const data = (await prFetch('/pr-payout-policy')) as {
-    items?: PrPayoutPolicy[];
-    policies?: PrPayoutPolicy[];
-  };
-  return data.items ?? data.policies ?? [];
+  const data = await creatorPaywallClient<Record<string, unknown>>('/pr-payout-policy');
+  return unwrapItems<PrPayoutPolicy>(data, 'policies');
 }
 
 export async function fetchActiveIssueBounties(): Promise<IssueBounty[]> {
-  const data = (await prFetch('/repo-bounties')) as {
-    items?: IssueBounty[];
-    bounties?: IssueBounty[];
-  };
-  return data.items ?? data.bounties ?? [];
-}
-
-export function getCreatorPaywallBase(): string {
-  return BASE;
+  const data = await creatorPaywallClient<Record<string, unknown>>('/repo-bounties');
+  return unwrapItems<IssueBounty>(data, 'bounties');
 }

@@ -1,7 +1,5 @@
 import { createPublicClient, http, parseEventLogs } from 'viem';
-import { apiCall } from '@/lib/supabase/client';
 import { DeveloperWalletService } from '@/lib/circle/developerWalletService';
-import { getCircleWalletPrivyUserIdForTx } from '@/hooks/useCircleWallet';
 import {
   ARC_CHAIN_ID,
   ERC20ABI,
@@ -10,6 +8,7 @@ import {
 } from '@/lib/web3/constants';
 import { arcTestnet } from '@/lib/web3/wagmiConfig';
 import { createZkSendPaymentRecord } from '@/lib/zksend/zksendPaymentsAPI';
+import { toMicro } from '@/lib/tokenAmount';
 import type { PaywallPaymentInstructions } from '@/lib/paywall/creatorPaywallAPI';
 import type { DeveloperWallet } from '@/lib/circle/developerWalletService';
 
@@ -17,13 +16,9 @@ const FEE_BPS = 10n;
 const BPS_DENOMINATOR = 10000n;
 const DECIMALS = 1_000_000;
 
-function parseAmountToWei(amount: string): bigint {
-  return BigInt(Math.floor(parseFloat(amount) * DECIMALS));
-}
-
 /** Total USDC charged at checkout (list price + platform fee). */
 export function formatPaywallChargeUsdc(priceUsdc: string): string {
-  const amountWei = parseAmountToWei(priceUsdc);
+  const amountWei = toMicro(priceUsdc);
   const feeWei = (amountWei * FEE_BPS) / BPS_DENOMINATOR;
   const totalWei = amountWei + feeWei;
   return (Number(totalWei) / DECIMALS).toFixed(2);
@@ -95,50 +90,32 @@ async function resolvePaymentIdFromChain(params: {
   return null;
 }
 
-async function pollTransactionStatus(transactionId: string): Promise<string> {
-  const maxAttempts = 30;
-  const pollInterval = 1000;
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    await new Promise((r) => setTimeout(r, pollInterval));
-    const status = (await apiCall(
-      `/wallets/transaction-status?transactionId=${encodeURIComponent(transactionId)}`,
-      { method: 'GET' },
-    )) as { transactionState?: string; txHash?: string; error?: string };
-    if (status?.transactionState === 'FAILED') {
-      throw new Error(status?.error ?? status?.transactionState ?? 'Transaction failed');
-    }
-    if (status?.txHash) return status.txHash;
-    if (status?.transactionState === 'COMPLETE' && status?.txHash) return status.txHash;
-  }
-  throw new Error('Transaction status timeout');
-}
-
 export type PaywallPaymentResult = {
   paymentId: string;
   txHash: string;
 };
 
+/**
+ * Pay a paywall via Internal Wallet.
+ * `privyUserId` must already be resolved at the callsite
+ * (e.g. via getCircleWalletPrivyUserIdForTx) — this lib must not import hooks.
+ */
 export async function payPaywallViaDeveloperWallet(params: {
   instructions: PaywallPaymentInstructions;
   developerWallet: DeveloperWallet;
-  connectedAddress?: string;
+  /** Already-resolved attribution id from getCircleWalletPrivyUserIdForTx at the callsite. */
   privyUserId?: string;
 }): Promise<PaywallPaymentResult> {
-  const { instructions, developerWallet } = params;
+  const { instructions, developerWallet, privyUserId } = params;
   const contracts = getContractsForChain(ARC_CHAIN_ID);
   if (!contracts.zksend) throw new Error('ZkSend contract not configured');
 
   const tokenAddress = instructions.usdcAddress as `0x${string}`;
-  const amountWei = parseAmountToWei(instructions.priceUsdc);
+  const amountWei = toMicro(instructions.priceUsdc);
   const feeWei = (amountWei * FEE_BPS) / BPS_DENOMINATOR;
   const totalWei = amountWei + feeWei;
   const identityHash = instructions.identityHash as `0x${string}`;
   const platform = instructions.recipient.platform;
-  const privyUserIdForTx = getCircleWalletPrivyUserIdForTx(
-    developerWallet,
-    params.connectedAddress,
-    params.privyUserId,
-  );
 
   const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
   const bal = (await publicClient.readContract({
@@ -153,37 +130,25 @@ export async function payPaywallViaDeveloperWallet(params: {
     );
   }
 
-  const approveRes = await DeveloperWalletService.sendTransaction({
-    walletId: developerWallet.circle_wallet_id,
-    walletAddress: developerWallet.wallet_address,
-    contractAddress: tokenAddress,
-    functionName: 'approve',
-    args: [contracts.zksend, totalWei],
-    blockchain: 'ARC-TESTNET',
-    privyUserId: privyUserIdForTx,
-    socialPlatform: developerWallet.social_platform ?? undefined,
-    socialUserId: developerWallet.social_user_id ?? undefined,
-  });
-  if (!approveRes.success) throw new Error(approveRes.error ?? 'Approve failed');
-  if (approveRes.transactionId) await pollTransactionStatus(approveRes.transactionId);
-
-  const createRes = await DeveloperWalletService.sendTransaction({
+  const executed = await DeveloperWalletService.executeContractCall({
     walletId: developerWallet.circle_wallet_id,
     walletAddress: developerWallet.wallet_address,
     contractAddress: contracts.zksend,
-    functionName: 'createPayment',
-    args: [identityHash, platform, amountWei, tokenAddress],
-    blockchain: 'ARC-TESTNET',
-    privyUserId: privyUserIdForTx,
-    socialPlatform: developerWallet.social_platform ?? undefined,
-    socialUserId: developerWallet.social_user_id ?? undefined,
+    abiFunctionSignature: 'createPayment',
+    abiParameters: [identityHash, platform, amountWei, tokenAddress],
+    ensureAllowance: {
+      tokenAddress,
+      spenderAddress: contracts.zksend,
+      amountMicro: totalWei,
+    },
+    attribution: {
+      privyUserId,
+      socialPlatform: developerWallet.social_platform ?? undefined,
+      socialUserId: developerWallet.social_user_id ?? undefined,
+    },
   });
-  if (!createRes.success) throw new Error(createRes.error ?? 'Create payment failed');
 
-  let txHash = createRes.txHash ?? '';
-  if (!txHash && createRes.transactionId) {
-    txHash = await pollTransactionStatus(createRes.transactionId);
-  }
+  const txHash = executed.txHash;
   if (!txHash) throw new Error('Missing transaction hash');
 
   const paymentId = await resolvePaymentIdFromChain({

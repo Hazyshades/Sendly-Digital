@@ -3,8 +3,7 @@
  * Calls zk-sender Edge Function GET /zk-sender/telegram/user (zktls-service MTProto + DB cache).
  */
 
-import { getApiUrl } from '@/lib/supabase/client';
-import { publicAnonKey } from '@/lib/supabase/info';
+import { edgeFetch } from '@/lib/supabase/client';
 
 export interface TelegramUserPreview {
   username: string;
@@ -25,20 +24,20 @@ export interface TelegramUserLookupError {
 
 export type TelegramUserLookupResponse = TelegramUserLookupResult | TelegramUserLookupError;
 
-function getTelegramLookupBaseUrl(): string {
-  return (
-    (import.meta.env.VITE_SUPABASE_ZKSEND_FUNCTION_URL as string | undefined) ||
-    (import.meta.env.VITE_SUPABASE_FUNCTION_URL as string | undefined) ||
-    getApiUrl()
-  );
-}
-
 /**
  * Normalize username: trim, remove leading @, lowercase for API lookup.
  */
 export function normalizeTelegramUsername(handle: string): string {
   return handle.trim().replace(/^@/, '').toLowerCase();
 }
+
+type TelegramEdgeBody = {
+  username?: string;
+  name?: string;
+  profile_image_url?: string | null;
+  error?: string;
+  code?: string;
+};
 
 /**
  * Fetch Telegram user profile by username for preview.
@@ -50,17 +49,14 @@ export async function fetchTelegramUserPreview(username: string): Promise<Telegr
     return { success: false, error: 'Enter a username', code: 'MISSING_USERNAME' };
   }
 
-  const base = getTelegramLookupBaseUrl().replace(/\/$/, '');
-  const url = `${base}/zk-sender/telegram/user?username=${encodeURIComponent(normalized)}`;
-
   try {
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${publicAnonKey}` },
-    });
-    const body = await res.json().catch(() => ({}));
+    const { ok, status, data: body } = await edgeFetch<TelegramEdgeBody>(
+      'zk-sender',
+      `/telegram/user?username=${encodeURIComponent(normalized)}`,
+      { method: 'GET', auth: 'anon', rawResponse: true },
+    );
 
-    if (res.ok && body.username) {
+    if (ok && body.username) {
       return {
         success: true,
         data: {
@@ -71,13 +67,13 @@ export async function fetchTelegramUserPreview(username: string): Promise<Telegr
       };
     }
 
-    if (res.status === 404 || body.code === 'USER_NOT_FOUND') {
+    if (status === 404 || body.code === 'USER_NOT_FOUND') {
       return { success: false, error: 'User not found', code: 'USER_NOT_FOUND' };
     }
-    if (res.status === 429 || body.code === 'RATE_LIMITED') {
+    if (status === 429 || body.code === 'RATE_LIMITED') {
       return { success: false, error: 'Too many requests', code: 'RATE_LIMITED' };
     }
-    if (res.status === 503 || body.code === 'TELEGRAM_NOT_CONFIGURED') {
+    if (status === 503 || body.code === 'TELEGRAM_NOT_CONFIGURED') {
       return { success: false, error: 'Telegram lookup not available', code: 'TELEGRAM_NOT_CONFIGURED' };
     }
 

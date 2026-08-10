@@ -29,7 +29,7 @@ export function useCreatorIdentity(): {
       displayName: identity.username.replace(/^@/, ''),
       avatarUrl: null,
     };
-  }, [identity?.platform, identity?.username]);
+  }, [identity]);
 
   return { identity: creatorIdentity, loading, isZkHost };
 }

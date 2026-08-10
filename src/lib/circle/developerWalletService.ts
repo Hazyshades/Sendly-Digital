@@ -1,4 +1,7 @@
+import { createPublicClient, http } from 'viem';
 import { apiCall } from '@/lib/supabase/client';
+import { ERC20ABI } from '@/lib/web3/constants';
+import { arcTestnet } from '@/lib/web3/wagmiConfig';
 
 export interface DeveloperWallet {
   id?: number;
@@ -60,6 +63,42 @@ export interface LinkTelegramResponse {
     user_id: string;
   } | null;
 }
+
+export type CircleTransactionStatus = {
+  transactionState?: string;
+  txHash?: string;
+  error?: string;
+  transaction?: any;
+};
+
+export type WaitForTransactionOptions = {
+  timeoutMs?: number;
+  intervalMs?: number;
+};
+
+export type ExecuteContractCallParams = {
+  walletId: string;
+  walletAddress: string;
+  contractAddress: string;
+  abiFunctionSignature: string;
+  abiParameters: unknown[];
+  blockchain?: string;
+  ensureAllowance?: {
+    tokenAddress: string;
+    spenderAddress: string;
+    amountMicro: bigint | string;
+  };
+  attribution?: {
+    privyUserId?: string;
+    socialPlatform?: string;
+    socialUserId?: string;
+  };
+};
+
+export type ExecuteContractCallResult = {
+  txHash: string;
+  txId: string;
+};
 
 /**
  * Service for managing Circle Developer-Controlled Wallets
@@ -308,5 +347,136 @@ export class DeveloperWalletService {
       };
     }
   }
-}
 
+  /**
+   * Fetch Circle transaction status for a developer-wallet transaction id.
+   */
+  static async getTransactionStatus(txId: string): Promise<CircleTransactionStatus> {
+    return apiCall(
+      `/wallets/transaction-status?transactionId=${encodeURIComponent(txId)}`,
+      { method: 'GET' },
+    ) as Promise<CircleTransactionStatus>;
+  }
+
+  /**
+   * Poll until CONFIRMED/COMPLETE (or a txHash appears), throw on FAILED/timeout.
+   * Defaults match prior callers: ~30 attempts x 1s.
+   */
+  static async waitForTransaction(
+    txId: string,
+    options: WaitForTransactionOptions = {},
+  ): Promise<ExecuteContractCallResult & { transactionState?: string }> {
+    const intervalMs = options.intervalMs ?? 1000;
+    const timeoutMs = options.timeoutMs ?? 30_000;
+    const maxAttempts = Math.max(1, Math.ceil(timeoutMs / intervalMs));
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      const status = await this.getTransactionStatus(txId);
+      const state = status?.transactionState;
+
+      if (state === 'FAILED') {
+        const details =
+          status?.error ||
+          status?.transaction?.errorDetails ||
+          status?.transaction?.error ||
+          state ||
+          'Transaction failed';
+        const message = typeof details === 'string' ? details : JSON.stringify(details);
+        throw new Error(message || 'Transaction failed');
+      }
+
+      if (status?.txHash) {
+        return { txHash: status.txHash, txId, transactionState: state };
+      }
+
+      if (state === 'CONFIRMED' || state === 'COMPLETE') {
+        return { txHash: status?.txHash ?? '', txId, transactionState: state };
+      }
+    }
+
+    throw new Error('Transaction status timeout');
+  }
+
+  /**
+   * Optional approve (with allowance short-circuit) -> wait -> execute -> wait.
+   * Throws on failure (unlike sendTransaction's {success:false} union).
+   */
+  static async executeContractCall(
+    params: ExecuteContractCallParams,
+  ): Promise<ExecuteContractCallResult> {
+    const blockchain = params.blockchain ?? 'ARC-TESTNET';
+    const attribution = params.attribution;
+    let allowanceSatisfied = false;
+
+    if (params.ensureAllowance) {
+      const { tokenAddress, spenderAddress, amountMicro } = params.ensureAllowance;
+      const amount = typeof amountMicro === 'bigint' ? amountMicro : BigInt(amountMicro);
+      const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
+      const currentAllowance = (await publicClient.readContract({
+        address: tokenAddress as `0x${string}`,
+        abi: ERC20ABI,
+        functionName: 'allowance',
+        args: [
+          params.walletAddress as `0x${string}`,
+          spenderAddress as `0x${string}`,
+        ],
+      })) as bigint;
+
+      if (currentAllowance < amount) {
+        const approveRes = await this.sendTransaction({
+          walletId: params.walletId,
+          walletAddress: params.walletAddress,
+          contractAddress: tokenAddress,
+          functionName: 'approve',
+          args: [spenderAddress, amount],
+          blockchain,
+          privyUserId: attribution?.privyUserId,
+          socialPlatform: attribution?.socialPlatform,
+          socialUserId: attribution?.socialUserId,
+        });
+        if (!approveRes.success) {
+          throw new Error(approveRes.error || 'Approve failed');
+        }
+        if (approveRes.transactionId) {
+          await this.waitForTransaction(approveRes.transactionId);
+        }
+      }
+      allowanceSatisfied = true;
+
+      // If the main call is the same approve, ensureAllowance already handled it.
+      const mainIsRedundantApprove =
+        params.abiFunctionSignature === 'approve' &&
+        params.contractAddress.toLowerCase() === tokenAddress.toLowerCase() &&
+        params.abiParameters.length >= 2 &&
+        String(params.abiParameters[0]).toLowerCase() === spenderAddress.toLowerCase();
+
+      if (mainIsRedundantApprove && allowanceSatisfied) {
+        return { txHash: '', txId: '' };
+      }
+    }
+
+    const result = await this.sendTransaction({
+      walletId: params.walletId,
+      walletAddress: params.walletAddress,
+      contractAddress: params.contractAddress,
+      functionName: params.abiFunctionSignature,
+      args: params.abiParameters,
+      blockchain,
+      privyUserId: attribution?.privyUserId,
+      socialPlatform: attribution?.socialPlatform,
+      socialUserId: attribution?.socialUserId,
+    });
+    if (!result.success) {
+      throw new Error(result.error || 'Transaction failed');
+    }
+
+    let txHash = result.txHash ?? '';
+    const txId = result.transactionId ?? '';
+    if (!txHash && txId) {
+      const waited = await this.waitForTransaction(txId);
+      txHash = waited.txHash;
+    }
+    return { txHash, txId };
+  }
+}

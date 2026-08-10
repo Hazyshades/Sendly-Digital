@@ -4,7 +4,7 @@ import { useAccount } from 'wagmi';
 import { toast } from 'sonner';
 
 import { PaywallArticleView } from '@/components/paywall/PaywallArticleView';
-import { useCircleWallet } from '@/hooks/useCircleWallet';
+import { useCircleWallet, getCircleWalletPrivyUserIdForTx } from '@/hooks/useCircleWallet';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
 import { useZkOAuthIdentity, buildZkOAuthPrivyUserId } from '@/lib/zk-oauth';
 import {
@@ -82,12 +82,14 @@ export function PaywallView() {
       const { paymentId, txHash } = await payPaywallViaDeveloperWallet({
         instructions,
         developerWallet,
-        connectedAddress: address,
-        privyUserId:
+        privyUserId: getCircleWalletPrivyUserIdForTx(
+          developerWallet,
+          address,
           privyUser?.id ??
-          (zkOAuthIdentity
-            ? buildZkOAuthPrivyUserId(zkOAuthIdentity.platform, zkOAuthIdentity.socialUserId)
-            : undefined),
+            (zkOAuthIdentity
+              ? buildZkOAuthPrivyUserId(zkOAuthIdentity.platform, zkOAuthIdentity.socialUserId)
+              : undefined),
+        ),
       });
       const result = await fetchPaywall(slug, { paymentId, txHash, source: 'human' });
       if (result.status === 'unlocked') {

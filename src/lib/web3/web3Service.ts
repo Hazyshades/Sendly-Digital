@@ -3,11 +3,6 @@ import { chains } from './wagmiConfig';
 import {
   getContractsForChain,
   GiftCardABI,
-  TwitterCardVaultABI,
-  TwitchCardVaultABI,
-  TelegramCardVaultABI,
-  TikTokCardVaultABI,
-  InstagramCardVaultABI,
   ZkSendABI,
   DirectSendABI,
   DirectSendV2ABI,
@@ -20,9 +15,14 @@ import {
   isDirectSendEscrowActiveForChain,
 } from './constants';
 import {
+  getGiftCardPlatform,
+  type GiftCardPlatform,
+} from '@/lib/giftCards/registry';
+import {
   fetchDirectDepositsPendingForRecipient,
   type DirectDepositRecord,
 } from '@/lib/directsend/directSendPaymentsAPI';
+import { toMicro, fromMicro } from '@/lib/tokenAmount';
 
 const ARC_CHAIN_ID = Number(import.meta.env.VITE_ARC_CHAIN_ID || 5042002);
 
@@ -1675,12 +1675,12 @@ export class Web3Service {
 
   private parseAmount(amount: string): string {
     // Convert amount to wei (6 decimals for supported stablecoins)
-    return (parseFloat(amount) * 1000000).toString();
+    return toMicro(amount).toString();
   }
 
   private formatAmount(amountWei: bigint): string {
     // Convert wei to amount (6 decimals for supported stablecoins)
-    return (Number(amountWei) / 1000000).toString();
+    return fromMicro(amountWei);
   }
 
   // Method to clear cache
@@ -2436,8 +2436,32 @@ export class Web3Service {
     return hash;
   }
 
-  // Twitter Vault functions
-  async createCardForTwitter(
+  // ---------------------------------------------------------------------------
+  // Social gift-card vaults (data-driven via giftCards/registry)
+  // ---------------------------------------------------------------------------
+
+  private vaultFor(platform: GiftCardPlatform) {
+    const descriptor = getGiftCardPlatform(platform);
+    const address = this.contracts[descriptor.vaultContractKey] as string | undefined;
+    return {
+      platform,
+      descriptor,
+      address,
+      abi: descriptor.vaultAbi,
+      createFunctionName: descriptor.createGiftCardFunctionName,
+      displayName: descriptor.displayName,
+      normalizeHandle: descriptor.normalizeHandle,
+    };
+  }
+
+  private assertVaultConfigured(address: string | undefined, displayName: string): asserts address is string {
+    if (!address || address === '0x0000000000000000000000000000000000000000') {
+      throw new Error(`${displayName} Vault contract address is not configured`);
+    }
+  }
+
+  async createCardFor(
+    platform: GiftCardPlatform,
     username: string,
     amount: string,
     currency: SupportedTokenSymbol,
@@ -2450,6 +2474,7 @@ export class Web3Service {
 
     await this.ensureCorrectChain();
 
+    const vault = this.vaultFor(platform);
     try {
       const tokenAddress = this.getTokenAddressFromSymbol(currency);
       const amountWei = this.parseAmount(amount);
@@ -2457,14 +2482,13 @@ export class Web3Service {
       if (!tokenAddress || tokenAddress === '0x0000000000000000000000000000000000000000') {
         throw new Error(`${currency} address is not configured`);
       }
-      
-      if (this.contracts.vaultContract! === '0x0000000000000000000000000000000000000000') {
-        throw new Error('Vault contract address is not configured');
-      }
 
-      // Normalize username: remove @ and convert to lowercase for consistency
-      const normalizedUsername = username.toLowerCase().replace(/^@/, '').trim();
-      console.log(`Creating Twitter gift card for username "${normalizedUsername}" (original: "${username}") with ${amount} ${currency}`);
+      this.assertVaultConfigured(vault.address, vault.displayName);
+
+      const normalizedUsername = vault.normalizeHandle(username);
+      console.log(
+        `Creating ${vault.displayName} gift card for username "${normalizedUsername}" (original: "${username}") with ${amount} ${currency}`
+      );
 
       const balance = await this.safeRequest(async () => {
         return await this.publicClient.readContract({
@@ -2479,7 +2503,9 @@ export class Web3Service {
 
       const amountBigInt = BigInt(amountWei);
       if (balance < amountBigInt) {
-        throw new Error(`Insufficient ${currency} balance. Required: ${amount}, Available: ${this.formatAmount(balance)}`);
+        throw new Error(
+          `Insufficient ${currency} balance. Required: ${amount}, Available: ${this.formatAmount(balance)}`
+        );
       }
 
       const allowance = await this.safeRequest(async () => {
@@ -2511,13 +2537,13 @@ export class Web3Service {
         chain: this.chain,
         address: this.contracts.contractAddress! as `0x${string}`,
         abi: GiftCardABI,
-        functionName: 'createGiftCardForTwitter',
+        functionName: vault.createFunctionName,
         args: [
-          normalizedUsername, // Using normalized username
+          normalizedUsername,
           BigInt(amountWei),
           tokenAddress as `0x${string}`,
           metadataUri,
-          message
+          message,
         ],
         account: this.account as `0x${string}`,
       });
@@ -2526,113 +2552,125 @@ export class Web3Service {
         return await this.publicClient.waitForTransactionReceipt({ hash });
       });
 
-      // Check transaction status - if it failed, throw an error
       if (receipt.status === 'reverted' || (typeof receipt.status === 'number' && receipt.status === 0)) {
-        throw new Error(`Transaction failed: ERC20 transfer amount exceeds balance or other contract error. Transaction hash: ${hash}`);
+        throw new Error(
+          `Transaction failed: ERC20 transfer amount exceeds balance or other contract error. Transaction hash: ${hash}`
+        );
       }
 
-      // Get token ID from Transfer event (emitted by ERC721 on mint)
-      // Transfer(from=0x0, to=vault, tokenId) - topics: [signature, from, to, tokenId]
-      const transferEventSignature = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+      const transferEventSignature =
+        '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
       const zeroAddress = '0x0000000000000000000000000000000000000000';
       const zeroAddressTopic = '0x' + zeroAddress.slice(2).padStart(64, '0');
-      
-      let tokenId = '1'; // Default fallback
-      const transferEvent = receipt.logs.find((log: any) => 
-        log.topics[0] === transferEventSignature &&
-        log.topics[1]?.toLowerCase() === zeroAddressTopic.toLowerCase() &&
-        (log.address.toLowerCase() === this.contracts.contractAddress!.toLowerCase() ||
-         log.address.toLowerCase() === this.contracts.vaultContract!.toLowerCase())
+
+      let tokenId = '1';
+      const transferEvent = receipt.logs.find(
+        (log: any) =>
+          log.topics[0] === transferEventSignature &&
+          log.topics[1]?.toLowerCase() === zeroAddressTopic.toLowerCase() &&
+          (log.address.toLowerCase() === this.contracts.contractAddress!.toLowerCase() ||
+            log.address.toLowerCase() === vault.address!.toLowerCase())
       );
 
       if (transferEvent && transferEvent.topics[3]) {
-        // tokenId is in topics[3] as uint256
         tokenId = BigInt(transferEvent.topics[3]).toString();
-        console.log('Extracted tokenId from Transfer event for Twitter card:', tokenId);
+        console.log(`Extracted tokenId from Transfer event for ${vault.displayName} card:`, tokenId);
       } else {
-        console.warn('Transfer event not found for Twitter card, using default tokenId 1');
-        console.log('Available logs:', receipt.logs.map((log: any) => ({
-          address: log.address,
-          topics: log.topics,
-          data: log.data
-        })));
+        console.warn(
+          `Transfer event not found for ${vault.displayName} card, using default tokenId 1`
+        );
+        console.log(
+          'Available logs:',
+          receipt.logs.map((log: any) => ({
+            address: log.address,
+            topics: log.topics,
+            data: log.data,
+          }))
+        );
       }
 
       this.cache.delete(`sentGiftCards_${this.account}`);
-      console.log('Twitter gift card created successfully:', { tokenId, txHash: hash });
+      console.log(`${vault.displayName} gift card created successfully:`, { tokenId, txHash: hash });
 
       return { tokenId, txHash: hash };
     } catch (error) {
-      console.error('Error creating Twitter gift card:', error);
+      console.error(`Error creating ${vault.displayName} gift card:`, error);
       throw error;
     }
   }
 
-  async getPendingTwitterCards(username: string): Promise<string[]> {
+  async getPendingCards(platform: GiftCardPlatform, username: string): Promise<string[]> {
+    const vault = this.vaultFor(platform);
     try {
-      if (!this.contracts.vaultContract || this.contracts.vaultContract === '0x0000000000000000000000000000000000000000') {
+      if (!vault.address || vault.address === '0x0000000000000000000000000000000000000000') {
         return [];
       }
 
-      // Normalize username: remove @ and convert to lowercase
-      const normalizedUsername = username.toLowerCase().replace(/^@/, '').trim();
-      console.log(`[getPendingTwitterCards] Original username: "${username}", Normalized: "${normalizedUsername}"`);
-      console.log(`[getPendingTwitterCards] Using Vault address: ${this.contracts.vaultContract!}`);
-      console.log(`[getPendingTwitterCards] PublicClient initialized:`, !!this.publicClient);
-      console.log(`[getPendingTwitterCards] Current RPC: ${this.contracts.rpcUrls[this.currentRpcIndex]}`);
+      const normalizedUsername = vault.normalizeHandle(username);
+      console.log(
+        `[getPendingCards:${platform}] Original username: "${username}", Normalized: "${normalizedUsername}"`
+      );
+      console.log(`[getPendingCards:${platform}] Using Vault address: ${vault.address}`);
+      console.log(`[getPendingCards:${platform}] PublicClient initialized:`, !!this.publicClient);
+      console.log(
+        `[getPendingCards:${platform}] Current RPC: ${this.contracts.rpcUrls[this.currentRpcIndex]}`
+      );
 
       const result = await this.safeRequest(async () => {
-        console.log(`[getPendingTwitterCards] Calling readContract with:`, {
-          address: this.contracts.vaultContract!,
-          functionName: 'getPendingCardsForUsername',
-          args: [normalizedUsername]
-        });
-        const contractResult = await this.publicClient.readContract({
-          address: this.contracts.vaultContract! as `0x${string}`,
-          abi: TwitterCardVaultABI,
+        console.log(`[getPendingCards:${platform}] Calling readContract with:`, {
+          address: vault.address,
           functionName: 'getPendingCardsForUsername',
           args: [normalizedUsername],
         });
-        console.log(`[getPendingTwitterCards] Raw contract result:`, contractResult);
+        const contractResult = await this.publicClient.readContract({
+          address: vault.address as `0x${string}`,
+          abi: vault.abi,
+          functionName: 'getPendingCardsForUsername',
+          args: [normalizedUsername],
+        });
+        console.log(`[getPendingCards:${platform}] Raw contract result:`, contractResult);
         return contractResult;
       });
 
       const tokenIds = (result as bigint[]).map((id) => id.toString());
-      console.log(`[getPendingTwitterCards] Found ${tokenIds.length} pending cards for username "${normalizedUsername}":`, tokenIds);
-      
+      console.log(
+        `[getPendingCards:${platform}] Found ${tokenIds.length} pending cards for username "${normalizedUsername}":`,
+        tokenIds
+      );
+
       return tokenIds;
     } catch (error) {
-      console.error('Error getting pending Twitter cards:', error);
+      console.error(`Error getting pending ${vault.displayName} cards:`, error);
       console.error('Error details:', {
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
-        vaultAddress: this.contracts.vaultContract!,
-        hasPublicClient: !!this.publicClient
+        vaultAddress: vault.address,
+        hasPublicClient: !!this.publicClient,
       });
       throw error;
     }
   }
 
-  async claimTwitterCard(tokenId: string, username: string): Promise<string> {
+  async claimCard(platform: GiftCardPlatform, tokenId: string, username: string): Promise<string> {
     if (!this.walletClient || !this.account) {
       throw new Error('Wallet not connected');
     }
 
     await this.ensureCorrectChain();
 
+    const vault = this.vaultFor(platform);
     try {
-      if (this.contracts.vaultContract! === '0x0000000000000000000000000000000000000000') {
-        throw new Error('Vault contract address is not configured');
-      }
+      this.assertVaultConfigured(vault.address, vault.displayName);
 
-      // Normalize username for consistency
-      const normalizedUsername = username.toLowerCase().replace(/^@/, '').trim();
-      console.log(`[claimTwitterCard] Claiming tokenId ${tokenId} for username "${normalizedUsername}" (original: "${username}")`);
+      const normalizedUsername = vault.normalizeHandle(username);
+      console.log(
+        `[claimCard:${platform}] Claiming tokenId ${tokenId} for username "${normalizedUsername}" (original: "${username}")`
+      );
 
       const hash = await this.walletClient.writeContract({
         chain: this.chain,
-        address: this.contracts.vaultContract! as `0x${string}`,
-        abi: TwitterCardVaultABI,
+        address: vault.address as `0x${string}`,
+        abi: vault.abi,
         functionName: 'claimCard',
         args: [BigInt(tokenId), normalizedUsername, this.account],
         account: this.account as `0x${string}`,
@@ -2643,27 +2681,26 @@ export class Web3Service {
       });
 
       console.log('Card claimed successfully:', { tokenId, txHash: hash });
-      
+
       this.cache.delete(`giftCards_${this.account}`);
-      this.cache.delete(`pendingCards_${normalizedUsername}`);
+      this.cache.delete(`pendingCards_${platform}_${normalizedUsername}`);
 
       return hash;
     } catch (error) {
-      console.error('Error claiming Twitter card:', error);
+      console.error(`Error claiming ${vault.displayName} card:`, error);
       throw error;
     }
   }
 
   async isTwitterCardClaimed(tokenId: string): Promise<boolean> {
+    const vault = this.vaultFor('twitter');
     try {
-      if (this.contracts.vaultContract! === '0x0000000000000000000000000000000000000000') {
-        throw new Error('Vault contract address is not configured');
-      }
+      this.assertVaultConfigured(vault.address, vault.displayName);
 
       const result = await this.safeRequest(async () => {
         return await this.publicClient.readContract({
-          address: this.contracts.vaultContract! as `0x${string}`,
-          abi: TwitterCardVaultABI,
+          address: vault.address as `0x${string}`,
+          abi: vault.abi,
           functionName: 'isCardClaimed',
           args: [BigInt(tokenId)],
         });
@@ -2681,15 +2718,14 @@ export class Web3Service {
    * Useful for debugging pending card search issues
    */
   async getUsernameForToken(tokenId: string): Promise<string> {
+    const vault = this.vaultFor('twitter');
     try {
-      if (this.contracts.vaultContract! === '0x0000000000000000000000000000000000000000') {
-        throw new Error('Vault contract address is not configured');
-      }
+      this.assertVaultConfigured(vault.address, vault.displayName);
 
       const result = await this.safeRequest(async () => {
         return await this.publicClient.readContract({
-          address: this.contracts.vaultContract! as `0x${string}`,
-          abi: TwitterCardVaultABI,
+          address: vault.address as `0x${string}`,
+          abi: vault.abi,
           functionName: 'getUsernameForToken',
           args: [BigInt(tokenId)],
         });
@@ -2704,7 +2740,25 @@ export class Web3Service {
     }
   }
 
-  // Twitch Vault functions
+  // Per-platform delegates (external callers keep compiling)
+  async createCardForTwitter(
+    username: string,
+    amount: string,
+    currency: SupportedTokenSymbol,
+    metadataUri: string,
+    message: string
+  ): Promise<{ tokenId: string; txHash: string }> {
+    return this.createCardFor('twitter', username, amount, currency, metadataUri, message);
+  }
+
+  async getPendingTwitterCards(username: string): Promise<string[]> {
+    return this.getPendingCards('twitter', username);
+  }
+
+  async claimTwitterCard(tokenId: string, username: string): Promise<string> {
+    return this.claimCard('twitter', tokenId, username);
+  }
+
   async createCardForTwitch(
     username: string,
     amount: string,
@@ -2712,190 +2766,17 @@ export class Web3Service {
     metadataUri: string,
     message: string
   ): Promise<{ tokenId: string; txHash: string }> {
-    if (!this.walletClient || !this.account) {
-      throw new Error('Wallet not connected');
-    }
-
-    await this.ensureCorrectChain();
-
-    try {
-      const tokenAddress = this.getTokenAddressFromSymbol(currency);
-      const amountWei = this.parseAmount(amount);
-
-      if (!tokenAddress || tokenAddress === '0x0000000000000000000000000000000000000000') {
-        throw new Error(`${currency} address is not configured`);
-      }
-      
-      if (this.contracts.twitchVault! === '0x0000000000000000000000000000000000000000') {
-        throw new Error('Twitch Vault contract address is not configured');
-      }
-
-      const normalizedUsername = username.toLowerCase().trim();
-      console.log(`Creating Twitch gift card for username "${normalizedUsername}" (original: "${username}") with ${amount} ${currency}`);
-
-      const balance = await this.safeRequest(async () => {
-        return await this.publicClient.readContract({
-          address: tokenAddress as `0x${string}`,
-          abi: ERC20ABI,
-          functionName: 'balanceOf',
-          args: [this.account as `0x${string}`],
-        });
-      });
-
-      console.log(`${currency} balance:`, balance.toString());
-
-      const amountBigInt = BigInt(amountWei);
-      if (balance < amountBigInt) {
-        throw new Error(`Insufficient ${currency} balance. Required: ${amount}, Available: ${this.formatAmount(balance)}`);
-      }
-
-      const allowance = await this.safeRequest(async () => {
-        return await this.publicClient.readContract({
-          address: tokenAddress as `0x${string}`,
-          abi: ERC20ABI,
-          functionName: 'allowance',
-          args: [this.account as `0x${string}`, this.contracts.contractAddress! as `0x${string}`],
-        });
-      });
-
-      if (allowance < amountBigInt) {
-        console.log('Approving token spend...');
-        const approveHash = await this.walletClient.writeContract({
-          chain: this.chain,
-          address: tokenAddress as `0x${string}`,
-          abi: ERC20ABI,
-          functionName: 'approve',
-          args: [this.contracts.contractAddress! as `0x${string}`, amountBigInt],
-          account: this.account as `0x${string}`,
-        });
-
-        await this.safeRequest(async () => {
-          return await this.publicClient.waitForTransactionReceipt({ hash: approveHash });
-        });
-      }
-
-      const hash = await this.walletClient.writeContract({
-        chain: this.chain,
-        address: this.contracts.contractAddress! as `0x${string}`,
-        abi: GiftCardABI,
-        functionName: 'createGiftCardForTwitch',
-        args: [
-          normalizedUsername,
-          BigInt(amountWei),
-          tokenAddress as `0x${string}`,
-          metadataUri,
-          message
-        ],
-        account: this.account as `0x${string}`,
-      });
-
-      const receipt = await this.safeRequest(async () => {
-        return await this.publicClient.waitForTransactionReceipt({ hash });
-      });
-
-      // Check transaction status - if it failed, throw an error
-      if (receipt.status === 'reverted' || (typeof receipt.status === 'number' && receipt.status === 0)) {
-        throw new Error(`Transaction failed: ERC20 transfer amount exceeds balance or other contract error. Transaction hash: ${hash}`);
-      }
-
-      const transferEventSignature = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-      const zeroAddress = '0x0000000000000000000000000000000000000000';
-      const zeroAddressTopic = '0x' + zeroAddress.slice(2).padStart(64, '0');
-      
-      let tokenId = '1';
-      const transferEvent = receipt.logs.find((log: any) => 
-        log.topics[0] === transferEventSignature &&
-        log.topics[1]?.toLowerCase() === zeroAddressTopic.toLowerCase() &&
-        (log.address.toLowerCase() === this.contracts.contractAddress!.toLowerCase() ||
-         log.address.toLowerCase() === this.contracts.twitchVault!.toLowerCase())
-      );
-
-      if (transferEvent && transferEvent.topics[3]) {
-        tokenId = BigInt(transferEvent.topics[3]).toString();
-        console.log('Extracted tokenId from Transfer event for Twitch card:', tokenId);
-      } else {
-        console.warn('Transfer event not found for Twitch card, using default tokenId 1');
-      }
-
-      this.cache.delete(`sentGiftCards_${this.account}`);
-      console.log('Twitch gift card created successfully:', { tokenId, txHash: hash });
-
-      return { tokenId, txHash: hash };
-    } catch (error) {
-      console.error('Error creating Twitch gift card:', error);
-      throw error;
-    }
+    return this.createCardFor('twitch', username, amount, currency, metadataUri, message);
   }
 
   async getPendingTwitchCards(username: string): Promise<string[]> {
-    try {
-      if (!this.contracts.twitchVault || this.contracts.twitchVault === '0x0000000000000000000000000000000000000000') {
-        return [];
-      }
-
-      const normalizedUsername = username.toLowerCase().trim();
-      console.log(`[getPendingTwitchCards] Original username: "${username}", Normalized: "${normalizedUsername}"`);
-
-      const result = await this.safeRequest(async () => {
-        return await this.publicClient.readContract({
-          address: this.contracts.twitchVault! as `0x${string}`,
-          abi: TwitchCardVaultABI,
-          functionName: 'getPendingCardsForUsername',
-          args: [normalizedUsername],
-        });
-      });
-
-      const tokenIds = (result as bigint[]).map((id) => id.toString());
-      console.log(`[getPendingTwitchCards] Found ${tokenIds.length} pending cards for username "${normalizedUsername}":`, tokenIds);
-      
-      return tokenIds;
-    } catch (error) {
-      console.error('Error getting pending Twitch cards:', error);
-      throw error;
-    }
+    return this.getPendingCards('twitch', username);
   }
 
   async claimTwitchCard(tokenId: string, username: string): Promise<string> {
-    if (!this.walletClient || !this.account) {
-      throw new Error('Wallet not connected');
-    }
-
-    await this.ensureCorrectChain();
-
-    try {
-      if (this.contracts.twitchVault! === '0x0000000000000000000000000000000000000000') {
-        throw new Error('Twitch Vault contract address is not configured');
-      }
-
-      const normalizedUsername = username.toLowerCase().trim();
-      console.log(`[claimTwitchCard] Claiming tokenId ${tokenId} for username "${normalizedUsername}" (original: "${username}")`);
-
-      const hash = await this.walletClient.writeContract({
-        chain: this.chain,
-        address: this.contracts.twitchVault! as `0x${string}`,
-        abi: TwitchCardVaultABI,
-        functionName: 'claimCard',
-        args: [BigInt(tokenId), normalizedUsername, this.account],
-        account: this.account as `0x${string}`,
-      });
-
-      await this.safeRequest(async () => {
-        return await this.publicClient.waitForTransactionReceipt({ hash });
-      });
-
-      console.log('Twitch card claimed successfully:', { tokenId, txHash: hash });
-      
-      this.cache.delete(`giftCards_${this.account}`);
-      this.cache.delete(`pendingTwitchCards_${normalizedUsername}`);
-
-      return hash;
-    } catch (error) {
-      console.error('Error claiming Twitch card:', error);
-      throw error;
-    }
+    return this.claimCard('twitch', tokenId, username);
   }
 
-  // Telegram Vault functions
   async createCardForTelegram(
     username: string,
     amount: string,
@@ -2903,190 +2784,17 @@ export class Web3Service {
     metadataUri: string,
     message: string
   ): Promise<{ tokenId: string; txHash: string }> {
-    if (!this.walletClient || !this.account) {
-      throw new Error('Wallet not connected');
-    }
-
-    await this.ensureCorrectChain();
-
-    try {
-      const tokenAddress = this.getTokenAddressFromSymbol(currency);
-      const amountWei = this.parseAmount(amount);
-
-      if (!tokenAddress || tokenAddress === '0x0000000000000000000000000000000000000000') {
-        throw new Error(`${currency} address is not configured`);
-      }
-      
-      if (this.contracts.telegramVault! === '0x0000000000000000000000000000000000000000') {
-        throw new Error('Telegram Vault contract address is not configured');
-      }
-
-      const normalizedUsername = username.toLowerCase().replace(/^@/, '').trim();
-      console.log(`Creating Telegram gift card for username "${normalizedUsername}" (original: "${username}") with ${amount} ${currency}`);
-
-      const balance = await this.safeRequest(async () => {
-        return await this.publicClient.readContract({
-          address: tokenAddress as `0x${string}`,
-          abi: ERC20ABI,
-          functionName: 'balanceOf',
-          args: [this.account as `0x${string}`],
-        });
-      });
-
-      console.log(`${currency} balance:`, balance.toString());
-
-      const amountBigInt = BigInt(amountWei);
-      if (balance < amountBigInt) {
-        throw new Error(`Insufficient ${currency} balance. Required: ${amount}, Available: ${this.formatAmount(balance)}`);
-      }
-
-      const allowance = await this.safeRequest(async () => {
-        return await this.publicClient.readContract({
-          address: tokenAddress as `0x${string}`,
-          abi: ERC20ABI,
-          functionName: 'allowance',
-          args: [this.account as `0x${string}`, this.contracts.contractAddress! as `0x${string}`],
-        });
-      });
-
-      if (allowance < amountBigInt) {
-        console.log('Approving token spend...');
-        const approveHash = await this.walletClient.writeContract({
-          chain: this.chain,
-          address: tokenAddress as `0x${string}`,
-          abi: ERC20ABI,
-          functionName: 'approve',
-          args: [this.contracts.contractAddress! as `0x${string}`, amountBigInt],
-          account: this.account as `0x${string}`,
-        });
-
-        await this.safeRequest(async () => {
-          return await this.publicClient.waitForTransactionReceipt({ hash: approveHash });
-        });
-      }
-
-      const hash = await this.walletClient.writeContract({
-        chain: this.chain,
-        address: this.contracts.contractAddress! as `0x${string}`,
-        abi: GiftCardABI,
-        functionName: 'createGiftCardForTelegram',
-        args: [
-          normalizedUsername,
-          BigInt(amountWei),
-          tokenAddress as `0x${string}`,
-          metadataUri,
-          message
-        ],
-        account: this.account as `0x${string}`,
-      });
-
-      const receipt = await this.safeRequest(async () => {
-        return await this.publicClient.waitForTransactionReceipt({ hash });
-      });
-
-      // Check transaction status - if it failed, throw an error
-      if (receipt.status === 'reverted' || (typeof receipt.status === 'number' && receipt.status === 0)) {
-        throw new Error(`Transaction failed: ERC20 transfer amount exceeds balance or other contract error. Transaction hash: ${hash}`);
-      }
-
-      const transferEventSignature = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-      const zeroAddress = '0x0000000000000000000000000000000000000000';
-      const zeroAddressTopic = '0x' + zeroAddress.slice(2).padStart(64, '0');
-      
-      let tokenId = '1';
-      const transferEvent = receipt.logs.find((log: any) => 
-        log.topics[0] === transferEventSignature &&
-        log.topics[1]?.toLowerCase() === zeroAddressTopic.toLowerCase() &&
-        (log.address.toLowerCase() === this.contracts.contractAddress!.toLowerCase() ||
-         log.address.toLowerCase() === this.contracts.telegramVault!.toLowerCase())
-      );
-
-      if (transferEvent && transferEvent.topics[3]) {
-        tokenId = BigInt(transferEvent.topics[3]).toString();
-        console.log('Extracted tokenId from Transfer event for Telegram card:', tokenId);
-      } else {
-        console.warn('Transfer event not found for Telegram card, using default tokenId 1');
-      }
-
-      this.cache.delete(`sentGiftCards_${this.account}`);
-      console.log('Telegram gift card created successfully:', { tokenId, txHash: hash });
-
-      return { tokenId, txHash: hash };
-    } catch (error) {
-      console.error('Error creating Telegram gift card:', error);
-      throw error;
-    }
+    return this.createCardFor('telegram', username, amount, currency, metadataUri, message);
   }
 
   async getPendingTelegramCards(username: string): Promise<string[]> {
-    try {
-      if (!this.contracts.telegramVault || this.contracts.telegramVault === '0x0000000000000000000000000000000000000000') {
-        return [];
-      }
-
-      const normalizedUsername = username.toLowerCase().replace(/^@/, '').trim();
-      console.log(`[getPendingTelegramCards] Original username: "${username}", Normalized: "${normalizedUsername}"`);
-
-      const result = await this.safeRequest(async () => {
-        return await this.publicClient.readContract({
-          address: this.contracts.telegramVault! as `0x${string}`,
-          abi: TelegramCardVaultABI,
-          functionName: 'getPendingCardsForUsername',
-          args: [normalizedUsername],
-        });
-      });
-
-      const tokenIds = (result as bigint[]).map((id) => id.toString());
-      console.log(`[getPendingTelegramCards] Found ${tokenIds.length} pending cards for username "${normalizedUsername}":`, tokenIds);
-      
-      return tokenIds;
-    } catch (error) {
-      console.error('Error getting pending Telegram cards:', error);
-      throw error;
-    }
+    return this.getPendingCards('telegram', username);
   }
 
   async claimTelegramCard(tokenId: string, username: string): Promise<string> {
-    if (!this.walletClient || !this.account) {
-      throw new Error('Wallet not connected');
-    }
-
-    await this.ensureCorrectChain();
-
-    try {
-      if (this.contracts.telegramVault! === '0x0000000000000000000000000000000000000000') {
-        throw new Error('Telegram Vault contract address is not configured');
-      }
-
-      const normalizedUsername = username.toLowerCase().replace(/^@/, '').trim();
-      console.log(`[claimTelegramCard] Claiming tokenId ${tokenId} for username "${normalizedUsername}" (original: "${username}")`);
-
-      const hash = await this.walletClient.writeContract({
-        chain: this.chain,
-        address: this.contracts.telegramVault! as `0x${string}`,
-        abi: TelegramCardVaultABI,
-        functionName: 'claimCard',
-        args: [BigInt(tokenId), normalizedUsername, this.account],
-        account: this.account as `0x${string}`,
-      });
-
-      await this.safeRequest(async () => {
-        return await this.publicClient.waitForTransactionReceipt({ hash });
-      });
-
-      console.log('Telegram card claimed successfully:', { tokenId, txHash: hash });
-      
-      this.cache.delete(`giftCards_${this.account}`);
-      this.cache.delete(`pendingTelegramCards_${normalizedUsername}`);
-
-      return hash;
-    } catch (error) {
-      console.error('Error claiming Telegram card:', error);
-      throw error;
-    }
+    return this.claimCard('telegram', tokenId, username);
   }
 
-  // TikTok Vault functions
   async createCardForTikTok(
     username: string,
     amount: string,
@@ -3094,190 +2802,17 @@ export class Web3Service {
     metadataUri: string,
     message: string
   ): Promise<{ tokenId: string; txHash: string }> {
-    if (!this.walletClient || !this.account) {
-      throw new Error('Wallet not connected');
-    }
-
-    await this.ensureCorrectChain();
-
-    try {
-      const tokenAddress = this.getTokenAddressFromSymbol(currency);
-      const amountWei = this.parseAmount(amount);
-
-      if (!tokenAddress || tokenAddress === '0x0000000000000000000000000000000000000000') {
-        throw new Error(`${currency} address is not configured`);
-      }
-
-      if (this.contracts.tiktokVault! === '0x0000000000000000000000000000000000000000') {
-        throw new Error('TikTok Vault contract address is not configured');
-      }
-
-      const normalizedUsername = username.toLowerCase().replace(/^@/, '').trim();
-      console.log(`Creating TikTok gift card for username "${normalizedUsername}" (original: "${username}") with ${amount} ${currency}`);
-
-      const balance = await this.safeRequest(async () => {
-        return await this.publicClient.readContract({
-          address: tokenAddress as `0x${string}`,
-          abi: ERC20ABI,
-          functionName: 'balanceOf',
-          args: [this.account as `0x${string}`],
-        });
-      });
-
-      console.log(`${currency} balance:`, balance.toString());
-
-      const amountBigInt = BigInt(amountWei);
-      if (balance < amountBigInt) {
-        throw new Error(`Insufficient ${currency} balance. Required: ${amount}, Available: ${this.formatAmount(balance)}`);
-      }
-
-      const allowance = await this.safeRequest(async () => {
-        return await this.publicClient.readContract({
-          address: tokenAddress as `0x${string}`,
-          abi: ERC20ABI,
-          functionName: 'allowance',
-          args: [this.account as `0x${string}`, this.contracts.contractAddress! as `0x${string}`],
-        });
-      });
-
-      if (allowance < amountBigInt) {
-        console.log('Approving token spend...');
-        const approveHash = await this.walletClient.writeContract({
-          chain: this.chain,
-          address: tokenAddress as `0x${string}`,
-          abi: ERC20ABI,
-          functionName: 'approve',
-          args: [this.contracts.contractAddress! as `0x${string}`, amountBigInt],
-          account: this.account as `0x${string}`,
-        });
-
-        await this.safeRequest(async () => {
-          return await this.publicClient.waitForTransactionReceipt({ hash: approveHash });
-        });
-      }
-
-      const hash = await this.walletClient.writeContract({
-        chain: this.chain,
-        address: this.contracts.contractAddress! as `0x${string}`,
-        abi: GiftCardABI,
-        functionName: 'createGiftCardForTikTok',
-        args: [
-          normalizedUsername,
-          BigInt(amountWei),
-          tokenAddress as `0x${string}`,
-          metadataUri,
-          message
-        ],
-        account: this.account as `0x${string}`,
-      });
-
-      const receipt = await this.safeRequest(async () => {
-        return await this.publicClient.waitForTransactionReceipt({ hash });
-      });
-
-      // Check transaction status - if it failed, throw an error
-      if (receipt.status === 'reverted' || (typeof receipt.status === 'number' && receipt.status === 0)) {
-        throw new Error(`Transaction failed: ERC20 transfer amount exceeds balance or other contract error. Transaction hash: ${hash}`);
-      }
-
-      const transferEventSignature = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-      const zeroAddress = '0x0000000000000000000000000000000000000000';
-      const zeroAddressTopic = '0x' + zeroAddress.slice(2).padStart(64, '0');
-
-      let tokenId = '1';
-      const transferEvent = receipt.logs.find((log: any) =>
-        log.topics[0] === transferEventSignature &&
-        log.topics[1]?.toLowerCase() === zeroAddressTopic.toLowerCase() &&
-        (log.address.toLowerCase() === this.contracts.contractAddress!.toLowerCase() ||
-         log.address.toLowerCase() === this.contracts.tiktokVault!.toLowerCase())
-      );
-
-      if (transferEvent && transferEvent.topics[3]) {
-        tokenId = BigInt(transferEvent.topics[3]).toString();
-        console.log('Extracted tokenId from Transfer event for TikTok card:', tokenId);
-      } else {
-        console.warn('Transfer event not found for TikTok card, using default tokenId 1');
-      }
-
-      this.cache.delete(`sentGiftCards_${this.account}`);
-      console.log('TikTok gift card created successfully:', { tokenId, txHash: hash });
-
-      return { tokenId, txHash: hash };
-    } catch (error) {
-      console.error('Error creating TikTok gift card:', error);
-      throw error;
-    }
+    return this.createCardFor('tiktok', username, amount, currency, metadataUri, message);
   }
 
   async getPendingTikTokCards(username: string): Promise<string[]> {
-    try {
-      if (!this.contracts.tiktokVault || this.contracts.tiktokVault === '0x0000000000000000000000000000000000000000') {
-        return [];
-      }
-
-      const normalizedUsername = username.toLowerCase().replace(/^@/, '').trim();
-      console.log(`[getPendingTikTokCards] Original username: "${username}", Normalized: "${normalizedUsername}"`);
-
-      const result = await this.safeRequest(async () => {
-        return await this.publicClient.readContract({
-          address: this.contracts.tiktokVault! as `0x${string}`,
-          abi: TikTokCardVaultABI,
-          functionName: 'getPendingCardsForUsername',
-          args: [normalizedUsername],
-        });
-      });
-
-      const tokenIds = (result as bigint[]).map((id) => id.toString());
-      console.log(`[getPendingTikTokCards] Found ${tokenIds.length} pending cards for username "${normalizedUsername}":`, tokenIds);
-
-      return tokenIds;
-    } catch (error) {
-      console.error('Error getting pending TikTok cards:', error);
-      throw error;
-    }
+    return this.getPendingCards('tiktok', username);
   }
 
   async claimTikTokCard(tokenId: string, username: string): Promise<string> {
-    if (!this.walletClient || !this.account) {
-      throw new Error('Wallet not connected');
-    }
-
-    await this.ensureCorrectChain();
-
-    try {
-      if (this.contracts.tiktokVault! === '0x0000000000000000000000000000000000000000') {
-        throw new Error('TikTok Vault contract address is not configured');
-      }
-
-      const normalizedUsername = username.toLowerCase().replace(/^@/, '').trim();
-      console.log(`[claimTikTokCard] Claiming tokenId ${tokenId} for username "${normalizedUsername}" (original: "${username}")`);
-
-      const hash = await this.walletClient.writeContract({
-        chain: this.chain,
-        address: this.contracts.tiktokVault! as `0x${string}`,
-        abi: TikTokCardVaultABI,
-        functionName: 'claimCard',
-        args: [BigInt(tokenId), normalizedUsername, this.account],
-        account: this.account as `0x${string}`,
-      });
-
-      await this.safeRequest(async () => {
-        return await this.publicClient.waitForTransactionReceipt({ hash });
-      });
-
-      console.log('TikTok card claimed successfully:', { tokenId, txHash: hash });
-
-      this.cache.delete(`giftCards_${this.account}`);
-      this.cache.delete(`pendingTikTokCards_${normalizedUsername}`);
-
-      return hash;
-    } catch (error) {
-      console.error('Error claiming TikTok card:', error);
-      throw error;
-    }
+    return this.claimCard('tiktok', tokenId, username);
   }
 
-  // Instagram Vault functions
   async createCardForInstagram(
     username: string,
     amount: string,
@@ -3285,188 +2820,18 @@ export class Web3Service {
     metadataUri: string,
     message: string
   ): Promise<{ tokenId: string; txHash: string }> {
-    if (!this.walletClient || !this.account) {
-      throw new Error('Wallet not connected');
-    }
-
-    await this.ensureCorrectChain();
-
-    try {
-      const tokenAddress = this.getTokenAddressFromSymbol(currency);
-      const amountWei = this.parseAmount(amount);
-
-      if (!tokenAddress || tokenAddress === '0x0000000000000000000000000000000000000000') {
-        throw new Error(`${currency} address is not configured`);
-      }
-
-      if (this.contracts.instagramVault! === '0x0000000000000000000000000000000000000000') {
-        throw new Error('Instagram Vault contract address is not configured');
-      }
-
-      const normalizedUsername = username.toLowerCase().replace(/^@/, '').trim();
-      console.log(`Creating Instagram gift card for username "${normalizedUsername}" (original: "${username}") with ${amount} ${currency}`);
-
-      const balance = await this.safeRequest(async () => {
-        return await this.publicClient.readContract({
-          address: tokenAddress as `0x${string}`,
-          abi: ERC20ABI,
-          functionName: 'balanceOf',
-          args: [this.account as `0x${string}`],
-        });
-      });
-
-      console.log(`${currency} balance:`, balance.toString());
-
-      const amountBigInt = BigInt(amountWei);
-      if (balance < amountBigInt) {
-        throw new Error(`Insufficient ${currency} balance. Required: ${amount}, Available: ${this.formatAmount(balance)}`);
-      }
-
-      const allowance = await this.safeRequest(async () => {
-        return await this.publicClient.readContract({
-          address: tokenAddress as `0x${string}`,
-          abi: ERC20ABI,
-          functionName: 'allowance',
-          args: [this.account as `0x${string}`, this.contracts.contractAddress! as `0x${string}`],
-        });
-      });
-
-      if (allowance < amountBigInt) {
-        console.log('Approving token spend...');
-        const approveHash = await this.walletClient.writeContract({
-          chain: this.chain,
-          address: tokenAddress as `0x${string}`,
-          abi: ERC20ABI,
-          functionName: 'approve',
-          args: [this.contracts.contractAddress! as `0x${string}`, amountBigInt],
-          account: this.account as `0x${string}`,
-        });
-
-        await this.safeRequest(async () => {
-          return await this.publicClient.waitForTransactionReceipt({ hash: approveHash });
-        });
-      }
-
-      const hash = await this.walletClient.writeContract({
-        chain: this.chain,
-        address: this.contracts.contractAddress! as `0x${string}`,
-        abi: GiftCardABI,
-        functionName: 'createGiftCardForInstagram',
-        args: [
-          normalizedUsername,
-          BigInt(amountWei),
-          tokenAddress as `0x${string}`,
-          metadataUri,
-          message
-        ],
-        account: this.account as `0x${string}`,
-      });
-
-      const receipt = await this.safeRequest(async () => {
-        return await this.publicClient.waitForTransactionReceipt({ hash });
-      });
-
-      // Check transaction status - if it failed, throw an error
-      if (receipt.status === 'reverted' || (typeof receipt.status === 'number' && receipt.status === 0)) {
-        throw new Error(`Transaction failed: ERC20 transfer amount exceeds balance or other contract error. Transaction hash: ${hash}`);
-      }
-
-      const transferEventSignature = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-      const zeroAddress = '0x0000000000000000000000000000000000000000';
-      const zeroAddressTopic = '0x' + zeroAddress.slice(2).padStart(64, '0');
-
-      let tokenId = '1';
-      const transferEvent = receipt.logs.find((log: any) =>
-        log.topics[0] === transferEventSignature &&
-        log.topics[1]?.toLowerCase() === zeroAddressTopic.toLowerCase() &&
-        (log.address.toLowerCase() === this.contracts.contractAddress!.toLowerCase() ||
-         log.address.toLowerCase() === this.contracts.instagramVault!.toLowerCase())
-      );
-
-      if (transferEvent && transferEvent.topics[3]) {
-        tokenId = BigInt(transferEvent.topics[3]).toString();
-        console.log('Extracted tokenId from Transfer event for Instagram card:', tokenId);
-      } else {
-        console.warn('Transfer event not found for Instagram card, using default tokenId 1');
-      }
-
-      this.cache.delete(`sentGiftCards_${this.account}`);
-      console.log('Instagram gift card created successfully:', { tokenId, txHash: hash });
-
-      return { tokenId, txHash: hash };
-    } catch (error) {
-      console.error('Error creating Instagram gift card:', error);
-      throw error;
-    }
+    return this.createCardFor('instagram', username, amount, currency, metadataUri, message);
   }
 
   async getPendingInstagramCards(username: string): Promise<string[]> {
-    try {
-      if (!this.contracts.instagramVault || this.contracts.instagramVault === '0x0000000000000000000000000000000000000000') {
-        return [];
-      }
-
-      const normalizedUsername = username.toLowerCase().replace(/^@/, '').trim();
-      console.log(`[getPendingInstagramCards] Original username: "${username}", Normalized: "${normalizedUsername}"`);
-
-      const result = await this.safeRequest(async () => {
-        return await this.publicClient.readContract({
-          address: this.contracts.instagramVault! as `0x${string}`,
-          abi: InstagramCardVaultABI,
-          functionName: 'getPendingCardsForUsername',
-          args: [normalizedUsername],
-        });
-      });
-
-      const tokenIds = (result as bigint[]).map((id) => id.toString());
-      console.log(`[getPendingInstagramCards] Found ${tokenIds.length} pending cards for username "${normalizedUsername}":`, tokenIds);
-
-      return tokenIds;
-    } catch (error) {
-      console.error('Error getting pending Instagram cards:', error);
-      throw error;
-    }
+    return this.getPendingCards('instagram', username);
   }
 
   async claimInstagramCard(tokenId: string, username: string): Promise<string> {
-    if (!this.walletClient || !this.account) {
-      throw new Error('Wallet not connected');
-    }
-
-    await this.ensureCorrectChain();
-
-    try {
-      if (this.contracts.instagramVault! === '0x0000000000000000000000000000000000000000') {
-        throw new Error('Instagram Vault contract address is not configured');
-      }
-
-      const normalizedUsername = username.toLowerCase().replace(/^@/, '').trim();
-      console.log(`[claimInstagramCard] Claiming tokenId ${tokenId} for username "${normalizedUsername}" (original: "${username}")`);
-
-      const hash = await this.walletClient.writeContract({
-        chain: this.chain,
-        address: this.contracts.instagramVault! as `0x${string}`,
-        abi: InstagramCardVaultABI,
-        functionName: 'claimCard',
-        args: [BigInt(tokenId), normalizedUsername, this.account],
-        account: this.account as `0x${string}`,
-      });
-
-      await this.safeRequest(async () => {
-        return await this.publicClient.waitForTransactionReceipt({ hash });
-      });
-
-      console.log('Instagram card claimed successfully:', { tokenId, txHash: hash });
-
-      this.cache.delete(`giftCards_${this.account}`);
-      this.cache.delete(`pendingInstagramCards_${normalizedUsername}`);
-
-      return hash;
-    } catch (error) {
-      console.error('Error claiming Instagram card:', error);
-      throw error;
-    }
+    return this.claimCard('instagram', tokenId, username);
   }
+
+
 }
 
 export default new Web3Service();

@@ -52,9 +52,9 @@ export function CreateGiftCardPreview({ compact }: CreateGiftCardPreviewProps) {
           {/* Wallet source */}
           <div>
             <Label className={compact ? 'text-xs' : ''}>Wallet source</Label>
-            <RadioGroup value="metamask" className="mt-1.5 space-y-1.5 rounded-lg border border-gray-200 bg-gray-50/50 p-2">
+            <RadioGroup value="external" className="mt-1.5 space-y-1.5 rounded-lg border border-gray-200 bg-gray-50/50 p-2">
               <div className="flex items-center space-x-2.5 rounded-md p-2 bg-white shadow-sm border border-gray-300">
-                <RadioGroupItem value="metamask" id="preview-wallet" className="mt-0" />
+                <RadioGroupItem value="external" id="preview-wallet" className="mt-0" />
                 <Wallet className="w-4 h-4 text-blue-600 flex-shrink-0" />
                 <Label htmlFor="preview-wallet" className={`font-normal ${compact ? 'text-xs' : 'text-sm'}`}>
                   MetaMask (0x1a2B...9f4E)

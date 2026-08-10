@@ -17,8 +17,13 @@ import { ARC_CHAIN_ID } from '@/lib/web3/constants';
 import web3Service from '@/lib/web3/web3Service';
 import { ClaimCards } from './ClaimCards';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
-import { GiftCardsService, type GiftCardInsert } from '@/lib/supabase/giftCards';
-import { DeveloperWalletService } from '@/lib/circle/developerWalletService';
+import { GiftCardsService } from '@/lib/supabase/giftCards';
+import {
+  countPendingCards,
+  identitiesFromPrivyUser,
+  resolveGiftCardWalletAddresses,
+} from '@/lib/giftCards/claimService';
+import { GIFT_CARD_PLATFORMS } from '@/lib/giftCards/registry';
 
 interface GiftCard {
   tokenId: string;
@@ -46,8 +51,6 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
   const activeChain = arcTestnet;
   const activeChainId = ARC_CHAIN_ID;
   const { authenticated, user } = usePrivySafe();
-  const telegramAccount = (user as any)?.telegram;
-  const telegramUsername = ((telegramAccount?.username || telegramAccount?.telegramUserId || telegramAccount?.id || '') as string).replace(/^@/, '').trim();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterCurrency, setFilterCurrency] = useState('all');
@@ -56,8 +59,6 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
   const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('received');
-  // Temporary flag to disable background blockchain sync on /my
-  const ENABLE_BLOCKCHAIN_SYNC = false;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -80,25 +81,18 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
   };
 
   const fetchPendingCardsCount = async () => {
-    if (!authenticated) {
+    if (!authenticated || !user) {
       setPendingCount(0);
       return;
     }
 
-    const hasTwitter = user?.twitter?.username;
-    const hasTwitch = user?.twitch?.username;
-    const hasTelegram = telegramUsername;
-    const hasTikTok = user?.tiktok?.username;
-    const hasInstagram = user?.instagram?.username;
-
-    if (!hasTwitter && !hasTwitch && !hasTelegram && !hasTikTok && !hasInstagram) {
+    const identities = identitiesFromPrivyUser(user);
+    if (identities.length === 0) {
       setPendingCount(0);
       return;
     }
 
     try {
-      // Initialize web3Service only if wallet is connected, otherwise use publicClient only
-      // publicClient is already created in web3Service constructor, so we can use it without initialization
       if (isConnected && address && typeof window !== 'undefined' && window.ethereum) {
         const walletClient = createWalletClient({
           chain: activeChain,
@@ -106,69 +100,8 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
         });
         await web3Service.initialize(walletClient, address, activeChainId);
       }
-      // If no wallet connected, web3Service can still use publicClient for read operations
-      
-      let totalCount = 0;
 
-      if (hasTwitter) {
-        try {
-          const twitterUsername = user!.twitter!.username;
-          if (twitterUsername) {
-            const tokenIds = await web3Service.getPendingTwitterCards(twitterUsername);
-            totalCount += tokenIds.length;
-          }
-        } catch (error) {
-          console.error('Error fetching Twitter pending cards count:', error);
-        }
-      }
-
-      if (hasTwitch) {
-        try {
-          const twitchUsername = user!.twitch!.username;
-          if (twitchUsername) {
-            const tokenIds = await web3Service.getPendingTwitchCards(twitchUsername);
-            totalCount += tokenIds.length;
-          }
-        } catch (error) {
-          console.error('Error fetching Twitch pending cards count:', error);
-        }
-      }
-
-      if (hasTelegram) {
-        try {
-          if (telegramUsername) {
-            const tokenIds = await web3Service.getPendingTelegramCards(telegramUsername);
-            totalCount += tokenIds.length;
-          }
-        } catch (error) {
-          console.error('Error fetching Telegram pending cards count:', error);
-        }
-      }
-
-      if (hasTikTok) {
-        try {
-          const tiktokUsername = user!.tiktok!.username;
-          if (tiktokUsername) {
-            const tokenIds = await web3Service.getPendingTikTokCards(tiktokUsername);
-            totalCount += tokenIds.length;
-          }
-        } catch (error) {
-          console.error('Error fetching TikTok pending cards count:', error);
-        }
-      }
-
-      if (hasInstagram) {
-        try {
-          const instagramUsername = user!.instagram!.username;
-          if (instagramUsername) {
-            const tokenIds = await web3Service.getPendingInstagramCards(instagramUsername);
-            totalCount += tokenIds.length;
-          }
-        } catch (error) {
-          console.error('Error fetching Instagram pending cards count:', error);
-        }
-      }
-
+      const totalCount = await countPendingCards(identities);
       setPendingCount(totalCount);
     } catch (error) {
       console.error('Error fetching pending cards count:', error);
@@ -180,11 +113,14 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
     isConnected ? address?.toLowerCase() ?? '' : '',
     authenticated ? '1' : '0',
     (user as { id?: string } | undefined)?.id ?? '',
-    user?.twitter ? (user.twitter as { subject?: string }).subject ?? '' : '',
-    user?.twitch ? (user.twitch as { subject?: string }).subject ?? '' : '',
-    telegramUsername,
-    user?.tiktok ? (user.tiktok as { subject?: string }).subject ?? '' : '',
-    (user as { instagram?: { subject?: string } } | undefined)?.instagram?.subject ?? '',
+    ...GIFT_CARD_PLATFORMS.map((platform) => {
+      const account = (user as any)?.[platform];
+      if (!account) return '';
+      if (platform === 'telegram') {
+        return String(account.username || account.telegramUserId || account.id || account.subject || '');
+      }
+      return String(account.subject || account.username || '');
+    }),
   ].join('|');
 
   useEffect(() => {
@@ -205,17 +141,19 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
     return () => {
       cancelled = true;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- cardsFetchKey deliberately governs this async wallet-fallback load; memoizing its helper requires refactoring that call graph.
   }, [cardsFetchKey, isConnected, address, authenticated, user]);
 
   useEffect(() => {
     // Fetch pending cards count if authenticated and has at least one social network
     // This works even without connected wallet because web3Service uses publicClient for read operations
-    if (authenticated && (user?.twitter?.username || user?.twitch?.username || telegramUsername || user?.tiktok?.username || user?.instagram?.username)) {
+    if (authenticated && user && identitiesFromPrivyUser(user).length > 0) {
       fetchPendingCardsCount();
     } else {
       setPendingCount(0);
     }
-  }, [authenticated, user?.twitter?.username, user?.twitch?.username, telegramUsername, user?.tiktok?.username, user?.instagram?.username, isConnected, address]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Identity fields intentionally govern the RPC count; its wallet-initialization helper is not yet stable.
+  }, [authenticated, user, cardsFetchKey, isConnected, address]);
 
   const fetchCards = async () => {
     // If MetaMask is connected - use its address
@@ -226,40 +164,16 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
       recipientAddresses.push(address.toLowerCase());
     }
     
-    // Check Internal Wallet for social networks
+    // Check Internal Wallet for social networks via registry + walletResolution
     if (authenticated && user) {
       try {
-        const socialPlatforms = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'];
-        const blockchain = 'ARC-TESTNET';
-        
-        for (const platform of socialPlatforms) {
-          let socialUserId: string | null = null;
-          
-          if (platform === 'twitter' && user.twitter) {
-            socialUserId = (user.twitter as any).subject;
-          } else if (platform === 'twitch' && user.twitch) {
-            socialUserId = (user.twitch as any).subject;
-          } else if (platform === 'telegram' && user.telegram) {
-            socialUserId = user.telegram.telegramUserId || (user.telegram as any).subject;
-          } else if (platform === 'tiktok' && user.tiktok) {
-            socialUserId = (user.tiktok as any).subject;
-          } else if (platform === 'instagram' && (user as any).instagram) {
-            socialUserId = ((user as any).instagram as any).subject;
-          }
-
-          if (socialUserId) {
-            const devWallet = await DeveloperWalletService.getWalletBySocial(
-              platform as 'twitter' | 'twitch' | 'telegram' | 'tiktok' | 'instagram',
-              socialUserId,
-              blockchain
-            );
-            
-            if (devWallet && devWallet.wallet_address) {
-              const walletAddr = devWallet.wallet_address.toLowerCase();
-              if (!recipientAddresses.includes(walletAddr)) {
-                recipientAddresses.push(walletAddr);
-              }
-            }
+        const resolved = await resolveGiftCardWalletAddresses({
+          privyUser: user,
+          connectedAddress: null,
+        });
+        for (const walletAddr of resolved) {
+          if (!recipientAddresses.includes(walletAddr)) {
+            recipientAddresses.push(walletAddr);
           }
         }
       } catch (error) {
@@ -346,174 +260,10 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
       // Update UI with cached data immediately - don't wait for blockchain!
       setReceivedCards(transformedReceivedCards);
       setSentCards(transformedSentCards);
-
-      // Then sync with blockchain in the background (slow, but non-blocking)
-      // Temporarily disabled per request
-      if (ENABLE_BLOCKCHAIN_SYNC && address) {
-        console.log('Starting blockchain sync in background...');
-        syncWithBlockchain(address as string).catch(error => {
-          console.error('Background sync error (non-critical):', error);
-        });
-      }
     } catch (error) {
       console.error('Error fetching cards from Supabase:', error);
       // Fallback to blockchain if Supabase fails
       await fetchCardsFromBlockchain();
-    }
-  };
-
-  const syncWithBlockchain = async (userAddress: string) => {
-    try {
-      
-      // Initialize web3 service
-      const walletClient = createWalletClient({
-        chain: activeChain,
-        transport: custom(window.ethereum)
-      });
-
-      await web3Service.initialize(walletClient, userAddress, activeChainId);
-      
-      // Load gift cards from blockchain
-      console.log('Loading received cards from blockchain...');
-      const blockchainCards = await web3Service.loadGiftCards(false, true);
-      
-      // Load sent cards
-      console.log('Loading sent cards from blockchain...');
-      
-      // Also check cards with NULL recipient_address in Supabase
-      // and update their owners from blockchain
-      console.log('Checking cards with null recipient_address...');
-      const cardsWithNullRecipient = await GiftCardsService.getAllCardsWithNullRecipientForMyCards(activeChainId);
-      console.log(`Found ${cardsWithNullRecipient.length} cards with null recipient_address`);
-      
-      // Check owners for cards with NULL recipient_address
-      const cardsToUpdate: GiftCardInsert[] = [];
-      const maxConcurrentChecks = 5; // Limit concurrent requests
-      
-      for (let i = 0; i < cardsWithNullRecipient.length; i += maxConcurrentChecks) {
-        const batch = cardsWithNullRecipient.slice(i, i + maxConcurrentChecks);
-        const ownerChecks = await Promise.all(
-          batch.map(async (card) => {
-            try {
-              const owner = await web3Service.getCardOwner(card.token_id);
-              // If card belongs to current user, update recipient_address
-              if (owner.toLowerCase() === userAddress.toLowerCase()) {
-                return {
-                  token_id: card.token_id,
-                  sender_address: card.sender_address,
-                  recipient_address: userAddress.toLowerCase(),
-                  recipient_username: null,
-                  recipient_type: 'address' as const,
-                  amount: card.amount,
-                  currency: card.currency,
-                  message: card.message,
-                  redeemed: card.redeemed,
-                };
-              }
-              return null;
-            } catch (error) {
-              console.warn(`Failed to check owner for card ${card.token_id}:`, error);
-              return null;
-            }
-          })
-        );
-        
-        cardsToUpdate.push(...ownerChecks.filter(card => card !== null) as GiftCardInsert[]);
-      }
-      
-      if (cardsToUpdate.length > 0) {
-        console.log(`Updating ${cardsToUpdate.length} cards with owner information`);
-      }
-      
-      // Transform and update Supabase cache
-      // Use Map for deduplication by token_id (keep latest version)
-      const cardsMap = new Map<string, GiftCardInsert>();
-      
-      // Add received cards from blockchain
-      blockchainCards.forEach(card => {
-        cardsMap.set(card.tokenId, {
-          token_id: card.tokenId,
-          sender_address: card.sender.toLowerCase(),
-          recipient_address: card.recipient.toLowerCase(),
-          recipient_username: null,
-          recipient_type: 'address' as const,
-          amount: card.amount,
-          currency: card.token,
-          message: card.message,
-          redeemed: card.redeemed,
-        });
-      });
-      
-      // Skip sent cards enrichment (handled via Supabase cache earlier)
-      
-      // Add updated cards (overwrite if duplicates exist)
-      cardsToUpdate.forEach(card => {
-        cardsMap.set(card.token_id, card);
-      });
-      
-      // Convert Map to array (already without duplicates)
-      const cardsToCache = Array.from(cardsMap.values());
-      
-      console.log(`Sending ${cardsToCache.length} unique cards to Supabase (removed duplicates)`);
-
-      // Update Supabase cache
-      await GiftCardsService.bulkUpsertCards(cardsToCache);
-      console.log('Cache updated with blockchain data');
-
-      // Update UI only if new cards found or statuses changed
-      // Use functional update to access current values
-      setReceivedCards(currentReceivedCards => {
-        const existingReceivedMap = new Map(currentReceivedCards.map(card => [card.tokenId, card]));
-
-        // Transform received cards
-        const transformedReceivedCards: GiftCard[] = blockchainCards.map(card => ({
-          tokenId: card.tokenId,
-          amount: card.amount,
-          currency: card.token,
-          design: 'pink',
-          message: card.message,
-          recipient: card.recipient,
-          sender: card.sender,
-          status: card.redeemed ? 'redeemed' : 'active',
-          createdAt: existingReceivedMap.get(card.tokenId)?.createdAt || new Date().toLocaleDateString(),
-          hasTimer: false,
-          hasPassword: false,
-          qrCode: `/spend?tokenId=${card.tokenId}`
-        }));
-
-        // Always update with blockchain data if counts differ (blockchain is source of truth)
-        // Check if there are actual changes to avoid unnecessary re-renders
-        const receivedChanged = currentReceivedCards.length !== transformedReceivedCards.length ||
-          currentReceivedCards.some(card => {
-            const newCard = transformedReceivedCards.find(c => c.tokenId === card.tokenId);
-            if (!newCard) return true; // Card was removed
-            return newCard.status !== card.status || 
-                   newCard.amount !== card.amount ||
-                   newCard.currency !== card.currency ||
-                   newCard.message !== card.message;
-          }) ||
-          transformedReceivedCards.some(newCard => {
-            const existingCard = currentReceivedCards.find(c => c.tokenId === newCard.tokenId);
-            return !existingCard; // New card was added
-          });
-
-        // Always return blockchain data if counts differ, otherwise only if there are changes
-        if (currentReceivedCards.length !== transformedReceivedCards.length) {
-          return transformedReceivedCards;
-        }
-        
-        return receivedChanged ? transformedReceivedCards : currentReceivedCards;
-      });
-
-      // Keep existing sent cards; no blockchain update performed here
-      
-      if (ENABLE_BLOCKCHAIN_SYNC) {
-        console.log('Blockchain sync completed');
-      }
-    } catch (error) {
-      console.error('Error syncing with blockchain:', error);
-      // Don't show error to user - they already have data from Supabase
-    } finally {
     }
   };
 
@@ -753,8 +503,17 @@ export function MyCards({ onSpendCard }: MyCardsProps) {
             filteredReceivedCards.map((card) => (
               <Card 
                 key={card.tokenId} 
-                className="hover:shadow-md transition-shadow cursor-pointer" 
+                className="hover:shadow-md transition-shadow cursor-pointer focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                role="button"
+                tabIndex={0}
+                aria-label={`Spend gift card ${card.tokenId}`}
                 onClick={() => onSpendCard(card.tokenId)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onSpendCard(card.tokenId);
+                  }
+                }}
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">

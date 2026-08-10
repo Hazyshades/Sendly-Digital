@@ -1,4 +1,9 @@
 import { SUPPORTED_CHAINS } from './chainRegistry';
+import {
+  ARC_CHAIN_ID,
+  BASE_SEPOLIA_CHAIN_ID,
+  getChain,
+} from '@/lib/web3/chains';
 
 export interface TokenConfig {
   symbol: string;
@@ -36,7 +41,7 @@ export const TOKENS: Record<string, TokenConfig> = {
       11155111: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
       11155420: '0x5fd84259d66Cd46123540766Be93DFE6D43130D7',
       421614: '0x75faf114eafb1BDbe2F0316DF893fd58Ce51AA87',
-      84532: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+      [BASE_SEPOLIA_CHAIN_ID]: getChain(BASE_SEPOLIA_CHAIN_ID).contracts.usdc!,
       80002: '0x41e94eb019c0762f9bfcf9fb1e58725bfb0e7582',
       1244: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
       59141: '0x176211869cA2b568f2A7D4EE941E073a821EE1ff',
@@ -48,7 +53,7 @@ export const TOKENS: Record<string, TokenConfig> = {
       51: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
       999: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
       161221136: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-      5042002: '0x3600000000000000000000000000000000000000'
+      [ARC_CHAIN_ID]: getChain(ARC_CHAIN_ID).contracts.usdc!
     },
     supportedChainIds: SUPPORTED_CHAINS
       .filter(chain => chain.chainId !== 56 && chain.chainId !== 97)
@@ -76,18 +81,18 @@ export const TOKENS: Record<string, TokenConfig> = {
       84532: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
       80002: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
       59141: '0x176211869cA2b568f2A7D4EE941E073a821EE1ff',
-      5042002: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a'
+      [ARC_CHAIN_ID]: getChain(ARC_CHAIN_ID).contracts.eurc!
     },
     supportedChainIds: [
       1, 11155111,
       43114,
       10, 11155420,
       42161, 421614,
-      8453, 84532,
+      8453, BASE_SEPOLIA_CHAIN_ID,
       137, 80002,
       59144, 59141,
       146, 64165,
-      5042002
+      ARC_CHAIN_ID
     ]
   },
   USYC: {
@@ -95,10 +100,10 @@ export const TOKENS: Record<string, TokenConfig> = {
     name: 'US Yield Coin',
     decimals: 6,
     addresses: {
-      5042002: '0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C'
+      [ARC_CHAIN_ID]: getChain(ARC_CHAIN_ID).contracts.usyc!
     },
     supportedChainIds: [
-      5042002
+      ARC_CHAIN_ID
     ]
   }
 };

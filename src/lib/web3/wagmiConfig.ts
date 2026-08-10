@@ -1,91 +1,37 @@
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { defineChain, http, type Chain } from 'viem';
+import { http, type Chain } from 'viem';
 import { createConfig } from 'wagmi';
 import { injected } from 'wagmi/connectors';
 import { isZkLocalhost } from '@/lib/runtime/zkHost';
+import {
+  ARC_CHAIN_ID,
+  TEMPO_CHAIN_ID,
+  BASE_SEPOLIA_CHAIN_ID,
+  arcTestnet,
+  tempoTestnet,
+  baseSepolia,
+  getChain,
+} from './chains';
+
+export { arcTestnet, tempoTestnet, baseSepolia };
 
 // Get WalletConnect project ID from environment for RainbowKit
 const projectId = import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID || 'c4f79f821944d9680842e34466bfbd52';
 
-// Arc Testnet chain definition driven by env variables
-const arcChainId = Number(import.meta.env.VITE_ARC_CHAIN_ID || 5042002);
-const arcName = import.meta.env.VITE_ARC_NAME || 'Arc Testnet';
-const arcRpcUrl = import.meta.env.VITE_ARC_RPC_URL || 'https://rpc.testnet.arc.network';
-const arcExplorerUrl = import.meta.env.VITE_ARC_BLOCK_EXPLORER_URL || 'https://testnet.arcscan.app';
-const arcNativeSymbol = import.meta.env.VITE_ARC_SYMBOL || 'USDC';
-const arcNativeName = import.meta.env.VITE_ARC_CURRENCY_NAME || 'USD Coin';
-const arcNativeDecimals = Number(import.meta.env.VITE_ARC_DECIMALS || 18);
-
-export const arcTestnet = defineChain({
-  id: arcChainId,
-  name: arcName,
-  nativeCurrency: {
-    name: arcNativeName,
-    symbol: arcNativeSymbol,
-    decimals: arcNativeDecimals,
-  },
-  rpcUrls: {
-    default: { http: [arcRpcUrl] },
-    public: { http: [arcRpcUrl] },
-  },
-  blockExplorers: {
-    default: { name: 'Arc Explorer', url: arcExplorerUrl },
-  },
-});
-
-// Tempo Testnet chain definition
-const tempoChainId = Number(import.meta.env.VITE_TEMPO_CHAIN_ID || 42431);
-const tempoName = import.meta.env.VITE_TEMPO_NAME || 'Tempo Testnet';
-const tempoRpcUrl = import.meta.env.VITE_TEMPO_RPC_URL || 'https://rpc.moderato.tempo.xyz';
-const tempoExplorerUrl = import.meta.env.VITE_TEMPO_BLOCK_EXPLORER_URL || 'https://explore.tempo.xyz';
-const tempoNativeSymbol = import.meta.env.VITE_TEMPO_SYMBOL || 'USD';
-const tempoNativeName = import.meta.env.VITE_TEMPO_CURRENCY_NAME || 'USD';
-const tempoNativeDecimals = Number(import.meta.env.VITE_TEMPO_DECIMALS || 18);
-
-export const tempoTestnet = defineChain({
-  id: tempoChainId,
-  name: tempoName,
-  nativeCurrency: {
-    name: tempoNativeName,
-    symbol: tempoNativeSymbol,
-    decimals: tempoNativeDecimals,
-  },
-  rpcUrls: {
-    default: { http: [tempoRpcUrl] },
-    public: { http: [tempoRpcUrl] },
-  },
-  blockExplorers: {
-    default: { name: 'Tempo Explorer', url: tempoExplorerUrl },
-  },
-});
-
-// Base Sepolia Testnet chain definition
-const baseSepoliaChainId = Number(import.meta.env.VITE_BASE_CHAIN_ID || 84532);
-const baseSepoliaRpcUrl = import.meta.env.VITE_BASE_RPC_URL || 'https://sepolia.base.org';
-const baseSepoliaRpcFallback = import.meta.env.VITE_BASE_RPC_FALLBACK_URL || 'https://base-sepolia-rpc.publicnode.com';
-const baseSepoliaExplorerUrl = import.meta.env.VITE_BASE_BLOCK_EXPLORER_URL || 'https://sepolia.basescan.org';
-
-export const baseSepolia = defineChain({
-  id: baseSepoliaChainId,
-  name: 'Base Sepolia',
-  nativeCurrency: {
-    name: 'Ether',
-    symbol: 'ETH',
-    decimals: 18,
-  },
-  rpcUrls: {
-    default: { http: [baseSepoliaRpcUrl] },
-    public: { http: [baseSepoliaRpcUrl, baseSepoliaRpcFallback] },
-  },
-  blockExplorers: {
-    default: { name: 'BaseScan', url: baseSepoliaExplorerUrl },
-  },
-});
+const arcRpcUrl = getChain(ARC_CHAIN_ID).rpcUrls[0];
+const tempoRpcUrl = getChain(TEMPO_CHAIN_ID).rpcUrls[0];
+const baseSepoliaRpcUrl = getChain(BASE_SEPOLIA_CHAIN_ID).rpcUrls[0];
 
 // RainbowKit configuration - getDefaultConfig automatically includes Rainbow Wallet
 const allChains: [Chain, ...Chain[]] = [arcTestnet, tempoTestnet, baseSepolia];
+// The browser suite supplies a deterministic EIP-1193 provider. Keep
+// RainbowKit's remote connector discovery out of that test-only runtime.
+const isE2E =
+  import.meta.env.MODE === 'e2e' &&
+  (import.meta.env.VITE_E2E === 'true' || import.meta.env.VITE_E2E === '1');
+const useInjectedOnlyConfig = isZkLocalhost() || isE2E;
 
-export const config = isZkLocalhost()
+export const config = useInjectedOnlyConfig
   ? createConfig({
       chains: allChains,
       connectors: [injected()],

@@ -4,8 +4,7 @@
  * already has a profile_image_url (unless explicit refresh / skipCache).
  */
 
-import { getApiUrl, supabase } from '@/lib/supabase/client';
-import { publicAnonKey } from '@/lib/supabase/info';
+import { edgeFetch, supabase } from '@/lib/supabase/client';
 
 const TWITTER_USER_CACHE_TABLE = 'twitter_user_cache';
 
@@ -34,14 +33,6 @@ export interface TwitterUserLookupError {
 }
 
 export type TwitterUserLookupResponse = TwitterUserLookupResult | TwitterUserLookupError;
-
-function getTwitterLookupBaseUrl(): string {
-  return (
-    (import.meta.env.VITE_SUPABASE_ZKSEND_FUNCTION_URL as string | undefined) ||
-    (import.meta.env.VITE_SUPABASE_FUNCTION_URL as string | undefined) ||
-    getApiUrl()
-  );
-}
 
 /**
  * Normalize handle: trim and remove leading @.
@@ -89,22 +80,31 @@ async function readTwitterUserCache(normalized: string): Promise<TwitterUserPrev
   }
 }
 
+type TwitterEdgeBody = {
+  username?: string;
+  name?: string;
+  profile_image_url?: string | null;
+  updated_at?: string | null;
+  from_cache?: boolean;
+  error?: string;
+  code?: string;
+};
+
 async function fetchTwitterUserFromEdge(
   normalized: string,
-  refresh: boolean
+  refresh: boolean,
 ): Promise<TwitterUserLookupResponse> {
-  const base = getTwitterLookupBaseUrl().replace(/\/$/, '');
-  let url = `${base}/zk-sender/twitter/user?username=${encodeURIComponent(normalized)}`;
-  if (refresh) url += '&refresh=1';
+  let path = `/twitter/user?username=${encodeURIComponent(normalized)}`;
+  if (refresh) path += '&refresh=1';
 
   try {
-    const res = await fetch(url, {
+    const { ok, status, data: body } = await edgeFetch<TwitterEdgeBody>('zk-sender', path, {
       method: 'GET',
-      headers: { Authorization: `Bearer ${publicAnonKey}` },
+      auth: 'anon',
+      rawResponse: true,
     });
-    const body = await res.json().catch(() => ({}));
 
-    if (res.ok && body.username) {
+    if (ok && body.username) {
       return {
         success: true,
         fromCache: Boolean(body.from_cache),
@@ -117,10 +117,10 @@ async function fetchTwitterUserFromEdge(
       };
     }
 
-    if (res.status === 404 || body.code === 'USER_NOT_FOUND') {
+    if (status === 404 || body.code === 'USER_NOT_FOUND') {
       return { success: false, error: 'User not found', code: 'USER_NOT_FOUND' };
     }
-    if (res.status === 429 || body.code === 'RATE_LIMITED') {
+    if (status === 429 || body.code === 'RATE_LIMITED') {
       return { success: false, error: 'Too many requests', code: 'RATE_LIMITED' };
     }
 
@@ -157,7 +157,7 @@ export interface FetchTwitterUserPreviewOptions {
  */
 export async function fetchTwitterUserPreview(
   username: string,
-  options?: FetchTwitterUserPreviewOptions
+  options?: FetchTwitterUserPreviewOptions,
 ): Promise<TwitterUserLookupResponse> {
   const normalized = normalizeTwitterHandle(username);
   if (!normalized) {

@@ -5,6 +5,7 @@ import { createPublicClient, http, type Address, type Chain } from 'viem';
 import { createBurnIntent, burnIntentTypedData } from './typedData';
 import { getChainByChainId, getChainByDomain } from '@/lib/bridge/chainRegistry';
 import { defineChain } from 'viem';
+import { toMicro } from '@/lib/tokenAmount';
 
 export interface GatewayBalance {
   domain: number;
@@ -78,7 +79,7 @@ export class GatewayService {
       throw new Error('Account not found in wallet client');
     }
 
-    const amount = BigInt(Math.floor(parseFloat(params.amount) * 1e6)); // USDC has 6 decimals
+    const amount = toMicro(params.amount); // USDC has 6 decimals
 
     // Check USDC balance
     const usdcBalance = await publicClient.readContract({

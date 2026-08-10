@@ -57,3 +57,48 @@ test('gift_cards_graph sent amounts stay human (no micro division)', async () =>
   assert.equal(normalizeTokenAmount(displayed, { unit: 'human' }), 25);
   assert.notEqual(normalizeTokenAmount(storedAmount, { unit: 'micro' }), 25);
 });
+
+
+test('toMicro converts common human amounts', async () => {
+  const { toMicro } = await loadTokenAmount();
+  assert.equal(toMicro('0.1'), 100000n);
+  assert.equal(toMicro('1'), 1000000n);
+  assert.equal(toMicro('0.000001'), 1n);
+  assert.equal(toMicro('123.456789'), 123456789n);
+});
+
+test('fromMicro converts micro amounts to exact strings', async () => {
+  const { fromMicro } = await loadTokenAmount();
+  assert.equal(fromMicro(100000n), '0.1');
+  assert.equal(fromMicro(1000000n), '1');
+  assert.equal(fromMicro(1n), '0.000001');
+  assert.equal(fromMicro(123456789n), '123.456789');
+  assert.equal(fromMicro(0n), '0');
+});
+
+test('toMicro/fromMicro round-trip', async () => {
+  const { toMicro, fromMicro } = await loadTokenAmount();
+  assert.equal(fromMicro(toMicro('0.1')), '0.1');
+  assert.equal(fromMicro(toMicro('1')), '1');
+  assert.equal(fromMicro(toMicro('0.000001')), '0.000001');
+  assert.equal(fromMicro(toMicro('123.456789')), '123.456789');
+  assert.equal(toMicro(fromMicro(100000n)), 100000n);
+  assert.equal(toMicro(fromMicro(1n)), 1n);
+  assert.equal(toMicro(fromMicro(123456789n)), 123456789n);
+});
+
+test('toMicro rejects invalid input', async () => {
+  const { toMicro } = await loadTokenAmount();
+  for (const bad of ['', '   ', 'abc', '1.2.3', '1.', '.5', 'NaN', '1e6']) {
+    assert.throws(() => toMicro(bad), /Invalid token amount/);
+  }
+});
+
+test('toMicro truncates beyond 6 decimals', async () => {
+  const { toMicro, fromMicro } = await loadTokenAmount();
+  // Deterministic truncate (not round): digits beyond 6 are discarded
+  assert.equal(toMicro('0.1234567'), 123456n);
+  assert.equal(toMicro('1.0000009'), 1000000n);
+  assert.equal(toMicro('0.9999999'), 999999n);
+  assert.equal(fromMicro(toMicro('0.123456789')), '0.123456');
+});

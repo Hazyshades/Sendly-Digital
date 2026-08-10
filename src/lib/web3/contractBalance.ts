@@ -2,6 +2,7 @@
 import { createPublicClient, http } from 'viem';
 import { chains } from './wagmiConfig';
 import { getContractsForChain, ERC20ABI } from './constants';
+import { fromMicro } from '@/lib/tokenAmount';
 
 const ARC_CHAIN_ID = Number(import.meta.env.VITE_ARC_CHAIN_ID || 5042002);
 const BASE_SEPOLIA_CHAIN_ID = Number(import.meta.env.VITE_BASE_CHAIN_ID || 84532);
@@ -34,7 +35,7 @@ export async function getContractBalanceViaAPI(
       const data = await response.json();
       if (data.result && data.status === '1') {
         const balanceWei = BigInt(data.result);
-        return Number(balanceWei) / 1_000_000;
+        return Number(fromMicro(balanceWei));
       }
       return await getContractBalanceViaRPC(contractAddress, tokenAddress, chainId);
     }
@@ -53,7 +54,7 @@ export async function getContractBalanceViaAPI(
       );
       if (usdcBalance) {
         const balanceWei = BigInt(usdcBalance.value || usdcBalance.balance || '0');
-        return Number(balanceWei) / 1_000_000;
+        return Number(fromMicro(balanceWei));
       }
     }
     return await getContractBalanceViaRPC(contractAddress, tokenAddress, chainId);
@@ -83,7 +84,7 @@ export async function getContractBalanceViaRPC(
     functionName: 'balanceOf',
     args: [contractAddress as `0x${string}`],
   })) as bigint;
-  return Number(balance) / 1_000_000;
+  return Number(fromMicro(balance));
 }
 
 /**

@@ -23,7 +23,6 @@ import {
 import { createDirectDepositRecord } from '@/lib/directsend/directSendPaymentsAPI';
 import { arcTestnet, tempoTestnet } from '@/lib/web3/wagmiConfig';
 import { DeveloperWalletService } from '@/lib/circle/developerWalletService';
-import { apiCall } from '@/lib/supabase/client';
 import { getCircleWalletPrivyUserIdForTx } from '@/hooks/useCircleWallet';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
 
@@ -103,7 +102,7 @@ export function SendPaymentForm({
   const activeChainId = connectedChainId || ARC_CHAIN_ID;
   const contracts = getContractsForChain(activeChainId);
   const isTempoNetwork = activeChainId === tempoTestnet.id;
-  const TOKEN_OPTIONS = isTempoNetwork
+  const TOKEN_OPTIONS = useMemo(() => isTempoNetwork
     ? ([
         { value: 'PATHUSD' as const, label: 'pathUSD', address: contracts.pathusd ?? '0x20c0000000000000000000000000000000000000' },
         { value: 'ALPHAUSD' as const, label: 'AlphaUSD', address: contracts.alphausd ?? '0x20c0000000000000000000000000000000000001' },
@@ -113,7 +112,15 @@ export function SendPaymentForm({
     : ([
         { value: 'USDC' as const, label: 'USDC', address: contracts.usdc },
         { value: 'EURC' as const, label: 'EURC', address: contracts.eurc ?? contracts.usdc },
-      ] as const);
+      ] as const), [
+    isTempoNetwork,
+    contracts.alphausd,
+    contracts.betausd,
+    contracts.eurc,
+    contracts.pathusd,
+    contracts.thetausd,
+    contracts.usdc,
+  ]);
 
   const [amount, setAmount] = useState(preview && previewValues ? previewValues.amount : '');
   const [tokenType, setTokenType] = useState<SupportedSendToken>(
@@ -186,23 +193,6 @@ export function SendPaymentForm({
   const effectiveTokenType = preview && previewValues ? previewValues.token : tokenType;
   const effectivePlatform = preview && previewValues ? previewValues.platform : platform;
   const effectiveUsername = preview && previewValues ? previewValues.username : username;
-
-  const pollTransactionStatus = async (transactionId: string): Promise<string> => {
-    const maxAttempts = 30;
-    const pollInterval = 1000;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      await new Promise((r) => setTimeout(r, pollInterval));
-      const status = await apiCall(`/wallets/transaction-status?transactionId=${encodeURIComponent(transactionId)}`, {
-        method: 'GET',
-      }) as { transactionState?: string; txHash?: string; error?: string };
-      if (status?.transactionState === 'FAILED') {
-        throw new Error(status?.error ?? status?.transactionState ?? 'Transaction failed');
-      }
-      if (status?.txHash) return status.txHash;
-      if (status?.transactionState === 'COMPLETE' && status?.txHash) return status.txHash;
-    }
-    throw new Error('Transaction status timeout');
-  };
 
   const onSubmit = async () => {
     try {
@@ -283,36 +273,24 @@ export function SendPaymentForm({
                 : 'DirectSend contract not configured'
             );
           }
-          const approveRes = await DeveloperWalletService.sendTransaction({
-            walletId: developerWallet.circle_wallet_id,
-            walletAddress: developerWallet.wallet_address,
-            contractAddress: tokenAddress,
-            functionName: 'approve',
-            args: [directContract, totalWei],
-            blockchain: 'ARC-TESTNET',
-            privyUserId: privyUserIdForTx,
-            socialPlatform: developerWallet.social_platform ?? undefined,
-            socialUserId: developerWallet.social_user_id ?? undefined,
-          });
-          if (!approveRes.success) throw new Error(approveRes.error ?? 'Approve failed');
-          if (approveRes.transactionId) await pollTransactionStatus(approveRes.transactionId);
-          const sendRes = await DeveloperWalletService.sendTransaction({
+          const sendRes = await DeveloperWalletService.executeContractCall({
             walletId: developerWallet.circle_wallet_id,
             walletAddress: developerWallet.wallet_address,
             contractAddress: directContract,
-            functionName: useEscrow ? 'depositFor' : 'sendToAddress',
-            args: useEscrow ? [recipientTrimmed, amountWei, tokenAddress] : [recipientTrimmed, amountWei, tokenAddress],
-            blockchain: 'ARC-TESTNET',
-            privyUserId: privyUserIdForTx,
-            socialPlatform: developerWallet.social_platform ?? undefined,
-            socialUserId: developerWallet.social_user_id ?? undefined,
+            abiFunctionSignature: useEscrow ? 'depositFor' : 'sendToAddress',
+            abiParameters: [recipientTrimmed, amountWei, tokenAddress],
+            ensureAllowance: {
+              tokenAddress,
+              spenderAddress: directContract,
+              amountMicro: totalWei,
+            },
+            attribution: {
+              privyUserId: privyUserIdForTx,
+              socialPlatform: developerWallet.social_platform ?? undefined,
+              socialUserId: developerWallet.social_user_id ?? undefined,
+            },
           });
-          if (!sendRes.success) throw new Error(sendRes.error ?? 'Send failed');
           let txHash = sendRes.txHash ?? '';
-          if (!txHash && sendRes.transactionId) {
-            toast.info('Waiting for transaction to be processed...');
-            txHash = await pollTransactionStatus(sendRes.transactionId);
-          }
           toast.success('Payment sent successfully!');
           if (txHash) {
             toast.success(
@@ -331,36 +309,24 @@ export function SendPaymentForm({
         if (!normalizedPlatform) throw new Error('Unsupported platform');
         const socialIdentityHash = generateSocialIdentityHash(normalizedPlatform, normalizedUsername);
         if (!socialIdentityHash) throw new Error('Invalid social identity');
-        const approveRes = await DeveloperWalletService.sendTransaction({
-          walletId: developerWallet.circle_wallet_id,
-          walletAddress: developerWallet.wallet_address,
-          contractAddress: tokenAddress,
-          functionName: 'approve',
-          args: [contracts.zksend, totalWei],
-          blockchain: 'ARC-TESTNET',
-          privyUserId: privyUserIdForTx,
-          socialPlatform: developerWallet.social_platform ?? undefined,
-          socialUserId: developerWallet.social_user_id ?? undefined,
-        });
-        if (!approveRes.success) throw new Error(approveRes.error ?? 'Approve failed');
-        if (approveRes.transactionId) await pollTransactionStatus(approveRes.transactionId);
-        const createRes = await DeveloperWalletService.sendTransaction({
+        const createRes = await DeveloperWalletService.executeContractCall({
           walletId: developerWallet.circle_wallet_id,
           walletAddress: developerWallet.wallet_address,
           contractAddress: contracts.zksend,
-          functionName: 'createPayment',
-          args: [socialIdentityHash, normalizedPlatform, amountWei, tokenAddress],
-          blockchain: 'ARC-TESTNET',
-          privyUserId: privyUserIdForTx,
-          socialPlatform: developerWallet.social_platform ?? undefined,
-          socialUserId: developerWallet.social_user_id ?? undefined,
+          abiFunctionSignature: 'createPayment',
+          abiParameters: [socialIdentityHash, normalizedPlatform, amountWei, tokenAddress],
+          ensureAllowance: {
+            tokenAddress,
+            spenderAddress: contracts.zksend,
+            amountMicro: totalWei,
+          },
+          attribution: {
+            privyUserId: privyUserIdForTx,
+            socialPlatform: developerWallet.social_platform ?? undefined,
+            socialUserId: developerWallet.social_user_id ?? undefined,
+          },
         });
-        if (!createRes.success) throw new Error(createRes.error ?? 'Create payment failed');
         let txHash = createRes.txHash ?? '';
-        if (!txHash && createRes.transactionId) {
-          toast.info('Waiting for transaction to be processed...');
-          txHash = await pollTransactionStatus(createRes.transactionId);
-        }
         let paymentId: string | null = null;
         if (txHash) {
           try {

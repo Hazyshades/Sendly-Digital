@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Wallet, Plus, ArrowRightLeft } from 'lucide-react';
@@ -15,13 +15,7 @@ export function GatewayBalanceCard() {
   const [depositOpen, setDepositOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
 
-  useEffect(() => {
-    if (address) {
-      loadBalances();
-    }
-  }, [address]);
-
-  const loadBalances = async () => {
+  const loadBalances = useCallback(async () => {
     if (!address) return;
     setLoading(true);
     try {
@@ -34,7 +28,13 @@ export function GatewayBalanceCard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [address]);
+
+  useEffect(() => {
+    if (address) {
+      void loadBalances();
+    }
+  }, [address, loadBalances]);
 
   return (
     <>

@@ -10,7 +10,7 @@ import { ArticleCard } from '@/components/creator/ArticleCard';
 import { ZkSocialConnectionsPanel } from '@/components/zk-accounts/ZkSocialConnectionsPanel';
 import { PendingPayments } from '@/components/zksend/PendingPayments';
 import type { SendRecipientType } from '@/components/zksend/ZkSendPanel';
-import type { WalletSource } from '@/components/zksend/WalletSourceToggle';
+import { useWalletSourcePreference } from '@/hooks/useWalletSourcePreference';
 import { useCreatorIdentity } from '@/hooks/useCreatorIdentity';
 import { useCircleWallet } from '@/hooks/useCircleWallet';
 import { getStoredGithubAccessToken } from '@/lib/paywall/githubSession';
@@ -48,7 +48,7 @@ export function MyCreatorPage() {
     activeChainId === BASE_SEPOLIA_CHAIN_ID || activeChainId === TEMPO_CHAIN_ID;
   const canUseInternalWallet = hasDeveloperWallet && !isInternalWalletDisabled;
 
-  const [walletSource, setWalletSource] = useState<WalletSource>('external');
+  const { walletSource, setWalletSource } = useWalletSourcePreference();
   const [data, setData] = useState<CreatorProfileResponse | null>(null);
   const [loading, setLoading] = useState(false);
 

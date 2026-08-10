@@ -5,53 +5,53 @@ import { scrollRevealOnce, useMotionSafe } from "@/hooks/useMotionSafe"
 
 gsap.registerPlugin(ScrollTrigger)
 
+const PRINCIPLES = [
+  {
+    number: "01",
+    label: "ACCESS",
+    titleParts: [
+      { text: "SEAMLESS", highlight: true },
+      { text: " ENTRY", highlight: false },
+    ],
+    description: "Security without friction. Onboarding that disappears into the experience.",
+    align: "left",
+  },
+  {
+    number: "02",
+    label: "LINK",
+    titleParts: [
+      { text: "SOCIAL", highlight: true },
+      { text: " BRIDGE", highlight: false },
+    ],
+    description: "Your online identity becomes your financial address. No new namespaces.",
+    align: "right",
+  },
+  {
+    number: "03",
+    label: "SEND",
+    titleParts: [
+      { text: "DIRECT", highlight: true },
+      { text: " INTENT", highlight: false },
+    ],
+    description: "Type a username, not a hash. Money flows to people, not addresses.",
+    align: "left",
+  },
+  {
+    number: "04",
+    label: "VERIFY",
+    titleParts: [
+      { text: "ZERO-KNOWLEDGE", highlight: true },
+      { text: " TRUST", highlight: false },
+    ],
+    description: "Prove control without revealing data. Privacy preserved, certainty absolute.",
+    align: "right",
+  },
+]
+
 export function PrinciplesSection() {
   const sectionRef = useRef<HTMLElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
   const principlesRef = useRef<HTMLDivElement>(null)
-
-  const principles = [
-    {
-      number: "01",
-      label: "ACCESS",
-      titleParts: [
-        { text: "SEAMLESS", highlight: true },
-        { text: " ENTRY", highlight: false },
-      ],
-      description: "Security without friction. Onboarding that disappears into the experience.",
-      align: "left",
-    },
-    {
-      number: "02",
-      label: "LINK",
-      titleParts: [
-        { text: "SOCIAL", highlight: true },
-        { text: " BRIDGE", highlight: false },
-      ],
-      description: "Your online identity becomes your financial address. No new namespaces.",
-      align: "right",
-    },
-    {
-      number: "03",
-      label: "SEND",
-      titleParts: [
-        { text: "DIRECT", highlight: true },
-        { text: " INTENT", highlight: false },
-      ],
-      description: "Type a username, not a hash. Money flows to people, not addresses.",
-      align: "left",
-    },
-    {
-      number: "04",
-      label: "VERIFY",
-      titleParts: [
-        { text: "ZERO-KNOWLEDGE", highlight: true },
-        { text: " TRUST", highlight: false },
-      ],
-      description: "Prove control without revealing data. Privacy preserved, certainty absolute.",
-      align: "right",
-    },
-  ]
 
   const motionSafe = useMotionSafe()
 
@@ -73,7 +73,7 @@ export function PrinciplesSection() {
 
       const articles = principlesRef.current?.querySelectorAll("article")
       articles?.forEach((article, index) => {
-        const isRight = principles[index].align === "right"
+        const isRight = PRINCIPLES[index].align === "right"
         gsap.from(article, {
           x: isRight ? 50 : -50,
           opacity: 0,
@@ -103,7 +103,7 @@ export function PrinciplesSection() {
       </div>
 
       <div ref={principlesRef} className="space-y-16 md:space-y-24">
-        {principles.map((principle, index) => (
+        {PRINCIPLES.map((principle, index) => (
           <article
             key={index}
             className={`flex flex-col ${

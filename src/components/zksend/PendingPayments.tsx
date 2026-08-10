@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAccount, useWalletClient, useChainId } from 'wagmi';
 import { toast } from 'sonner';
 
@@ -9,34 +9,41 @@ import {
   generateTwitchUidIdentityHash,
   gmailIdentityHashes,
   normalizeGmailIdentity,
-  normalizeSocialPlatform,
   normalizeSocialUsername,
-  socialProofUsernamesMatch,
-  twitchUidHandleSegment,
 } from '@/lib/reclaim/identity';
-import { fetchReclaimProofRequestConfig, verifyReclaimProofs } from '@/lib/reclaim/api';
-import { toOnchainReclaimProof } from '@/lib/reclaim/onchain';
+import { fetchReclaimProofRequestConfig } from '@/lib/reclaim/api';
 import type { ReclaimProof } from '@/lib/reclaim/types';
-import { markZkSendPaymentClaimed } from '@/lib/zksend/zksendPaymentsAPI';
-import { markDirectDepositClaimed } from '@/lib/directsend/directSendPaymentsAPI';
 import {
   getExplorerAddressUrl,
   getContractsForChain,
   ARC_CHAIN_ID,
   isDirectSendEscrowActiveForChain,
 } from '@/lib/web3/constants';
+import { tokenSymbolForAddress } from '@/lib/web3/chains';
 import { ReclaimProofRequest } from '@reclaimprotocol/js-sdk';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
 import { isZkLocalhost } from '@/lib/runtime/zkHost';
-import { DeveloperWalletService, type DeveloperWallet } from '@/lib/circle/developerWalletService';
-import { apiCall } from '@/lib/supabase/client';
+import { type DeveloperWallet } from '@/lib/circle/developerWalletService';
 import { getCircleWalletPrivyUserIdForTx } from '@/hooks/useCircleWallet';
 import { WalletSourceToggle, type WalletSource } from './WalletSourceToggle';
 import {
   ZKSEND_SUCCESS_COPY,
   renderTransactionLink,
 } from './transactionFeedback';
-
+import {
+  readTwitterOAuthTokens,
+  readTwitchAccessToken,
+  readGithubAccessToken,
+  readTelegramAccessToken,
+  readGmailAccessToken,
+  readLinkedInAccessToken,
+  ZK_OAUTH_IDENTITY_UPDATED_EVENT,
+} from '@/lib/zk-oauth/tokenStorage';
+import {
+  claimDirectDeposit as claimDirectDepositService,
+  claimPayments,
+  type ClaimOAuthTokens,
+} from '@/lib/zksend/claimService';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,13 +51,27 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { SendRecipientType } from './ZkSendPanel';
 import { ZkAccountsConnectHint } from '@/components/zk-accounts/ZkAccountsConnectHint';
 
-const TOKEN_SYMBOL_BY_ADDRESS: Record<string, string> = {
-  '0x89b50855aa3be2f677cd6303cec089b5f319d72a': 'EURC',
-  '0x3600000000000000000000000000000000000000': 'USDC',
-};
+/** Platform OAuth update events dispatched by usePlatformConnection descriptors. */
+const PLATFORM_OAUTH_UPDATED_EVENTS = [
+  'twitter-oauth-updated',
+  'twitch-oauth-updated',
+  'github-oauth-updated',
+  'telegram-oauth-updated',
+  'gmail-oauth-updated',
+  'linkedin-oauth-updated',
+] as const;
 
-function getTokenDisplay(tokenAddress: string): string {
-  return TOKEN_SYMBOL_BY_ADDRESS[tokenAddress?.toLowerCase() ?? ''] ?? tokenAddress;
+function readInstagramAccessToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  const stored =
+    localStorage.getItem('instagram_oauth_token') ||
+    localStorage.getItem('instagram_oauth') ||
+    localStorage.getItem('instagram_access_token');
+  return stored && stored.length > 0 ? stored : null;
+}
+
+function getTokenDisplay(chainId: number, tokenAddress: string): string {
+  return tokenSymbolForAddress(chainId, tokenAddress);
 }
 
 type PaymentRow = {
@@ -98,46 +119,6 @@ function resolveRecipientUsername(platform: SendRecipientType, raw: string): str
   return normalizeSocialUsername(raw.replace(/^@/, ''));
 }
 
-function resolveClaimIdentityHash(
-  platform: string,
-  loginUsername: string,
-  twitchUserId: string | null
-): `0x${string}` | null {
-  if (platform === 'twitch' && twitchUserId) {
-    return generateTwitchUidIdentityHash(twitchUserId);
-  }
-  if (platform === 'gmail') {
-    const hashes = gmailIdentityHashes(loginUsername);
-    return hashes[0] ?? null;
-  }
-  return generateSocialIdentityHash(platform, loginUsername);
-}
-
-function twitchProveUsername(twitchUserId: string | null, loginUsername: string): string {
-  if (twitchUserId) return twitchUidHandleSegment(twitchUserId);
-  return loginUsername;
-}
-
-function validateZkFetchExtraction(
-  platform: string,
-  proofsArray: ReclaimProof[],
-  loginUsername: string,
-  twitchUserId: string | null
-): void {
-  const extracted = proofsArray[0]?.extractedParameterValues ?? {};
-  if (platform === 'twitch') {
-    const extractedUserId = String((extracted as { userId?: string }).userId ?? '').trim();
-    if (twitchUserId && extractedUserId && extractedUserId !== twitchUserId) {
-      throw new Error('Proof Twitch user id mismatch');
-    }
-    return;
-  }
-  const extractedUsername = normalizeSocialUsername(String(extracted.username || ''));
-  if (extractedUsername && !socialProofUsernamesMatch(platform, loginUsername, extractedUsername)) {
-    throw new Error('Proof username mismatch');
-  }
-}
-
 function toUserFacingErrorMessage(error: unknown, fallback: string): string {
   const maybeObj = typeof error === 'object' && error !== null ? (error as { code?: unknown; message?: unknown }) : null;
   const code = maybeObj?.code;
@@ -176,8 +157,7 @@ function ReceiveOAuthStatus({
     );
   }
   const handle = username.replace(/^@/, '');
-  const display =
-    platform === 'gmail' ? handle : `@${handle}`;
+  const display = platform === 'gmail' ? handle : `@${handle}`;
   return (
     <p className="text-sm text-muted-foreground">
       {platformLabel} connected as <span className="font-medium text-foreground">{display}</span>. Pending payments load
@@ -215,16 +195,17 @@ export function PendingPayments({
   })();
 
   /** API URL for reclaim/zkfetch: same-origin uses relative path so Vite proxy is used. */
-  const getReclaimApiUrl = (path: string) => {
+  const getReclaimApiUrl = useCallback((path: string) => {
     if (typeof window !== 'undefined' && reclaimApiBaseUrl === window.location.origin) return path;
     return `${reclaimApiBaseUrl}${path.startsWith('/') ? path : `/${path}`}`;
-  };
+  }, [reclaimApiBaseUrl]);
 
   const reclaimMinSignaturesRaw = Number(import.meta.env.VITE_RECLAIM_MIN_SIGNATURES ?? 2);
   const reclaimMinSignatures =
     Number.isFinite(reclaimMinSignaturesRaw) && reclaimMinSignaturesRaw > 0
       ? Math.floor(reclaimMinSignaturesRaw)
       : 2;
+
   const [accessToken, setAccessToken] = useState('');
   const [oauth1Token, setOauth1Token] = useState('');
   const [oauth1TokenSecret, setOauth1TokenSecret] = useState('');
@@ -233,7 +214,6 @@ export function PendingPayments({
   const [githubAccessToken, setGithubAccessToken] = useState('');
   const [telegramAccessToken, setTelegramAccessToken] = useState('');
   const [instagramAccessToken, setInstagramAccessToken] = useState('');
-  // const [tiktokAccessToken, setTiktokAccessToken] = useState('');
   const [gmailAccessToken, setGmailAccessToken] = useState('');
   const [linkedinAccessToken, setLinkedinAccessToken] = useState('');
   const [privyAccessToken, setPrivyAccessToken] = useState<string | null>(null);
@@ -252,56 +232,56 @@ export function PendingPayments({
     ? Boolean(developerWallet?.wallet_address)
     : Boolean(isConnected && address);
 
-  useEffect(() => {
-    if (accessToken) return;
+  const syncOAuthTokens = useCallback(() => {
     try {
-      const stored = localStorage.getItem('twitter_oauth_token') || localStorage.getItem('twitter_oauth');
-      if (!stored) return;
-
-      // Allow either a raw token or a JSON payload with access_token.
-      let token = stored;
-      if (stored.trim().startsWith('{')) {
-        const parsed = JSON.parse(stored) as { access_token?: string; token?: string };
-        token = parsed.access_token || parsed.token || stored;
+      const twitter = readTwitterOAuthTokens();
+      if (twitter?.kind === 'oauth1') {
+        setOauth1Token(twitter.oauthToken);
+        setOauth1TokenSecret(twitter.oauthTokenSecret);
+        setAccessToken('');
+      } else if (twitter?.kind === 'oauth2') {
+        setAccessToken(twitter.accessToken);
       }
 
-      if (typeof token === 'string' && token.length > 0) {
-        setAccessToken(token);
-      }
+      const twitch = readTwitchAccessToken();
+      if (twitch) setTwitchAccessToken(twitch);
+
+      const github = readGithubAccessToken();
+      if (github) setGithubAccessToken(github);
+
+      const telegram = readTelegramAccessToken();
+      if (telegram) setTelegramAccessToken(telegram);
+
+      const gmail = readGmailAccessToken();
+      if (gmail) setGmailAccessToken(gmail);
+
+      const linkedin = readLinkedInAccessToken();
+      if (linkedin) setLinkedinAccessToken(linkedin);
+
+      const instagram = readInstagramAccessToken();
+      if (instagram) setInstagramAccessToken(instagram);
     } catch (error) {
-      console.warn('[zkSEND] Failed to parse stored Twitter token:', error);
+      console.warn('[zkSEND] Failed to sync OAuth tokens:', error);
     }
-  }, [accessToken]);
-
-  useEffect(() => {
-    if (oauth1Token && oauth1TokenSecret) return;
-    try {
-      const token = localStorage.getItem('twitter_oauth1_token');
-      const secret = localStorage.getItem('twitter_oauth1_secret');
-      if (token && secret) {
-        setOauth1Token(token);
-        setOauth1TokenSecret(secret);
-      }
-    } catch (error) {
-      console.warn('[zkSEND] Failed to load Twitter OAuth1 tokens:', error);
-    }
-  }, [oauth1Token, oauth1TokenSecret]);
+  }, []);
 
   useEffect(() => {
-    if (twitchAccessToken) return;
-    try {
-      const stored =
-        localStorage.getItem('twitch_oauth_token') ||
-        localStorage.getItem('twitch_oauth') ||
-        localStorage.getItem('twitch_access_token');
-      if (!stored) return;
-      if (typeof stored === 'string' && stored.length > 0) {
-        setTwitchAccessToken(stored);
-      }
-    } catch (error) {
-      console.warn('[zkSEND] Failed to load Twitch token:', error);
+    syncOAuthTokens();
+  }, [syncOAuthTokens]);
+
+  useEffect(() => {
+    const onUpdate = () => syncOAuthTokens();
+    window.addEventListener(ZK_OAUTH_IDENTITY_UPDATED_EVENT, onUpdate);
+    for (const eventName of PLATFORM_OAUTH_UPDATED_EVENTS) {
+      window.addEventListener(eventName, onUpdate);
     }
-  }, [twitchAccessToken]);
+    return () => {
+      window.removeEventListener(ZK_OAUTH_IDENTITY_UPDATED_EVENT, onUpdate);
+      for (const eventName of PLATFORM_OAUTH_UPDATED_EVENTS) {
+        window.removeEventListener(eventName, onUpdate);
+      }
+    };
+  }, [syncOAuthTokens]);
 
   useEffect(() => {
     if (platform !== 'twitch' || !twitchAccessToken) {
@@ -327,157 +307,6 @@ export function PendingPayments({
   }, [platform, twitchAccessToken]);
 
   useEffect(() => {
-    if (githubAccessToken) return;
-    try {
-      const stored =
-        localStorage.getItem('github_oauth_token') ||
-        localStorage.getItem('github_oauth') ||
-        localStorage.getItem('github_access_token');
-      if (!stored) return;
-      if (typeof stored === 'string' && stored.length > 0) {
-        setGithubAccessToken(stored);
-      }
-    } catch (error) {
-      console.warn('[zkSEND] Failed to load GitHub token:', error);
-    }
-  }, [githubAccessToken]);
-
-  useEffect(() => {
-    if (telegramAccessToken) return;
-    try {
-      const stored =
-        localStorage.getItem('telegram_oauth_token') ||
-        localStorage.getItem('telegram_oauth');
-      if (!stored) return;
-      if (typeof stored === 'string' && stored.length > 0) {
-        setTelegramAccessToken(stored);
-      }
-    } catch (error) {
-      console.warn('[zkSEND] Failed to load Telegram token:', error);
-    }
-  }, [telegramAccessToken]);
-
-  useEffect(() => {
-    if (instagramAccessToken) return;
-    try {
-      const stored =
-        localStorage.getItem('instagram_oauth_token') ||
-        localStorage.getItem('instagram_oauth') ||
-        localStorage.getItem('instagram_access_token');
-      if (!stored) return;
-      if (typeof stored === 'string' && stored.length > 0) {
-        setInstagramAccessToken(stored);
-      }
-    } catch (error) {
-      console.warn('[zkSEND] Failed to load Instagram token:', error);
-    }
-  }, [instagramAccessToken]);
-
-  // useEffect(() => {
-  //   if (tiktokAccessToken) return;
-  //   try {
-  //     const stored =
-  //       localStorage.getItem('tiktok_oauth_token') ||
-  //       localStorage.getItem('tiktok_oauth') ||
-  //       localStorage.getItem('tiktok_access_token');
-  //     if (!stored) return;
-  //     if (typeof stored === 'string' && stored.length > 0) {
-  //       setTiktokAccessToken(stored);
-  //     }
-  //   } catch (error) {
-  //     console.warn('[zkSEND] Failed to load TikTok token:', error);
-  //   }
-  // }, [tiktokAccessToken]);
-
-  useEffect(() => {
-    if (gmailAccessToken) return;
-    try {
-      const stored =
-        localStorage.getItem('gmail_oauth_token') ||
-        localStorage.getItem('gmail_oauth') ||
-        localStorage.getItem('gmail_access_token');
-      if (!stored) return;
-      if (typeof stored === 'string' && stored.length > 0) {
-        setGmailAccessToken(stored);
-      }
-    } catch (error) {
-      console.warn('[zkSEND] Failed to load Gmail token:', error);
-    }
-  }, [gmailAccessToken]);
-
-  useEffect(() => {
-    if (linkedinAccessToken) return;
-    try {
-      const stored =
-        localStorage.getItem('linkedin_oauth_token') ||
-        localStorage.getItem('linkedin_oauth') ||
-        localStorage.getItem('linkedin_access_token');
-      if (!stored) return;
-      if (typeof stored === 'string' && stored.length > 0) {
-        setLinkedinAccessToken(stored);
-      }
-    } catch (error) {
-      console.warn('[zkSEND] Failed to load LinkedIn token:', error);
-    }
-  }, [linkedinAccessToken]);
-
-  useEffect(() => {
-    const syncOAuthFromPanel = () => {
-      try {
-        const twitterStored = localStorage.getItem('twitter_oauth_token') || localStorage.getItem('twitter_oauth');
-        if (twitterStored) {
-          let token = twitterStored;
-          if (twitterStored.trim().startsWith('{')) {
-            const parsed = JSON.parse(twitterStored) as { access_token?: string; token?: string };
-            token = parsed.access_token || parsed.token || twitterStored;
-          }
-          if (token) setAccessToken(token);
-        }
-        const oauth1 = localStorage.getItem('twitter_oauth1_token');
-        const oauth1Secret = localStorage.getItem('twitter_oauth1_secret');
-        if (oauth1 && oauth1Secret) {
-          setOauth1Token(oauth1);
-          setOauth1TokenSecret(oauth1Secret);
-        }
-        const twitch =
-          localStorage.getItem('twitch_oauth_token') ||
-          localStorage.getItem('twitch_oauth') ||
-          localStorage.getItem('twitch_access_token');
-        if (twitch) setTwitchAccessToken(twitch);
-        const github =
-          localStorage.getItem('github_oauth_token') ||
-          localStorage.getItem('github_oauth') ||
-          localStorage.getItem('github_access_token');
-        if (github) setGithubAccessToken(github);
-        const telegram =
-          localStorage.getItem('telegram_oauth_token') || localStorage.getItem('telegram_oauth');
-        if (telegram) setTelegramAccessToken(telegram);
-        const instagram =
-          localStorage.getItem('instagram_oauth_token') ||
-          localStorage.getItem('instagram_oauth') ||
-          localStorage.getItem('instagram_access_token');
-        if (instagram) setInstagramAccessToken(instagram);
-        const gmail =
-          localStorage.getItem('gmail_oauth_token') ||
-          localStorage.getItem('gmail_oauth') ||
-          localStorage.getItem('gmail_access_token');
-        if (gmail) setGmailAccessToken(gmail);
-        const linkedin =
-          localStorage.getItem('linkedin_oauth_token') ||
-          localStorage.getItem('linkedin_oauth') ||
-          localStorage.getItem('linkedin_access_token');
-        if (linkedin) setLinkedinAccessToken(linkedin);
-      } catch (error) {
-        console.warn('[zkSEND] Failed to sync OAuth tokens from Accounts panel:', error);
-      }
-    };
-
-    window.addEventListener('identity-updated', syncOAuthFromPanel);
-    return () => window.removeEventListener('identity-updated', syncOAuthFromPanel);
-  }, []);
-
-  useEffect(() => {
-    // Privy is disabled for zk.localhost to prevent OAuth interception
     if (isZkLocalhost()) {
       setPrivyAccessToken(null);
       return;
@@ -547,12 +376,83 @@ export function PendingPayments({
     if (rows.length > 0 || directRows.length > 0) setLastClaimedTxHash(null);
   }, [rows.length, directRows.length]);
 
-  const resolveCurrency = (tokenAddressOrSymbol: string) => {
-    const normalized = tokenAddressOrSymbol.toLowerCase();
-    if (normalized === contracts.usdc.toLowerCase()) return 'USDC';
-    if (contracts.eurc && normalized === contracts.eurc.toLowerCase()) return 'EURC';
-    return tokenAddressOrSymbol;
-  };
+  const oauthTokens = useMemo((): ClaimOAuthTokens => {
+    return {
+      twitterAccessToken: accessToken || null,
+      oauth1Token: oauth1Token || null,
+      oauth1TokenSecret: oauth1TokenSecret || null,
+      twitchAccessToken: twitchAccessToken || null,
+      githubAccessToken: githubAccessToken || null,
+      telegramAccessToken: telegramAccessToken || null,
+      instagramAccessToken: instagramAccessToken || null,
+      linkedinAccessToken: linkedinAccessToken || null,
+      gmailAccessToken: gmailAccessToken || null,
+      privyAccessToken,
+    };
+  }, [
+    accessToken,
+    oauth1Token,
+    oauth1TokenSecret,
+    twitchAccessToken,
+    githubAccessToken,
+    telegramAccessToken,
+    instagramAccessToken,
+    linkedinAccessToken,
+    gmailAccessToken,
+    privyAccessToken,
+  ]);
+
+  const buildExecutorContext = useCallback(
+    (loginUsername: string) => {
+      const recipientAddress = (useCircle ? developerWallet!.wallet_address : address) ?? '';
+      return {
+        walletSource: (useCircle ? 'circle' : 'external') as 'circle' | 'external',
+        chainId: activeChainId,
+        zksendAddress: contracts.zksend,
+        recipientAddress,
+        loginUsername,
+        platform,
+        tokens: oauthTokens,
+        primaryIdentityHash,
+        reclaimProofs,
+        reclaimMinSignatures,
+        getReclaimApiUrl,
+        resolveCurrency: (tokenAddressOrSymbol: string) =>
+          tokenSymbolForAddress(activeChainId, tokenAddressOrSymbol),
+        developerWallet,
+        attribution: useCircle
+          ? {
+              privyUserId: getCircleWalletPrivyUserIdForTx(
+                developerWallet!,
+                address ?? undefined,
+                privyUser?.id,
+              ),
+              socialPlatform: developerWallet!.social_platform ?? undefined,
+              socialUserId: developerWallet!.social_user_id ?? undefined,
+            }
+          : undefined,
+        initializeExternalWallet: async () => {
+          if (!walletClient || !address) throw new Error('Connect wallet to claim payment');
+          await web3Service.initialize(walletClient, address, activeChainId);
+        },
+      };
+    },
+    [
+      useCircle,
+      developerWallet,
+      address,
+      activeChainId,
+      contracts.zksend,
+      platform,
+      oauthTokens,
+      primaryIdentityHash,
+      reclaimProofs,
+      reclaimMinSignatures,
+      getReclaimApiUrl,
+      privyUser?.id,
+      walletClient,
+    ],
+  );
 
   const normalizeProofs = (proof: unknown): ReclaimProof[] => {
     if (typeof proof === 'string') {
@@ -564,22 +464,6 @@ export function PendingPayments({
       return proof as ReclaimProof[];
     }
     return [proof as ReclaimProof];
-  };
-
-  const pollCircleTxHash = async (transactionId: string): Promise<string> => {
-    const maxAttempts = 30;
-    const pollInterval = 1000;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      await new Promise((r) => setTimeout(r, pollInterval));
-      const status = (await apiCall(`/wallets/transaction-status?transactionId=${encodeURIComponent(transactionId)}`, {
-        method: 'GET',
-      })) as { txHash?: string; transactionState?: string; error?: string };
-      if (status?.transactionState === 'FAILED') {
-        throw new Error(status?.error ?? 'Transaction failed');
-      }
-      if (status?.txHash) return status.txHash;
-    }
-    throw new Error('Transaction status timeout');
   };
 
   const startReclaimFlow = async () => {
@@ -702,323 +586,23 @@ export function PendingPayments({
 
   const claim = async (paymentId: string) => {
     try {
-      if (!useCircle && (!isConnected || !address || !walletClient)) throw new Error('Connect wallet to claim payment');
+      if (!useCircle && (!isConnected || !address || !walletClient)) {
+        throw new Error('Connect wallet to claim payment');
+      }
       if (useCircle && !developerWallet) throw new Error('Internal Wallet not available');
-    const u = resolveRecipientUsername(platform, username);
-    if (!u) throw new Error('Enter username');
-    const normalizedPlatform = normalizeSocialPlatform(platform);
-    if (!normalizedPlatform) throw new Error('Unsupported platform');
-    if (normalizedPlatform === 'twitter') {
-      const hasOAuth1 = Boolean(oauth1Token && oauth1TokenSecret);
-      if (isZkLocalhost()) {
-        if (!hasOAuth1) {
-          throw new Error('Connect Twitter to generate proof');
-        }
-      } else {
-        if (!hasOAuth1 && !accessToken && !privyAccessToken) {
-          throw new Error('Connect Twitter or login with Privy to generate proof');
-        }
-      }
-    }
-    if (normalizedPlatform === 'twitch' && !twitchAccessToken) {
-        throw new Error('Connect Twitch to generate proof');
-      }
-      if (normalizedPlatform === 'twitch' && !twitchResolvedUserId) {
-        throw new Error('Resolving Twitch user id - connect Twitch and retry');
-      }
-      if (normalizedPlatform === 'github' && !githubAccessToken) {
-        throw new Error('Connect GitHub to generate proof');
-      }
-      if (normalizedPlatform === 'instagram' && !instagramAccessToken) {
-        throw new Error('Connect Instagram to generate proof');
-      }
-      // if (normalizedPlatform === 'tiktok' && !tiktokAccessToken) {
-      //   throw new Error('Connect TikTok to generate proof');
-      // }
-      if (normalizedPlatform === 'telegram' && !telegramAccessToken) {
-        throw new Error('Connect Telegram to generate proof');
-      }
-      if (normalizedPlatform === 'linkedin' && !linkedinAccessToken) {
-        throw new Error('Connect LinkedIn to generate proof');
-      }
-
-      setClaimingId(paymentId);
-      if (!useCircle) {
-        await web3Service.initialize(walletClient, address!, activeChainId);
-      }
-
-      if (
-        normalizedPlatform !== 'twitter' &&
-        normalizedPlatform !== 'twitch' &&
-        normalizedPlatform !== 'github' &&
-        normalizedPlatform !== 'telegram' &&
-        normalizedPlatform !== 'instagram' &&
-        // normalizedPlatform !== 'tiktok' &&
-        normalizedPlatform !== 'linkedin'
-      ) {
-        if (!reclaimProofs || reclaimProofs.length === 0) {
-          throw new Error('Generate Reclaim proof first');
-        }
-
-        const proofsArray = reclaimProofs;
-
-        const extractedUsername = normalizeSocialUsername(
-          String(proofsArray[0]?.extractedParameterValues?.username || '')
-        );
-        if (extractedUsername && !socialProofUsernamesMatch(normalizedPlatform, u, extractedUsername)) {
-          throw new Error('Proof username mismatch');
-        }
-
-        const verify = await verifyReclaimProofs(proofsArray);
-        if (!verify.isValid) {
-          throw new Error('Reclaim proof verification failed (backend)');
-        }
-
-        const onchainProof = toOnchainReclaimProof(proofsArray[0]);
-        const txHash = useCircle
-          ? await (async () => {
-              const privyUserIdForTx = getCircleWalletPrivyUserIdForTx(
-                developerWallet!,
-                address ?? undefined,
-                privyUser?.id
-              );
-              const res = await DeveloperWalletService.sendTransaction({
-                walletId: developerWallet!.circle_wallet_id,
-                walletAddress: developerWallet!.wallet_address,
-                contractAddress: contracts.zksend,
-                functionName: 'claimPayment',
-                args: [paymentId, onchainProof, developerWallet!.wallet_address],
-                blockchain: 'ARC-TESTNET',
-                privyUserId: privyUserIdForTx,
-                socialPlatform: developerWallet!.social_platform ?? undefined,
-                socialUserId: developerWallet!.social_user_id ?? undefined,
-              });
-              if (!res.success) throw new Error(res.error ?? 'Claim failed');
-              if (res.txHash) return res.txHash;
-              if (res.transactionId) return await pollCircleTxHash(res.transactionId);
-              throw new Error('Missing transactionId');
-            })()
-          : await web3Service.claimZkSendPayment({
-              paymentId,
-              proof: onchainProof,
-              recipient: address as `0x${string}`,
-            });
-
-        const paymentRow = rows.find((row) => row.paymentId === paymentId);
-        const identityHashValue =
-          primaryIdentityHash ?? resolveClaimIdentityHash(platform, u, twitchResolvedUserId);
-        if (paymentRow && identityHashValue) {
-          try {
-            await markZkSendPaymentClaimed({
-              paymentId,
-              senderAddress: paymentRow.sender,
-              recipientIdentityHash: identityHashValue,
-              platform: paymentRow.platform,
-              amount: paymentRow.amount,
-              currency: resolveCurrency(paymentRow.token),
-              recipientWallet: (useCircle ? developerWallet!.wallet_address : address)!,
-              claimTxHash: txHash,
-              chainId: activeChainId,
-              contractAddress: contracts.zksend,
-            });
-          } catch (dbError) {
-            console.warn('[zkSEND] Failed to update payment claim in DB:', dbError);
-          }
-        }
-
-        setLastClaimedTxHash(txHash);
-        toast.success(ZKSEND_SUCCESS_COPY.paymentClaimed, {
-          description: (
-            <span className="text-sm">
-              TX: {renderTransactionLink(activeChainId, txHash)}
-            </span>
-          ),
-        });
-        await loadPending();
-        return;
-      }
-
-      const isTwitter = normalizedPlatform === 'twitter';
-      const isTwitch = normalizedPlatform === 'twitch';
-      const isGithub = normalizedPlatform === 'github';
-      const isTelegram = normalizedPlatform === 'telegram';
-      const isInstagram = normalizedPlatform === 'instagram';
-      // const isTiktok = normalizedPlatform === 'tiktok';
-      const isLinkedIn = normalizedPlatform === 'linkedin';
-
-      let requestUrl: string;
-      let accessTokenToUse: string | undefined;
-      let clientId: string | undefined;
-      let regexPattern: string;
-
-      if (isTwitter) {
-        const useOAuth1 = Boolean(oauth1Token && oauth1TokenSecret);
-        if (useOAuth1) {
-          requestUrl = 'https://api.x.com/1.1/account/verify_credentials.json?include_email=false&skip_status=true';
-          regexPattern = '"screen_name":"(?<username>[^"]+)"';
-        } else {
-          requestUrl = 'https://api.x.com/2/users/me?user.fields=username';
-          accessTokenToUse = accessToken || undefined;
-          regexPattern = '"username":"(?<username>[^"]+)"';
-        }
-      } else if (isTwitch) {
-        const twitchClientId = import.meta.env.VITE_TWITCH_CLIENT_ID as string | undefined;
-        if (!twitchClientId) {
-          throw new Error('Twitch Client ID not configured');
-        }
-        requestUrl = 'https://api.twitch.tv/helix/users';
-        accessTokenToUse = twitchAccessToken;
-        clientId = twitchClientId;
-        regexPattern = '"id":"(?<userId>[^"]+)"';
-      } else if (isGithub) {
-        requestUrl = 'https://api.github.com/user';
-        accessTokenToUse = githubAccessToken;
-        regexPattern = '"login":"(?<username>[^"]+)"';
-      } else if (isTelegram) {
-        requestUrl = getReclaimApiUrl('/api/telegram/me');
-        accessTokenToUse = telegramAccessToken;
-        regexPattern = '"login":"(?<username>[^"]+)"';
-      } else if (isInstagram) {
-        const instagramClientId = import.meta.env.VITE_INSTAGRAM_CLIENT_ID as string | undefined;
-        if (!instagramClientId) {
-          throw new Error('Instagram Client ID not configured');
-        }
-        requestUrl = 'https://graph.instagram.com/me?fields=username';
-        accessTokenToUse = instagramAccessToken;
-        clientId = instagramClientId;
-        regexPattern = '"username":"(?<username>[^"]+)"';
-      // } else if (isTiktok) {
-      //   const tiktokClientId = import.meta.env.VITE_TIKTOK_CLIENT_ID as string | undefined;
-      //   if (!tiktokClientId) {
-      //     throw new Error('TikTok Client ID not configured');
-      //   }
-      //   requestUrl = 'https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,avatar_url,display_name';
-      //   accessTokenToUse = tiktokAccessToken;
-      //   clientId = tiktokClientId;
-      //   regexPattern = '"display_name":"(?<username>[^"]+)"';
-      } else if (isLinkedIn) {
-        requestUrl = 'https://api.linkedin.com/v2/userinfo';
-        accessTokenToUse = linkedinAccessToken;
-        regexPattern = '"name":"(?<username>[^"]+)"';
-      } else {
-        throw new Error('Unsupported platform for zkFetch');
-      }
-
-      const proveUrl = getReclaimApiUrl('/api/reclaim/zkfetch/prove');
-      const proveRes = await fetch(proveUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // Only use Privy token if not on zk.localhost (where Privy is disabled) and for Twitter
-          ...(!isZkLocalhost() && privyAccessToken && isTwitter ? { Authorization: `Bearer ${privyAccessToken}` } : {}),
-        },
-        body: JSON.stringify({
-          requestUrl,
-          ...(accessTokenToUse ? { accessToken: accessTokenToUse } : {}),
-          ...(oauth1Token && oauth1TokenSecret && isTwitter
-            ? { oauth1: { token: oauth1Token, tokenSecret: oauth1TokenSecret } }
-            : {}),
-          ...(clientId ? { clientId } : {}),
-          platform: normalizedPlatform,
-          username: isTwitch ? twitchProveUsername(twitchResolvedUserId, u) : u,
-          paymentId,
-          recipient: effectiveRecipientAddress,
-          responseMatches: [
-            {
-              type: 'regex',
-              value: regexPattern,
-            },
-          ],
-        }),
-      });
-
-      if (!proveRes.ok) {
-        const text = await proveRes.text().catch(() => '');
-        throw new Error(`zkFetch proof failed: ${proveRes.status} ${text}`);
-      }
-
-      const proveJson = (await proveRes.json()) as { proof?: ReclaimProof[] | ReclaimProof };
-      const proof = proveJson.proof;
-
-      if (!proof) {
-        throw new Error('No proof received from zkFetch');
-      }
-
-      const proofsArray: ReclaimProof[] = Array.isArray(proof) ? (proof as ReclaimProof[]) : [proof as ReclaimProof];
-      validateZkFetchExtraction(normalizedPlatform, proofsArray, u, twitchResolvedUserId);
-
-      const signatures =
-        (Array.isArray((proofsArray[0] as any)?.signatures) && (proofsArray[0] as any).signatures) ||
-        (Array.isArray((proofsArray[0] as any)?.signedClaim?.signatures) &&
-          (proofsArray[0] as any).signedClaim.signatures) ||
-        [];
-      console.log('[zkSEND] Reclaim proof signatures length:', signatures.length, {
-        epoch: (proofsArray[0] as any)?.claimData?.epoch ?? (proofsArray[0] as any)?.epoch,
-        provider: (proofsArray[0] as any)?.claimData?.provider ?? (proofsArray[0] as any)?.provider,
-        taskId: (proofsArray[0] as any)?.taskId ?? null,
-      });
-      if (signatures.length < reclaimMinSignatures) {
-        throw new Error(
-          `Reclaim proof signatures are incomplete (got ${signatures.length}, need ${reclaimMinSignatures}). Regenerate proof.`
-        );
-      }
-
-      const verify = await verifyReclaimProofs(proofsArray);
-      if (!verify.isValid) {
-        throw new Error('Reclaim proof verification failed (backend)');
-      }
-
-      const onchainProof = toOnchainReclaimProof(proofsArray[0]);
-      const txHash = useCircle
-        ? await (async () => {
-            const privyUserIdForTx = getCircleWalletPrivyUserIdForTx(
-              developerWallet!,
-              address ?? undefined,
-              privyUser?.id
-            );
-            const res = await DeveloperWalletService.sendTransaction({
-              walletId: developerWallet!.circle_wallet_id,
-              walletAddress: developerWallet!.wallet_address,
-              contractAddress: contracts.zksend,
-              functionName: 'claimPayment',
-              args: [paymentId, onchainProof, developerWallet!.wallet_address],
-              blockchain: 'ARC-TESTNET',
-              privyUserId: privyUserIdForTx,
-              socialPlatform: developerWallet!.social_platform ?? undefined,
-              socialUserId: developerWallet!.social_user_id ?? undefined,
-            });
-            if (!res.success) throw new Error(res.error ?? 'Claim failed');
-            if (res.txHash) return res.txHash;
-            if (res.transactionId) return await pollCircleTxHash(res.transactionId);
-            throw new Error('Missing transactionId');
-          })()
-        : await web3Service.claimZkSendPayment({
-            paymentId,
-            proof: onchainProof,
-            recipient: address as `0x${string}`,
-          });
+      const u = resolveRecipientUsername(platform, username);
+      if (!u) throw new Error('Enter username');
 
       const paymentRow = rows.find((row) => row.paymentId === paymentId);
-        const identityHashValue =
-          primaryIdentityHash ?? resolveClaimIdentityHash(platform, u, twitchResolvedUserId);
-      if (paymentRow && identityHashValue) {
-        try {
-          await markZkSendPaymentClaimed({
-            paymentId,
-            senderAddress: paymentRow.sender,
-            recipientIdentityHash: identityHashValue,
-            platform: paymentRow.platform,
-            amount: paymentRow.amount,
-            currency: resolveCurrency(paymentRow.token),
-          recipientWallet: (useCircle ? developerWallet!.wallet_address : address)!,
-            claimTxHash: txHash,
-            chainId: activeChainId,
-            contractAddress: contracts.zksend,
-          });
-        } catch (dbError) {
-          console.warn('[zkSEND] Failed to update payment claim in DB:', dbError);
-        }
-      }
+      if (!paymentRow) throw new Error('Payment not found');
+
+      setClaimingId(paymentId);
+      const outcomes = await claimPayments({
+        payments: [paymentRow],
+        executorContext: buildExecutorContext(u),
+      });
+      const txHash = outcomes[0]?.txHash;
+      if (!txHash) throw new Error('Claim failed');
 
       setLastClaimedTxHash(txHash);
       toast.success(ZKSEND_SUCCESS_COPY.paymentClaimed, {
@@ -1033,6 +617,7 @@ export function PendingPayments({
       const msg = toUserFacingErrorMessage(e, 'Failed to claim payment');
       console.error('[zkSEND] claim error:', e);
       toast.error(msg);
+    } finally {
       setClaimingId(null);
     }
   };
@@ -1040,285 +625,20 @@ export function PendingPayments({
   const claimAll = async () => {
     if (rows.length === 0) return;
     try {
-      if (!useCircle && (!isConnected || !address || !walletClient)) throw new Error('Connect wallet to claim payment');
+      if (!useCircle && (!isConnected || !address || !walletClient)) {
+        throw new Error('Connect wallet to claim payment');
+      }
       if (useCircle && !developerWallet) throw new Error('Internal Wallet not available');
       const u = resolveRecipientUsername(platform, username);
       if (!u) throw new Error('Enter username');
-      const normalizedPlatform = normalizeSocialPlatform(platform);
-      if (!normalizedPlatform) throw new Error('Unsupported platform');
-      if (normalizedPlatform === 'twitter') {
-        const hasOAuth1 = Boolean(oauth1Token && oauth1TokenSecret);
-        if (isZkLocalhost()) {
-          if (!hasOAuth1) throw new Error('Connect Twitter to generate proof');
-        } else {
-          if (!hasOAuth1 && !accessToken && !privyAccessToken) {
-            throw new Error('Connect Twitter or login with Privy to generate proof');
-          }
-        }
-      }
-      if (normalizedPlatform === 'twitch' && !twitchAccessToken) {
-        throw new Error('Connect Twitch to generate proof');
-      }
-      if (normalizedPlatform === 'twitch' && !twitchResolvedUserId) {
-        throw new Error('Resolving Twitch user id - connect Twitch and retry');
-      }
-      if (normalizedPlatform === 'github' && !githubAccessToken) {
-        throw new Error('Connect GitHub to generate proof');
-      }
-      if (normalizedPlatform === 'telegram' && !telegramAccessToken) {
-        throw new Error('Connect Telegram to generate proof');
-      }
-      if (normalizedPlatform === 'instagram' && !instagramAccessToken) {
-        throw new Error('Connect Instagram to generate proof');
-      }
-      if (normalizedPlatform === 'linkedin' && !linkedinAccessToken) {
-        throw new Error('Connect LinkedIn to generate proof');
-      }
 
       setClaimingAll(true);
-      if (!useCircle) {
-        await web3Service.initialize(walletClient, address!, activeChainId);
-      }
-
-      const paymentIds = rows.map((r) => r.paymentId);
-      const identityHashValue =
-        primaryIdentityHash ?? resolveClaimIdentityHash(platform, u, twitchResolvedUserId);
-      if (!identityHashValue) {
-        throw new Error('Invalid identity');
-      }
-
-      if (
-        normalizedPlatform !== 'twitter' &&
-        normalizedPlatform !== 'twitch' &&
-        normalizedPlatform !== 'github' &&
-        normalizedPlatform !== 'telegram' &&
-        normalizedPlatform !== 'instagram' &&
-        normalizedPlatform !== 'linkedin'
-      ) {
-        if (!reclaimProofs || reclaimProofs.length === 0) {
-          throw new Error('Generate Reclaim proof first');
-        }
-        const proofsArray = reclaimProofs;
-        const extractedUsername = normalizeSocialUsername(
-          String(proofsArray[0]?.extractedParameterValues?.username || '')
-        );
-        if (extractedUsername && !socialProofUsernamesMatch(normalizedPlatform, u, extractedUsername)) {
-          throw new Error('Proof username mismatch');
-        }
-        const verify = await verifyReclaimProofs(proofsArray);
-        if (!verify.isValid) {
-          throw new Error('Reclaim proof verification failed (backend)');
-        }
-        const onchainProof = toOnchainReclaimProof(proofsArray[0]);
-        const txHash = useCircle
-          ? await (async () => {
-              const privyUserIdForTx = getCircleWalletPrivyUserIdForTx(
-                developerWallet!,
-                address ?? undefined,
-                privyUser?.id
-              );
-              const res = await DeveloperWalletService.sendTransaction({
-                walletId: developerWallet!.circle_wallet_id,
-                walletAddress: developerWallet!.wallet_address,
-                contractAddress: contracts.zksend,
-                functionName: 'claimPayments',
-                args: [paymentIds.map((id) => BigInt(id).toString()), onchainProof, developerWallet!.wallet_address],
-                blockchain: 'ARC-TESTNET',
-                privyUserId: privyUserIdForTx,
-                socialPlatform: developerWallet!.social_platform ?? undefined,
-                socialUserId: developerWallet!.social_user_id ?? undefined,
-              });
-              if (!res.success) throw new Error(res.error ?? 'Claim failed');
-              if (res.txHash) return res.txHash;
-              if (res.transactionId) return await pollCircleTxHash(res.transactionId);
-              throw new Error('Missing transactionId');
-            })()
-          : await web3Service.claimZkSendPayments({
-              paymentIds,
-              proof: onchainProof,
-              recipient: address as `0x${string}`,
-            });
-        await Promise.all(
-          rows.map((paymentRow) =>
-            markZkSendPaymentClaimed({
-              paymentId: paymentRow.paymentId,
-              senderAddress: paymentRow.sender,
-              recipientIdentityHash: identityHashValue as string,
-              platform: paymentRow.platform,
-              amount: paymentRow.amount,
-              currency: resolveCurrency(paymentRow.token),
-              recipientWallet: (useCircle ? developerWallet!.wallet_address : address)!,
-              claimTxHash: txHash,
-              chainId: activeChainId,
-              contractAddress: contracts.zksend,
-            }).catch((dbError) => {
-              console.warn('[zkSEND] Failed to update payment claim in DB:', dbError);
-            })
-          )
-        );
-        setLastClaimedTxHash(txHash);
-        toast.success(ZKSEND_SUCCESS_COPY.paymentsClaimed, {
-          description: (
-            <span className="text-sm">
-              TX: {renderTransactionLink(activeChainId, txHash)}
-            </span>
-          ),
-        });
-        await loadPending();
-        return;
-      }
-
-      const isTwitter = normalizedPlatform === 'twitter';
-      const isTwitch = normalizedPlatform === 'twitch';
-      const isGithub = normalizedPlatform === 'github';
-      const isTelegram = normalizedPlatform === 'telegram';
-      const isInstagram = normalizedPlatform === 'instagram';
-      const isLinkedIn = normalizedPlatform === 'linkedin';
-
-      let requestUrl: string;
-      let accessTokenToUse: string | undefined;
-      let clientId: string | undefined;
-      let regexPattern: string;
-
-      if (isTwitter) {
-        const useOAuth1 = Boolean(oauth1Token && oauth1TokenSecret);
-        if (useOAuth1) {
-          requestUrl = 'https://api.x.com/1.1/account/verify_credentials.json?include_email=false&skip_status=true';
-          regexPattern = '"screen_name":"(?<username>[^"]+)"';
-        } else {
-          requestUrl = 'https://api.x.com/2/users/me?user.fields=username';
-          accessTokenToUse = accessToken || undefined;
-          regexPattern = '"username":"(?<username>[^"]+)"';
-        }
-      } else if (isTwitch) {
-        const twitchClientId = import.meta.env.VITE_TWITCH_CLIENT_ID as string | undefined;
-        if (!twitchClientId) throw new Error('Twitch Client ID not configured');
-        requestUrl = 'https://api.twitch.tv/helix/users';
-        accessTokenToUse = twitchAccessToken;
-        clientId = twitchClientId;
-        regexPattern = '"id":"(?<userId>[^"]+)"';
-      } else if (isGithub) {
-        requestUrl = 'https://api.github.com/user';
-        accessTokenToUse = githubAccessToken;
-        regexPattern = '"login":"(?<username>[^"]+)"';
-      } else if (isTelegram) {
-        requestUrl = getReclaimApiUrl('/api/telegram/me');
-        accessTokenToUse = telegramAccessToken;
-        regexPattern = '"login":"(?<username>[^"]+)"';
-      } else if (isInstagram) {
-        const instagramClientId = import.meta.env.VITE_INSTAGRAM_CLIENT_ID as string | undefined;
-        if (!instagramClientId) throw new Error('Instagram Client ID not configured');
-        requestUrl = 'https://graph.instagram.com/me?fields=username';
-        accessTokenToUse = instagramAccessToken;
-        clientId = instagramClientId;
-        regexPattern = '"username":"(?<username>[^"]+)"';
-      } else if (isLinkedIn) {
-        requestUrl = 'https://api.linkedin.com/v2/userinfo';
-        accessTokenToUse = linkedinAccessToken;
-        regexPattern = '"name":"(?<username>[^"]+)"';
-      } else {
-        throw new Error('Unsupported platform for zkFetch');
-      }
-
-      const firstPaymentId = rows[0].paymentId;
-      const proveUrl = getReclaimApiUrl('/api/reclaim/zkfetch/prove');
-      const proveRes = await fetch(proveUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(!isZkLocalhost() && privyAccessToken && isTwitter ? { Authorization: `Bearer ${privyAccessToken}` } : {}),
-        },
-        body: JSON.stringify({
-          requestUrl,
-          ...(accessTokenToUse ? { accessToken: accessTokenToUse } : {}),
-          ...(oauth1Token && oauth1TokenSecret && isTwitter
-            ? { oauth1: { token: oauth1Token, tokenSecret: oauth1TokenSecret } }
-            : {}),
-          ...(clientId ? { clientId } : {}),
-          platform: normalizedPlatform,
-          username: isTwitch ? twitchProveUsername(twitchResolvedUserId, u) : u,
-          paymentId: firstPaymentId,
-          recipient: effectiveRecipientAddress,
-          responseMatches: [{ type: 'regex', value: regexPattern }],
-        }),
+      const outcomes = await claimPayments({
+        payments: rows,
+        executorContext: buildExecutorContext(u),
       });
-
-      if (!proveRes.ok) {
-        const text = await proveRes.text().catch(() => '');
-        throw new Error(`zkFetch proof failed: ${proveRes.status} ${text}`);
-      }
-
-      const proveJson = (await proveRes.json()) as { proof?: ReclaimProof[] | ReclaimProof };
-      const proof = proveJson.proof;
-      if (!proof) throw new Error('No proof received from zkFetch');
-
-      const proofsArray: ReclaimProof[] = Array.isArray(proof) ? (proof as ReclaimProof[]) : [proof as ReclaimProof];
-      validateZkFetchExtraction(normalizedPlatform, proofsArray, u, twitchResolvedUserId);
-
-      const signatures =
-        (Array.isArray((proofsArray[0] as any)?.signatures) && (proofsArray[0] as any).signatures) ||
-        (Array.isArray((proofsArray[0] as any)?.signedClaim?.signatures) &&
-          (proofsArray[0] as any).signedClaim.signatures) ||
-        [];
-      if (signatures.length < reclaimMinSignatures) {
-        throw new Error(
-          `Reclaim proof signatures are incomplete (got ${signatures.length}, need ${reclaimMinSignatures}). Regenerate proof.`
-        );
-      }
-
-      const verify = await verifyReclaimProofs(proofsArray);
-      if (!verify.isValid) {
-        throw new Error('Reclaim proof verification failed (backend)');
-      }
-
-      const onchainProof = toOnchainReclaimProof(proofsArray[0]);
-      const txHash = useCircle
-        ? await (async () => {
-            const privyUserIdForTx = getCircleWalletPrivyUserIdForTx(
-              developerWallet!,
-              address ?? undefined,
-              privyUser?.id
-            );
-            const res = await DeveloperWalletService.sendTransaction({
-              walletId: developerWallet!.circle_wallet_id,
-              walletAddress: developerWallet!.wallet_address,
-              contractAddress: contracts.zksend,
-              functionName: 'claimPayments',
-              args: [paymentIds.map((id) => BigInt(id).toString()), onchainProof, developerWallet!.wallet_address],
-              blockchain: 'ARC-TESTNET',
-              privyUserId: privyUserIdForTx,
-              socialPlatform: developerWallet!.social_platform ?? undefined,
-              socialUserId: developerWallet!.social_user_id ?? undefined,
-            });
-            if (!res.success) throw new Error(res.error ?? 'Claim failed');
-            if (res.txHash) return res.txHash;
-            if (res.transactionId) return await pollCircleTxHash(res.transactionId);
-            throw new Error('Missing transactionId');
-          })()
-        : await web3Service.claimZkSendPayments({
-            paymentIds,
-            proof: onchainProof,
-            recipient: address as `0x${string}`,
-          });
-
-      await Promise.all(
-        rows.map((paymentRow) =>
-          markZkSendPaymentClaimed({
-            paymentId: paymentRow.paymentId,
-            senderAddress: paymentRow.sender,
-            recipientIdentityHash: identityHashValue as string,
-            platform: paymentRow.platform,
-            amount: paymentRow.amount,
-            currency: resolveCurrency(paymentRow.token),
-          recipientWallet: (useCircle ? developerWallet!.wallet_address : address)!,
-            claimTxHash: txHash,
-            chainId: activeChainId,
-            contractAddress: contracts.zksend,
-          }).catch((dbError) => {
-            console.warn('[zkSEND] Failed to update payment claim in DB:', dbError);
-          })
-        )
-      );
+      const txHash = outcomes[0]?.txHash;
+      if (!txHash) throw new Error('Claim failed');
 
       setLastClaimedTxHash(txHash);
       toast.success(ZKSEND_SUCCESS_COPY.paymentsClaimed, {
@@ -1343,7 +663,9 @@ export function PendingPayments({
       if (!directEscrowEnabled || !contracts.directSendV2) {
         throw new Error('DirectSend V2 is not configured');
       }
-      if (!useCircle && (!isConnected || !address || !walletClient)) throw new Error('Connect wallet to claim');
+      if (!useCircle && (!isConnected || !address || !walletClient)) {
+        throw new Error('Connect wallet to claim');
+      }
       if (useCircle && !developerWallet) throw new Error('Internal Wallet not available');
       if (!addressModeRecipient) throw new Error('Enter your wallet address');
       if (address?.toLowerCase() !== addressModeRecipient.toLowerCase()) {
@@ -1351,46 +673,28 @@ export function PendingPayments({
       }
 
       setClaimingId(`direct:${depositId}`);
-      if (!useCircle) {
-        await web3Service.initialize(walletClient!, address!, activeChainId);
-      }
-
-      const txHash = useCircle
-        ? await (async () => {
-            const privyUserIdForTx = getCircleWalletPrivyUserIdForTx(
-              developerWallet!,
-              address ?? undefined,
-              privyUser?.id
-            );
-            const res = await DeveloperWalletService.sendTransaction({
-              walletId: developerWallet!.circle_wallet_id,
-              walletAddress: developerWallet!.wallet_address,
-              contractAddress: contracts.directSendV2!,
-              functionName: 'claim',
-              args: [BigInt(depositId).toString()],
-              blockchain: 'ARC-TESTNET',
-              privyUserId: privyUserIdForTx,
+      const { txHash } = await claimDirectDepositService({
+        depositId,
+        walletSource: useCircle ? 'circle' : 'external',
+        chainId: activeChainId,
+        directSendAddress: contracts.directSendV2,
+        recipientWallet: addressModeRecipient,
+        developerWallet,
+        attribution: useCircle
+          ? {
+              privyUserId: getCircleWalletPrivyUserIdForTx(
+                developerWallet!,
+                address ?? undefined,
+                privyUser?.id,
+              ),
               socialPlatform: developerWallet!.social_platform ?? undefined,
               socialUserId: developerWallet!.social_user_id ?? undefined,
-            });
-            if (!res.success) throw new Error(res.error ?? 'Claim failed');
-            if (res.txHash) return res.txHash;
-            if (res.transactionId) return await pollCircleTxHash(res.transactionId);
-            throw new Error('Missing transactionId');
-          })()
-        : await web3Service.claimDirectDeposit(depositId);
-
-      try {
-        await markDirectDepositClaimed({
-          depositId,
-          recipientWallet: addressModeRecipient,
-          claimTxHash: txHash,
-          chainId: activeChainId,
-          contractAddress: contracts.directSendV2,
-        });
-      } catch (dbError) {
-        console.warn('[DirectSend] Failed to update claim in DB:', dbError);
-      }
+            }
+          : undefined,
+        initializeExternalWallet: async () => {
+          await web3Service.initialize(walletClient!, address!, activeChainId);
+        },
+      });
 
       setLastClaimedTxHash(txHash);
       toast.success(ZKSEND_SUCCESS_COPY.depositClaimed, {
@@ -1478,9 +782,6 @@ export function PendingPayments({
         )}
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-         {/* <div className="text-xs text-muted-foreground">
-            {isActive ? 'Pending payments auto-load when this tab opens.' : 'Open this tab to auto-load pending payments.'}
-          </div> */}
           <Button
             type="button"
             variant="outline"
@@ -1532,7 +833,7 @@ export function PendingPayments({
                       {' · amount: '}
                       {d.amount}
                       {' · token: '}
-                      {getTokenDisplay(d.token)}
+                      {getTokenDisplay(activeChainId, d.token)}
                     </div>
                   </div>
                   <Button
@@ -1604,7 +905,7 @@ export function PendingPayments({
                       {' · amount: '}
                       {p.amount}
                       {' · token: '}
-                      {getTokenDisplay(p.token)}
+                      {getTokenDisplay(activeChainId, p.token)}
                     </div>
                   </div>
                   <Button
@@ -1623,4 +924,3 @@ export function PendingPayments({
     </Card>
   );
 }
-

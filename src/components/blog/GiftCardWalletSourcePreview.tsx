@@ -8,7 +8,7 @@ type GiftCardWalletSourcePreviewProps = {
 };
 
 export function GiftCardWalletSourcePreview({ compact }: GiftCardWalletSourcePreviewProps) {
-  const walletSource = 'metamask';
+  const walletSource = 'external';
   const rabbyAddress = '0xd0Cc…9584';
   const internalAddress = '0x2eab…5a0b';
 
@@ -22,7 +22,7 @@ export function GiftCardWalletSourcePreview({ compact }: GiftCardWalletSourcePre
         }`}
       >
         <div className="flex items-center space-x-3 rounded-md border border-gray-300 bg-white p-2.5 shadow-sm">
-          <RadioGroupItem value="metamask" id="blog-wallet-rabby" className="mt-0" />
+          <RadioGroupItem value="external" id="blog-wallet-rabby" className="mt-0" />
           <div className="flex min-w-0 flex-1 items-center space-x-2.5">
             <Wallet className={`${compact ? 'h-4 w-4' : 'h-5 w-5'} shrink-0 text-blue-600`} />
             <Label htmlFor="blog-wallet-rabby" className={`truncate font-normal ${compact ? 'text-xs' : 'text-sm'}`}>
@@ -31,7 +31,7 @@ export function GiftCardWalletSourcePreview({ compact }: GiftCardWalletSourcePre
           </div>
         </div>
         <div className="flex items-center space-x-3 rounded-md p-2.5 hover:bg-white/60">
-          <RadioGroupItem value="developer" id="blog-wallet-internal" className="mt-0" />
+          <RadioGroupItem value="circle" id="blog-wallet-internal" className="mt-0" />
           <div className="flex min-w-0 flex-1 items-center space-x-2.5">
             <Wallet className={`${compact ? 'h-4 w-4' : 'h-5 w-5'} shrink-0 text-purple-600`} />
             <Label htmlFor="blog-wallet-internal" className={`truncate font-normal ${compact ? 'text-xs' : 'text-sm'}`}>

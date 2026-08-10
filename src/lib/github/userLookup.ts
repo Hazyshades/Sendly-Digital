@@ -3,8 +3,7 @@
  * Calls zk-sender Edge Function GET /zk-sender/github/user (GitHub REST API).
  */
 
-import { getApiUrl } from '@/lib/supabase/client';
-import { publicAnonKey } from '@/lib/supabase/info';
+import { edgeFetch } from '@/lib/supabase/client';
 
 export interface GitHubUserPreview {
   login: string;
@@ -25,20 +24,20 @@ export interface GitHubUserLookupError {
 
 export type GitHubUserLookupResponse = GitHubUserLookupResult | GitHubUserLookupError;
 
-function getGitHubLookupBaseUrl(): string {
-  return (
-    (import.meta.env.VITE_SUPABASE_ZKSEND_FUNCTION_URL as string | undefined) ||
-    (import.meta.env.VITE_SUPABASE_FUNCTION_URL as string | undefined) ||
-    getApiUrl()
-  );
-}
-
 /**
  * Normalize login: trim, remove leading @, lowercase for API lookup.
  */
 export function normalizeGitHubLogin(handle: string): string {
   return handle.trim().replace(/^@/, '').toLowerCase();
 }
+
+type GitHubEdgeBody = {
+  login?: string;
+  name?: string;
+  avatar_url?: string | null;
+  error?: string;
+  code?: string;
+};
 
 /**
  * Fetch GitHub user profile by username for preview.
@@ -50,17 +49,14 @@ export async function fetchGitHubUserPreview(username: string): Promise<GitHubUs
     return { success: false, error: 'Enter a username', code: 'MISSING_USERNAME' };
   }
 
-  const base = getGitHubLookupBaseUrl().replace(/\/$/, '');
-  const url = `${base}/zk-sender/github/user?username=${encodeURIComponent(normalized)}`;
-
   try {
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${publicAnonKey}` },
-    });
-    const body = await res.json().catch(() => ({}));
+    const { ok, status, data: body } = await edgeFetch<GitHubEdgeBody>(
+      'zk-sender',
+      `/github/user?username=${encodeURIComponent(normalized)}`,
+      { method: 'GET', auth: 'anon', rawResponse: true },
+    );
 
-    if (res.ok && body.login) {
+    if (ok && body.login) {
       return {
         success: true,
         data: {
@@ -71,10 +67,10 @@ export async function fetchGitHubUserPreview(username: string): Promise<GitHubUs
       };
     }
 
-    if (res.status === 404 || body.code === 'USER_NOT_FOUND') {
+    if (status === 404 || body.code === 'USER_NOT_FOUND') {
       return { success: false, error: 'User not found', code: 'USER_NOT_FOUND' };
     }
-    if (res.status === 429 || body.code === 'RATE_LIMITED') {
+    if (status === 429 || body.code === 'RATE_LIMITED') {
       return { success: false, error: 'Too many requests', code: 'RATE_LIMITED' };
     }
 

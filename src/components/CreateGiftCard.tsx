@@ -331,23 +331,23 @@ export function CreateGiftCard() {
             <Label>Wallet source</Label>
             <RadioGroup
               value={walletSource}
-              onValueChange={(value: 'metamask' | 'developer') => setWalletSource(value)}
+              onValueChange={(value: 'external' | 'circle') => setWalletSource(value)}
               className="mt-2 space-y-2 rounded-lg border border-gray-200 bg-gray-50/50 p-3"
             >
               <div className={`flex items-center space-x-3 rounded-md p-2.5 transition-[background-color,box-shadow,border-color] duration-200 ease-[var(--ease-out)] ${
-                walletSource === 'metamask' 
+                walletSource === 'external' 
                   ? 'bg-white shadow-sm border border-gray-300' 
                   : 'hover:bg-white/60'
               } ${!isConnected ? 'opacity-60' : ''}`}>
                 <RadioGroupItem 
-                  value="metamask" 
-                  id="wallet-metamask" 
+                  value="external" 
+                  id="wallet-external" 
                   className="mt-0" 
                   disabled={!isConnected}
                 />
                 <div className="flex items-center space-x-2.5 flex-1">
                   <Wallet className="w-5 h-5 text-blue-600" />
-                  <Label htmlFor="wallet-metamask" className="cursor-pointer font-normal flex-1">
+                  <Label htmlFor="wallet-external" className="cursor-pointer font-normal flex-1">
                     {isConnected && address 
                       ? `${walletName} (${address.slice(0, 6)}...${address.slice(-4)})`
                       : `${walletName} (Not connected)`
@@ -356,19 +356,19 @@ export function CreateGiftCard() {
                 </div>
               </div>
               <div className={`flex items-center space-x-3 rounded-md p-2.5 transition-[background-color,box-shadow,border-color] duration-200 ease-[var(--ease-out)] ${
-                walletSource === 'developer' 
+                walletSource === 'circle' 
                   ? 'bg-white shadow-sm border border-gray-300' 
                   : 'hover:bg-white/60'
               } ${!hasDeveloperWallet || !developerWallet ? 'opacity-60' : ''}`}>
                 <RadioGroupItem 
-                  value="developer" 
-                  id="wallet-developer" 
+                  value="circle" 
+                  id="wallet-circle" 
                   className="mt-0" 
                   disabled={!hasDeveloperWallet || !developerWallet}
                 />
                 <div className="flex items-center space-x-2.5 flex-1">
                   <Wallet className="w-5 h-5 text-purple-600" />
-                  <Label htmlFor="wallet-developer" className="cursor-pointer font-normal flex-1">
+                  <Label htmlFor="wallet-circle" className="cursor-pointer font-normal flex-1">
                     {hasDeveloperWallet && developerWallet?.wallet_address
                       ? `Internal Wallet (${developerWallet.wallet_address.slice(0, 6)}...${developerWallet.wallet_address.slice(-4)})`
                       : 'Internal Wallet (Not available)'
@@ -386,7 +386,7 @@ export function CreateGiftCard() {
               onValueChange={(value: 'address' | 'twitter' | 'twitch' | 'telegram' | 'tiktok' | 'instagram') => updateFormData('recipientType', value)}
               className="mt-2 space-y-2 rounded-lg border border-gray-200 bg-gray-50/50 p-3"
             >
-              {RECIPIENT_OPTIONS.filter(option => option.value !== 'tiktok' && option.value !== 'instagram').map((option) => {
+              {RECIPIENT_OPTIONS.map((option) => {
                 const isReceivingDisabled = option.value === 'tiktok' || option.value === 'instagram';
                 const isSelected = formData.recipientType === option.value;
                 

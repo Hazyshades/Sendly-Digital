@@ -9,6 +9,11 @@ import {
 } from './bridgeConfig';
 
 import type { BridgeResult, BridgeParams } from '@/types/bridge';
+import {
+  ARC_CHAIN_ID,
+  BASE_SEPOLIA_CHAIN_ID,
+  getChain,
+} from '@/lib/web3/chains';
 
 export type { BridgeResult, BridgeParams };
 
@@ -26,10 +31,10 @@ export class BridgeError extends Error {
 class BridgeService {
   async bridgeArcToBase(amount: string): Promise<BridgeResult> {
     return this.bridge({
-      fromChainId: 5042002,
-      toChainId: 84532,
-      fromCurrency: '0x3600000000000000000000000000000000000000',
-      toCurrency: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+      fromChainId: ARC_CHAIN_ID,
+      toChainId: BASE_SEPOLIA_CHAIN_ID,
+      fromCurrency: getChain(ARC_CHAIN_ID).contracts.usdc!,
+      toCurrency: getChain(BASE_SEPOLIA_CHAIN_ID).contracts.usdc!,
       amount
     });
   }

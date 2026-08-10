@@ -79,7 +79,7 @@ export default function BridgeDialog({
         setSelectedToChainId(undefined);
       }
     }
-  }, [selectedFromChainId]);
+  }, [selectedFromChainId, selectedToChainId]);
 
   useEffect(() => {
     if (!selectedFromChainId || !selectedToChainId || !selectedTokenSymbol) {

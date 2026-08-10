@@ -17,13 +17,21 @@ import { createWalletClient, custom } from 'viem';
 import { useNavigate } from 'react-router-dom';
 import { arcTestnet } from '@/lib/web3/wagmiConfig';
 import { getContractsForChain, ARC_CHAIN_ID } from '@/lib/web3/constants';
+import { tokenSymbolForAddress } from '@/lib/web3/chains';
 import web3Service from '@/lib/web3/web3Service';
 import { GiftCardsService } from '@/lib/supabase/giftCards';
-import { GiftCardABI } from '@/lib/web3/constants';
+import { fromMicro } from '@/lib/tokenAmount';
+import { readGiftCard } from '@/lib/web3/giftCardReads';
+import {
+  createBrowserWalletExecutor,
+  createInternalWalletExecutor,
+  type WalletExecutor,
+} from '@/lib/web3/walletExecutor';
 import BridgeDialog from './BridgeDialog';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
 import { useCircleWallet } from '@/hooks/useCircleWallet';
 import { DeveloperWalletService } from '@/lib/circle/developerWalletService';
+import { DEFAULT_BLOCKCHAIN, getPrivySocialIdentity, normalizePrivyUserId } from '@/lib/circle/walletResolution';
 
 interface RedeemableCard {
   tokenId: string;
@@ -106,6 +114,22 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
     circle: "/Circle-Mint"
   };
 
+
+  const giftCardContractAddress = contracts.contractAddress ?? contracts.zksend;
+
+  function createSpendCardExecutor(): WalletExecutor {
+    if (isConnected && address) {
+      return createBrowserWalletExecutor({ address, chainId: activeChainId });
+    }
+    if (hasDeveloperWallet && developerWallet) {
+      return createInternalWalletExecutor({
+        wallet: developerWallet,
+        chainId: activeChainId,
+      });
+    }
+    throw new Error('Wallet not connected');
+  }
+
   // Auto-fill Token ID if provided from MyCards
   useEffect(() => {
     if (selectedTokenId && selectedTokenId !== cardInput) {
@@ -131,146 +155,41 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
   }, [cardInput, isConnected, hasDeveloperWallet, checkingWallet, redeemStep]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const lookupCard = async (tokenId: string): Promise<RedeemableCard | null> => {
-    // Determine address to check card ownership
-    let checkAddress: string;
-    
-    if (isConnected && address) {
-      checkAddress = address;
-    } else if (hasDeveloperWallet && developerWallet) {
-      checkAddress = developerWallet.wallet_address;
-    } else {
-      throw new Error('Wallet not connected');
-    }
+    const executor = createSpendCardExecutor();
+    const checkAddress = executor.address;
 
     try {
-      let giftCardInfo: any;
-      let owner: string;
-      let creator: string;
-      
-      // If MetaMask is connected - use web3Service
-      if (isConnected && address) {
-        // Initialize web3 service
-        const walletClient = createWalletClient({
-          chain: activeChain,
-          transport: custom(window.ethereum)
-        });
-
-        await web3Service.initialize(walletClient, address as string, activeChainId);
-
-        // Get gift card info from blockchain
-        giftCardInfo = await web3Service.getGiftCardInfo(tokenId);
-        
-        if (!giftCardInfo) {
-          return null;
-        }
-
-        // Check if user owns this card
-        owner = await web3Service.getCardOwner(tokenId);
-        if (owner.toLowerCase() !== address.toLowerCase()) {
-          throw new Error('You do not own this gift card');
-        }
-
-        // Get the original creator of the card
-        creator = await web3Service.getCardCreator(tokenId);
-      } else {
-        // For Internal Wallet use a public RPC for reading
-        const { createPublicClient, http } = await import('viem');
-        const publicClient = createPublicClient({
-          chain: activeChain,
-          transport: http()
-        });
-
-        // Read card data directly from the contract
-        // Use the correct ABI from GiftCardABI
-        const [contractData, ownerData, creatorData] = await Promise.all([
-          publicClient.readContract({
-            address: (contracts.contractAddress ?? contracts.zksend) as `0x${string}`,
-            abi: GiftCardABI,
-            functionName: 'getGiftCardInfo',
-            args: [BigInt(tokenId)]
-          }),
-          publicClient.readContract({
-            address: (contracts.contractAddress ?? contracts.zksend) as `0x${string}`,
-            abi: [
-              {
-                inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
-                name: 'ownerOf',
-                outputs: [{ internalType: 'address', name: '', type: 'address' }],
-                stateMutability: 'view',
-                type: 'function'
-              }
-            ],
-            functionName: 'ownerOf',
-            args: [BigInt(tokenId)]
-          }),
-          publicClient.readContract({
-            address: (contracts.contractAddress ?? contracts.zksend) as `0x${string}`,
-            abi: [
-              {
-                inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
-                name: 'getGiftCardCreator',
-                outputs: [{ internalType: 'address', name: '', type: 'address' }],
-                stateMutability: 'view',
-                type: 'function'
-              }
-            ],
-            functionName: 'getGiftCardCreator',
-            args: [BigInt(tokenId)]
-          }).catch(() => '0x0000000000000000000000000000000000000000')
-        ]) as any;
-
-        // contractData is the GiftCardInfo structure: { amount, token, redeemed, message }
-        if (!contractData || (contractData as any).redeemed) {
-          return null;
-        }
-
-        owner = ownerData;
-        creator = creatorData && creatorData !== '0x0000000000000000000000000000000000000000' 
-          ? creatorData 
-          : '0x0000000000000000000000000000000000000000';
-
-        // Check if user owns this card
-        if (owner.toLowerCase() !== checkAddress.toLowerCase()) {
-          throw new Error('You do not own this gift card');
-        }
-
-        // Convert contract data to giftCardInfo format
-        // contractData already is structure { amount, token, redeemed, message }
-        giftCardInfo = {
-          amount: (contractData as any).amount.toString(),
-          token: (contractData as any).token,
-          redeemed: (contractData as any).redeemed,
-          message: (contractData as any).message || ''
-        };
+      const giftCard = await readGiftCard(tokenId, executor, giftCardContractAddress);
+      if (!giftCard) {
+        return null;
       }
 
-      // Common formatting logic for both cases
-      // Format amount properly 
-      const formattedAmount = (Number(giftCardInfo.amount) / 1000000).toString();
-      
-      // Determine token symbol from address
-      const tokenAddress = giftCardInfo.token.toLowerCase();
-      const tokenSymbol: RedeemableCard['currency'] = 
-        tokenAddress === contracts.usdc.toLowerCase() ? 'USDC' :
-        (contracts.eurc && tokenAddress === contracts.eurc.toLowerCase()) ? 'EURC' :
-        (contracts.usyc && tokenAddress === contracts.usyc.toLowerCase()) ? 'USYC' :
-        'USDC';
+      // Existing cards you don't own surface ownership before redeemed/not-found.
+      if (giftCard.owner.toLowerCase() !== checkAddress.toLowerCase()) {
+        throw new Error('You do not own this gift card');
+      }
 
-      // Format creator address (show first 6 and last 4 characters)
-      const formattedCreator = creator && creator !== '0x0000000000000000000000000000000000000000' 
-        ? `${creator.slice(0, 6)}...${creator.slice(-4)}` 
-        : 'Unknown';
+      const formattedAmount = fromMicro(BigInt(giftCard.amount));
+      const tokenSymbol = tokenSymbolForAddress(
+        activeChainId,
+        giftCard.token,
+      ) as RedeemableCard['currency'];
+
+      const formattedCreator =
+        giftCard.creator && giftCard.creator !== '0x0000000000000000000000000000000000000000'
+          ? `${giftCard.creator.slice(0, 6)}...${giftCard.creator.slice(-4)}`
+          : 'Unknown';
 
       return {
         tokenId,
         amount: formattedAmount,
         currency: tokenSymbol,
-        design: 'pink', // Default design, could be extracted from metadata
-        message: giftCardInfo.message || '',
+        design: 'pink',
+        message: giftCard.message || '',
         sender: formattedCreator,
-        hasPassword: false, // Not implemented in current contract
-        hasTimer: false, // Not implemented in current contract
-        status: giftCardInfo.redeemed ? 'redeemed' : 'valid'
+        hasPassword: false,
+        hasTimer: false,
+        status: giftCard.redeemed ? 'redeemed' : 'valid',
       };
     } catch (error) {
       console.error('Error looking up card:', error);
@@ -366,60 +285,23 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
 
     try {
       // Check card status before redeem
-      let giftCardInfo: any;
-      let owner: string;
-      
-      if (useDeveloperWallet) {
-        // For Internal Wallet use public RPC for reading
-        const { createPublicClient, http } = await import('viem');
-        const publicClient = createPublicClient({
-          chain: activeChain,
-          transport: http()
-        });
-
-        [giftCardInfo, owner] = await Promise.all([
-          publicClient.readContract({
-            address: (contracts.contractAddress ?? contracts.zksend) as `0x${string}`,
-            abi: GiftCardABI,
-            functionName: 'getGiftCardInfo',
-            args: [BigInt(currentCard.tokenId)]
-          }),
-          publicClient.readContract({
-            address: (contracts.contractAddress ?? contracts.zksend) as `0x${string}`,
-            abi: [
-              {
-                inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
-                name: 'ownerOf',
-                outputs: [{ internalType: 'address', name: '', type: 'address' }],
-                stateMutability: 'view',
-                type: 'function'
-              }
-            ],
-            functionName: 'ownerOf',
-            args: [BigInt(currentCard.tokenId)]
-          })
-        ]);
-        
-        // giftCardInfo is structure { amount, token, redeemed, message }
-        giftCardInfo = {
-          redeemed: giftCardInfo.redeemed,
-          amount: giftCardInfo.amount.toString(),
-          token: giftCardInfo.token,
-          message: giftCardInfo.message || ''
-        };
-      } else {
-        // For MetaMask use web3Service
-        const walletClient = createWalletClient({
-          chain: activeChain,
-          transport: custom(window.ethereum)
-        });
-
-        await web3Service.initialize(walletClient, address as string, activeChainId);
-
-        giftCardInfo = await web3Service.getGiftCardInfo(currentCard.tokenId);
-        owner = await web3Service.getCardOwner(currentCard.tokenId);
+      if (useDeveloperWallet && !developerWallet) {
+        throw new Error('Internal wallet not found');
       }
-      
+      const executor = useDeveloperWallet
+        ? createInternalWalletExecutor({
+            wallet: developerWallet!,
+            chainId: activeChainId,
+          })
+        : createBrowserWalletExecutor({ address: redeemAddress, chainId: activeChainId });
+
+      const giftCardInfo = await readGiftCard(
+        currentCard.tokenId,
+        executor,
+        giftCardContractAddress,
+      );
+      const owner = giftCardInfo?.owner;
+
       if (!giftCardInfo) {
         setError('Gift card not found. It may have been removed.');
         setCurrentCard(null);
@@ -475,41 +357,15 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
           privyUserId = address.toLowerCase();
         } else if (privyUser?.id) {
           // Use Privy ID as normal
-          privyUserId = privyUser.id.startsWith('did:privy:') 
-            ? privyUser.id.replace('did:privy:', '') 
-            : privyUser.id;
+          privyUserId = normalizePrivyUserId(privyUser.id);
         } else {
           throw new Error('Privy user ID not found');
         }
 
         // Determine the social network for the Internal Wallet
-        let socialPlatform: string | null = null;
-        let socialUserId: string | null = null;
-        
-        const socialPlatforms = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'];
-        for (const platform of socialPlatforms) {
-          if (platform === 'twitter' && privyUser?.twitter) {
-            socialPlatform = 'twitter';
-            socialUserId = (privyUser.twitter as any).subject;
-            break;
-          } else if (platform === 'twitch' && privyUser?.twitch) {
-            socialPlatform = 'twitch';
-            socialUserId = (privyUser.twitch as any).subject;
-            break;
-          } else if (platform === 'telegram' && privyUser?.telegram) {
-            socialPlatform = 'telegram';
-            socialUserId = privyUser.telegram.telegramUserId || (privyUser.telegram as any).subject;
-            break;
-          } else if (platform === 'tiktok' && privyUser?.tiktok) {
-            socialPlatform = 'tiktok';
-            socialUserId = (privyUser.tiktok as any).subject;
-            break;
-          } else if (platform === 'instagram' && (privyUser as any)?.instagram) {
-            socialPlatform = 'instagram';
-            socialUserId = ((privyUser as any).instagram as any).subject;
-            break;
-          }
-        }
+        const linkedSocial = getPrivySocialIdentity(privyUser);
+        const socialPlatform = linkedSocial?.platform ?? null;
+        const socialUserId = linkedSocial?.socialUserId ?? null;
 
         const txResult = await DeveloperWalletService.sendTransaction({
           walletId: activeDeveloperWallet.circle_wallet_id,
@@ -517,7 +373,7 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
           contractAddress: contracts.contractAddress ?? contracts.zksend,
           functionName: 'redeemGiftCard',
           args: [BigInt(currentCard.tokenId)],
-          blockchain: 'ARC-TESTNET',
+          blockchain: DEFAULT_BLOCKCHAIN,
           privyUserId: privyUserId,
           socialPlatform: socialPlatform || undefined,
           socialUserId: socialUserId || undefined
@@ -527,7 +383,12 @@ export function SpendCard({ selectedTokenId = '' }: SpendCardProps) {
           throw new Error(txResult.error || 'Failed to redeem gift card');
         }
       } else {
-        // Use MetaMask to redeem
+        // Use browser wallet to redeem (writes stay on web3Service this wave)
+        const walletClient = createWalletClient({
+          chain: activeChain,
+          transport: custom(window.ethereum)
+        });
+        await web3Service.initialize(walletClient, address as string, activeChainId);
         await web3Service.redeemGiftCard(currentCard.tokenId);
       }
       

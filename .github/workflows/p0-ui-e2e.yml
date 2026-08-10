@@ -1,0 +1,59 @@
+name: P0 UI E2E
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/p0-ui-e2e.yml'
+      - '.nvmrc'
+      - '.env.e2e'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'playwright.config.ts'
+      - 'scripts/run-e2e.mjs'
+      - 'tsconfig.e2e.json'
+      - 'vite.config.ts'
+      - 'src/**'
+      - 'test/e2e/**'
+
+permissions:
+  contents: read
+
+jobs:
+  p0-ui-e2e:
+    name: Mocked Chromium P0 suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Install clean dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Typecheck E2E source
+        run: npm run e2e:typecheck
+
+      - name: Run mocked P0 browser suite
+        run: npm run e2e:p0
+
+      - name: Upload Playwright report and failure diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-p0-diagnostics
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 14

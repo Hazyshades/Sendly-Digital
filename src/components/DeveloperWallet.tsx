@@ -5,6 +5,7 @@ import { createWalletClient, custom, createPublicClient, http } from 'viem';
 import { arcTestnet } from '@/lib/web3/wagmiConfig';
 import { ARC_CHAIN_ID, TEMPO_CHAIN_ID } from '@/lib/web3/constants';
 import { DeveloperWalletService, DeveloperWallet } from '@/lib/circle/developerWalletService';
+import { DEFAULT_BLOCKCHAIN, getPrivySocialIdentity } from '@/lib/circle/walletResolution';
 import web3Service from '@/lib/web3/web3Service';
 import { USDC_ADDRESS, EURC_ADDRESS, ERC20ABI, getExplorerTxUrl, getExplorerAddressUrl, BASE_SEPOLIA_CHAIN_ID } from '@/lib/web3/constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +28,7 @@ interface DeveloperWalletProps {
   onWalletCreated?: (wallet: DeveloperWallet) => void;
 }
 
-export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletCreated }: DeveloperWalletProps) {
+export function DeveloperWalletComponent({ blockchain = DEFAULT_BLOCKCHAIN, onWalletCreated }: DeveloperWalletProps) {
   const { address, isConnected } = useAccount();
   const connectedChainId = useChainId();
   const { data: walletClient } = useWalletClient();
@@ -39,6 +40,12 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
 
   const INTERNAL_WALLET_DISABLED_CHAIN_IDS: number[] = [BASE_SEPOLIA_CHAIN_ID, TEMPO_CHAIN_ID];
   const isInternalWalletDisabled = INTERNAL_WALLET_DISABLED_CHAIN_IDS.includes(activeChainId);
+  const internalWalletUnavailableNetwork =
+    activeChainId === BASE_SEPOLIA_CHAIN_ID
+      ? 'Base Sepolia'
+      : activeChainId === TEMPO_CHAIN_ID
+        ? 'Tempo Testnet'
+        : 'this network';
   const [wallet, setWallet] = useState<DeveloperWallet | null>(null);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -68,10 +75,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
       }
     }
 
-    const privyTelegramId =
-      (privyUser as any)?.telegram?.telegramUserId ||
-      (privyUser as any)?.telegram?.id ||
-      (privyUser as any)?.telegram?.subject;
+    const privyTelegramId = getPrivySocialIdentity(privyUser, 'telegram')?.socialUserId;
 
     if (isValidTelegramId(privyTelegramId)) {
       return String(privyTelegramId);
@@ -203,6 +207,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
         checkTimeoutRef.current = null;
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Including the async resolver callbacks would recreate and cancel this wallet-check debounce on every render.
   }, [isConnected, address, blockchain, authenticated, privyUser?.id, isInternalWalletDisabled, zk, zkOAuthIdentity, zkOAuthLoading]);
 
   // Load balances of the wallet
@@ -212,6 +217,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
     } else {
       setBalances(null);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- The wallet object is the intended reload trigger; stabilizing the balance loader belongs with the broader wallet-state refactor.
   }, [wallet]);
 
   const findWalletByLinkedSocial = async (): Promise<DeveloperWallet | null> => {
@@ -232,26 +238,13 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
 
     const socialPlatforms = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'] as const;
     for (const platform of socialPlatforms) {
-      let socialUserId: string | null = null;
-
-      if (platform === 'twitter' && privyUser.twitter) {
-        socialUserId = (privyUser.twitter as any).subject;
-      } else if (platform === 'twitch' && privyUser.twitch) {
-        socialUserId = (privyUser.twitch as any).subject;
-      } else if (platform === 'telegram' && privyUser.telegram) {
-        socialUserId = privyUser.telegram.telegramUserId || (privyUser.telegram as any).subject;
-      } else if (platform === 'tiktok' && privyUser.tiktok) {
-        socialUserId = (privyUser.tiktok as any).subject;
-      } else if (platform === 'instagram' && (privyUser as any).instagram) {
-        socialUserId = ((privyUser as any).instagram as any).subject;
-      }
-
-      if (!socialUserId) continue;
+      const identity = getPrivySocialIdentity(privyUser, platform);
+      if (!identity) continue;
 
       try {
         const foundWallet = await DeveloperWalletService.getWalletBySocial(
-          platform,
-          socialUserId,
+          identity.platform,
+          identity.socialUserId,
           blockchain,
         );
         if (foundWallet) return foundWallet;
@@ -400,10 +393,6 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
       setLoading(true);
       
         // Find the first connected social network
-      const socialPlatforms = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'];
-      let platform: string | null = null;
-      let socialUserId: string | null = null;
-      let socialUsername: string = '';
       let privyUserId: string | undefined = getPrivyUserId();
 
       if (!privyUserId) {
@@ -411,34 +400,10 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
         return;
       }
 
-      for (const p of socialPlatforms) {
-        if (p === 'twitter' && privyUser.twitter) {
-          platform = 'twitter';
-          socialUserId = (privyUser.twitter as any).subject;
-          socialUsername = privyUser.twitter.username || 'user';
-          break;
-        } else if (p === 'twitch' && privyUser.twitch) {
-          platform = 'twitch';
-          socialUserId = (privyUser.twitch as any).subject;
-          socialUsername = (privyUser.twitch as any).username || (privyUser.twitch as any).email || 'user';
-          break;
-        } else if (p === 'telegram' && privyUser.telegram) {
-          platform = 'telegram';
-          socialUserId = privyUser.telegram.telegramUserId || (privyUser.telegram as any).subject;
-          socialUsername = privyUser.telegram.username || privyUser.telegram.firstName || 'user';
-          break;
-        } else if (p === 'tiktok' && privyUser.tiktok) {
-          platform = 'tiktok';
-          socialUserId = (privyUser.tiktok as any).subject;
-          socialUsername = privyUser.tiktok.username || 'user';
-          break;
-        } else if (p === 'instagram' && (privyUser as any).instagram) {
-          platform = 'instagram';
-          socialUserId = ((privyUser as any).instagram as any).subject;
-          socialUsername = ((privyUser as any).instagram as any).username || 'user';
-          break;
-        }
-      }
+      const linkedSocial = getPrivySocialIdentity(privyUser);
+      const platform = linkedSocial?.platform ?? null;
+      const socialUserId = linkedSocial?.socialUserId ?? null;
+      const socialUsername = linkedSocial?.username ?? '';
 
       if (!platform || !socialUserId) {
         toast.error('No social account found. Please connect a social account first.');
@@ -780,7 +745,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
 
   if (isInternalWalletDisabled) {
     return (
-      <Card className="gap-0 bg-white/90 shadow-circle-card opacity-60 pointer-events-none backdrop-blur-sm">
+      <Card className="gap-0 bg-white/90 shadow-circle-card backdrop-blur-sm">
         <CardHeader className="pb-4">
           <div className="grid grid-rows-2 items-start gap-3">
             <CardTitle className="flex items-center gap-2">
@@ -792,7 +757,15 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
             </CardDescription>
           </div>
         </CardHeader>
-    
+        <CardContent className="pt-0">
+          <div
+            role="status"
+            className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+          >
+            <p className="font-medium">Internal Wallet is unavailable on {internalWalletUnavailableNetwork}.</p>
+            <p className="mt-1 text-amber-900">Switch to Arc Testnet to create or use an Internal Wallet.</p>
+          </div>
+        </CardContent>
       </Card>
     );
   }
@@ -833,6 +806,7 @@ export function DeveloperWalletComponent({ blockchain = 'ARC-TESTNET', onWalletC
                   variant="ghost"
                   size="sm"
                   className="h-8 w-8 p-0"
+                  aria-label={isOpen ? 'Collapse Internal Wallet details' : 'Expand Internal Wallet details'}
                 >
                   {isOpen ? (
                     <ChevronUp className="w-4 h-4" />

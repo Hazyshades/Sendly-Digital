@@ -22,4 +22,4 @@ export interface GiftCardData {
   nftCover: string;
 }
 
-export type WalletSource = 'metamask' | 'developer';
+export type { WalletSource } from '@/hooks/useWalletSourcePreference';

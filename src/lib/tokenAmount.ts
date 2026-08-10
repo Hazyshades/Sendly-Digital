@@ -48,3 +48,66 @@ export function formatTokenAmountString(
   const fixed = n.toFixed(STABLECOIN_DECIMALS);
   return fixed.replace(/\.?0+$/, '');
 }
+
+const MICRO_BI = 10n ** BigInt(STABLECOIN_DECIMALS);
+
+/**
+ * Convert a human-decimal USDC amount string to micro-units (6 decimals) with
+ * string math only — no floating point. Extra fractional digits are truncated.
+ */
+export function toMicro(human: string): bigint {
+  if (typeof human !== 'string') {
+    throw new Error(`Invalid token amount: expected string, got ${typeof human}`);
+  }
+
+  const trimmed = human.trim();
+  if (!trimmed) {
+    throw new Error('Invalid token amount: empty string');
+  }
+
+  let sign = 1n;
+  let body = trimmed;
+  if (body[0] === '-') {
+    sign = -1n;
+    body = body.slice(1);
+  } else if (body[0] === '+') {
+    body = body.slice(1);
+  }
+
+  if (!/^\d+(\.\d+)?$/.test(body)) {
+    throw new Error(`Invalid token amount: ${JSON.stringify(human)}`);
+  }
+
+  const [intPart, fracPart = ''] = body.split('.');
+  // Deterministic truncate (not round) beyond 6 fractional digits.
+  const fracMicro = (fracPart + '0'.repeat(STABLECOIN_DECIMALS)).slice(
+    0,
+    STABLECOIN_DECIMALS
+  );
+  const micro = BigInt(intPart) * MICRO_BI + BigInt(fracMicro);
+  return sign * micro;
+}
+
+/**
+ * Convert micro-units to an exact human-decimal string (trailing zeros stripped).
+ */
+export function fromMicro(micro: bigint): string {
+  if (typeof micro !== 'bigint') {
+    throw new Error(`Invalid micro amount: expected bigint, got ${typeof micro}`);
+  }
+
+  const negative = micro < 0n;
+  const abs = negative ? -micro : micro;
+  const intPart = abs / MICRO_BI;
+  const fracPart = abs % MICRO_BI;
+
+  if (fracPart === 0n) {
+    return `${negative ? '-' : ''}${intPart.toString()}`;
+  }
+
+  const fracStr = fracPart
+    .toString()
+    .padStart(STABLECOIN_DECIMALS, '0')
+    .replace(/0+$/, '');
+  return `${negative ? '-' : ''}${intPart.toString()}.${fracStr}`;
+}

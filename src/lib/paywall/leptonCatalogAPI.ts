@@ -1,5 +1,4 @@
-import { getCreatorPaywallBase } from '@/lib/paywall/prPayoutAPI';
-import { publicAnonKey } from '@/lib/supabase/info';
+import { creatorPaywallClient } from '@/lib/paywall/paywallClient';
 
 export type LeptonCatalogResource = {
   type: string;
@@ -36,18 +35,6 @@ export type LeptonCatalogResponse = {
   example?: LeptonCatalogExample;
 };
 
-async function catalogFetch(path: string): Promise<LeptonCatalogResponse> {
-  const base = getCreatorPaywallBase();
-  const res = await fetch(`${base}${path}`, {
-    headers: { Authorization: `Bearer ${publicAnonKey}` },
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
-  }
-  return data as LeptonCatalogResponse;
-}
-
 export async function fetchLeptonCatalog(): Promise<LeptonCatalogResponse> {
-  return catalogFetch('/lepton-hackathon');
+  return creatorPaywallClient<LeptonCatalogResponse>('/lepton-hackathon');
 }

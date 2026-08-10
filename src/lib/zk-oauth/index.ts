@@ -17,3 +17,6 @@ export { notifyZkOAuthIdentityUpdated } from './notifyIdentityUpdated';
 export { resolveGithubDisplayName } from './resolveGithubDisplayName';
 export { resolveGmailDisplayName } from './resolveGmailDisplayName';
 export { resolveLinkedInDisplayName } from './resolveLinkedInDisplayName';
+export { resolveTwitterDisplayName } from './resolveTwitterDisplayName';
+export { resolveTwitchDisplayName } from './resolveTwitchDisplayName';
+export { resolveTelegramDisplayName } from './resolveTelegramDisplayName';

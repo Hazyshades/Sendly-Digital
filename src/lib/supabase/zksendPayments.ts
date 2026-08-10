@@ -1,25 +1,8 @@
 import { supabase } from './client';
 import type { LeaderboardEntry } from '@/lib/leaderboard';
+import type { ZkSendPaymentRow } from '@/types/zksend';
 
-export interface ZkSendPaymentRow {
-  id: string;
-  chain_id: string;
-  contract_address: string;
-  payment_id: string;
-  sender_address: string;
-  recipient_identity_hash: string;
-  social_platform: string;
-  recipient_username: string | null;
-  recipient_username_raw: string | null;
-  amount: string;
-  currency: string;
-  recipient_wallet: string | null;
-  claimed: boolean;
-  claimed_at: string | null;
-  created_at: string | null;
-  tx_hash: string | null;
-  claim_tx_hash: string | null;
-}
+export type { ZkSendPaymentRow };
 
 export interface ZkSendFilter {
   chainId: string;

@@ -1,25 +1,4 @@
-import { getApiUrl } from '@/lib/supabase/client';
-import { publicAnonKey } from '@/lib/supabase/info';
-
-const BASE =
-  (import.meta.env.VITE_CREATOR_PAYWALL_URL as string | undefined)?.trim().replace(/\/$/, '') ||
-  `${getApiUrl()}/creator-paywall`;
-
-async function twitchFetch(path: string, init?: RequestInit) {
-  const headers = new Headers(init?.headers);
-  if (!headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${publicAnonKey}`);
-  }
-  if (init?.body && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
-  }
-  const res = await fetch(`${BASE}${path}`, { ...init, headers });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
-  }
-  return data;
-}
+import { creatorPaywallClient, unwrapItems } from '@/lib/paywall/paywallClient';
 
 export type TwitchCampaignStatus = 'draft' | 'active' | 'paused' | 'ended';
 
@@ -64,27 +43,18 @@ export type TwitchPayoutReceipt = {
 };
 
 export async function fetchTwitchCampaigns(): Promise<TwitchCampaign[]> {
-  const data = (await twitchFetch('/twitch/campaigns')) as {
-    items?: TwitchCampaign[];
-    campaigns?: TwitchCampaign[];
-  };
-  return data.items ?? data.campaigns ?? [];
+  const data = await creatorPaywallClient<Record<string, unknown>>('/twitch/campaigns');
+  return unwrapItems<TwitchCampaign>(data, 'campaigns');
 }
 
 export async function fetchTwitchPayoutPolicies(): Promise<TwitchRaidPolicy[]> {
-  const data = (await twitchFetch('/twitch/payout-policies')) as {
-    items?: TwitchRaidPolicy[];
-    policies?: TwitchRaidPolicy[];
-  };
-  return data.items ?? data.policies ?? [];
+  const data = await creatorPaywallClient<Record<string, unknown>>('/twitch/payout-policies');
+  return unwrapItems<TwitchRaidPolicy>(data, 'policies');
 }
 
 export async function fetchTwitchPayoutReceipts(): Promise<TwitchPayoutReceipt[]> {
-  const data = (await twitchFetch('/twitch-payouts')) as {
-    items?: TwitchPayoutReceipt[];
-    receipts?: TwitchPayoutReceipt[];
-  };
-  return data.items ?? data.receipts ?? [];
+  const data = await creatorPaywallClient<Record<string, unknown>>('/twitch-payouts');
+  return unwrapItems<TwitchPayoutReceipt>(data, 'receipts');
 }
 
 export async function createTwitchCampaign(input: {
@@ -95,10 +65,10 @@ export async function createTwitchCampaign(input: {
   totalBudgetUsdc: number;
   status?: TwitchCampaignStatus;
 }): Promise<TwitchCampaign> {
-  const data = (await twitchFetch('/twitch/campaigns', {
+  const data = await creatorPaywallClient<{ campaign: TwitchCampaign }>('/twitch/campaigns', {
     method: 'POST',
-    body: JSON.stringify(input),
-  })) as { campaign: TwitchCampaign };
+    body: input,
+  });
   return data.campaign;
 }
 
@@ -110,9 +80,9 @@ export async function upsertTwitchRaidPolicy(input: {
   maxPerDayUsdc?: number;
   enabled?: boolean;
 }): Promise<TwitchRaidPolicy> {
-  const data = (await twitchFetch('/twitch/payout-policy', {
+  const data = await creatorPaywallClient<{ policy: TwitchRaidPolicy }>('/twitch/payout-policy', {
     method: 'POST',
-    body: JSON.stringify(input),
-  })) as { policy: TwitchRaidPolicy };
+    body: input,
+  });
   return data.policy;
 }

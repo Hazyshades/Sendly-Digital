@@ -144,6 +144,7 @@ export function BridgeRoute() {
     isDialogOpen,
     navigate,
     toChain,
+    toChainSlug,
     toCurrency,
     tokenSymbol,
   ]);

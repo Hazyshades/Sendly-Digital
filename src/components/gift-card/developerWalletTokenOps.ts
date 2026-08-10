@@ -1,7 +1,7 @@
 import { ERC20ABI } from '@/lib/web3/constants';
 import { DeveloperWalletService } from '@/lib/circle/developerWalletService';
+import { fromMicro } from '@/lib/tokenAmount';
 import type { GiftCardCurrency } from './types';
-import { waitForCircleTransactionCompletion } from './circleTransactionStatus';
 
 export async function assertDeveloperWalletBalance(params: {
   publicClient: any;
@@ -18,7 +18,7 @@ export async function assertDeveloperWalletBalance(params: {
     functionName: 'balanceOf',
     args: [createAddress as `0x${string}`]
   }) as bigint;
-  const balanceFormatted = (Number(balance) / 1000000).toFixed(6);
+  const balanceFormatted = fromMicro(balance);
 
   if (BigInt(balance) < BigInt(amountWei)) {
     throw new Error(`Insufficient ${currency} balance. You have ${balanceFormatted} ${currency}, but need ${amount} ${currency}. Wallet: ${createAddress.slice(0, 6)}...${createAddress.slice(-4)}`);
@@ -61,23 +61,23 @@ export async function approveDeveloperWalletIfNeeded(params: {
 
   notifyInfo(`Approving ${currency} for contract...`);
 
-  const approveTx = await DeveloperWalletService.sendTransaction({
+  // Delegate approve + wait to executeContractCall's ensureAllowance path
+  // (main call is the same approve — service short-circuits the redundant second send).
+  await DeveloperWalletService.executeContractCall({
     walletId: developerWallet.circle_wallet_id,
     walletAddress: developerWallet.wallet_address,
     contractAddress: tokenAddress,
-    functionName: 'approve',
-    args: [spenderAddress, BigInt(amountWei)],
-    blockchain: 'ARC-TESTNET',
-    privyUserId: privyUserIdForTx,
-    socialPlatform: developerWallet.social_platform || undefined,
-    socialUserId: developerWallet.social_user_id || undefined
+    abiFunctionSignature: 'approve',
+    abiParameters: [spenderAddress, BigInt(amountWei)],
+    ensureAllowance: {
+      tokenAddress,
+      spenderAddress,
+      amountMicro: amountWei,
+    },
+    attribution: {
+      privyUserId: privyUserIdForTx,
+      socialPlatform: developerWallet.social_platform || undefined,
+      socialUserId: developerWallet.social_user_id || undefined,
+    },
   });
-
-  if (!approveTx.success) {
-    throw new Error(approveTx.error || 'Approve failed');
-  }
-
-  if (approveTx.transactionId) {
-    await waitForCircleTransactionCompletion(approveTx.transactionId);
-  }
 }

@@ -8,42 +8,24 @@ import {
 } from 'react';
 import { useAccount } from 'wagmi';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
-import { DeveloperWalletService, type DeveloperWallet } from '@/lib/circle/developerWalletService';
+import { type DeveloperWallet } from '@/lib/circle/developerWalletService';
 import { useZkOAuthIdentity } from '@/lib/zk-oauth';
-
-const BLOCKCHAIN = 'ARC-TESTNET';
-const SOCIAL_PLATFORMS = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'] as const;
+import {
+  resolveInternalWallet,
+  resolvePrivyUserIdForTx,
+} from '@/lib/circle/walletResolution';
 
 /**
  * Resolves privyUserId (or equivalent) for Circle wallet transaction verification.
  * Matches the logic used in CreateGiftCard.
+ * Delegates to walletResolution.resolvePrivyUserIdForTx — keep this export path stable.
  */
 export function getCircleWalletPrivyUserIdForTx(
   developerWallet: DeveloperWallet | null,
   connectedAddress: string | undefined,
   privyUserId: string | undefined
 ): string | undefined {
-  if (!developerWallet) return undefined;
-
-  const walletCreatedWithAddress =
-    developerWallet.user_id?.startsWith('0x') &&
-    !developerWallet.privy_user_id &&
-    connectedAddress &&
-    developerWallet.user_id.toLowerCase() === connectedAddress.toLowerCase();
-
-  if (walletCreatedWithAddress && connectedAddress) {
-    return connectedAddress.toLowerCase();
-  }
-  if (developerWallet.privy_user_id?.startsWith('zk-oauth:')) {
-    return developerWallet.privy_user_id;
-  }
-  if (privyUserId) {
-    return privyUserId.startsWith('did:privy:') ? privyUserId.replace('did:privy:', '') : privyUserId;
-  }
-  if (connectedAddress) {
-    return connectedAddress.toLowerCase();
-  }
-  return undefined;
+  return resolvePrivyUserIdForTx(developerWallet, connectedAddress, privyUserId);
 }
 
 export type UseCircleWalletResult = {
@@ -82,72 +64,12 @@ export function CircleWalletProvider({ children }: { children: ReactNode }) {
 
       try {
         setCheckingWallet(true);
-        let found: DeveloperWallet | null = null;
-
-        if (isConnected && address) {
-          const normalized = address.toLowerCase().trim();
-          try {
-            const wallets = await DeveloperWalletService.getWallets(normalized);
-            found = wallets.find((w) => w.blockchain === BLOCKCHAIN) ?? wallets[0] ?? null;
-          } catch {
-            // ignore
-          }
-        }
-
-        if (!found && zkOAuthIdentity) {
-          try {
-            const w = await DeveloperWalletService.getWalletBySocial(
-              zkOAuthIdentity.platform,
-              zkOAuthIdentity.socialUserId,
-              BLOCKCHAIN,
-            );
-            if (w) found = w;
-          } catch {
-            // ignore
-          }
-        }
-
-        if (!found && privyUser) {
-          for (const platform of SOCIAL_PLATFORMS) {
-            let socialUserId: string | null = null;
-            if (platform === 'twitter' && privyUser.twitter) {
-              socialUserId = (privyUser.twitter as { subject?: string }).subject ?? null;
-            } else if (platform === 'twitch' && privyUser.twitch) {
-              socialUserId = (privyUser.twitch as { subject?: string }).subject ?? null;
-            } else if (platform === 'telegram' && privyUser.telegram) {
-              const t = privyUser.telegram as { telegramUserId?: string; subject?: string };
-              socialUserId = t.telegramUserId ?? t.subject ?? null;
-            } else if (platform === 'tiktok' && (privyUser as { tiktok?: { subject?: string } }).tiktok) {
-              socialUserId = (privyUser as { tiktok: { subject?: string } }).tiktok.subject ?? null;
-            } else if (platform === 'instagram' && (privyUser as { instagram?: { subject?: string } }).instagram) {
-              socialUserId = (privyUser as { instagram: { subject?: string } }).instagram.subject ?? null;
-            }
-            if (socialUserId) {
-              try {
-                const w = await DeveloperWalletService.getWalletBySocial(platform, socialUserId, BLOCKCHAIN);
-                if (w) {
-                  found = w;
-                  break;
-                }
-              } catch {
-                // continue
-              }
-            }
-          }
-        }
-
-        if (!found && privyUser?.id) {
-          try {
-            const normalizedPrivy = privyUser.id.startsWith('did:privy:')
-              ? privyUser.id.replace('did:privy:', '')
-              : privyUser.id;
-            const wallets = await DeveloperWalletService.getWallets(normalizedPrivy);
-            found = wallets.find((w) => w.blockchain === BLOCKCHAIN) ?? wallets[0] ?? null;
-          } catch {
-            // ignore
-          }
-        }
-
+        const found = await resolveInternalWallet({
+          address: isConnected && address ? address : undefined,
+          zkIdentity: zkOAuthIdentity,
+          privyUser: hasPrivySocial ? privyUser : undefined,
+          privyUserId: hasPrivySocial ? privyUser?.id : undefined,
+        });
         setDeveloperWallet(found);
       } catch (err) {
         console.error('[useCircleWallet] Error checking Circle wallet:', err);

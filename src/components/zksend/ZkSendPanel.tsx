@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { isSocialRecipientValid } from '@/lib/reclaim/identity';
 import { useCircleWallet } from '@/hooks/useCircleWallet';
 import { useZkOAuthIdentity } from '@/lib/zk-oauth/useZkOAuthIdentity';
-import type { WalletSource } from './WalletSourceToggle';
+import { useWalletSourcePreference } from '@/hooks/useWalletSourcePreference';
 import { ARC_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID, TEMPO_CHAIN_ID } from '@/lib/web3/constants';
 
 export type ZkSendPlatform = 'twitter' | 'twitch' | 'github' | 'telegram' | 'instagram' /* | 'tiktok' */ | 'gmail' | 'linkedin';
@@ -51,11 +51,13 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
 
   const { identity } = useZkOAuthIdentity();
   const { developerWallet, hasDeveloperWallet } = useCircleWallet();
-  const [walletSource, setWalletSource] = useState<WalletSource>('external');
+  const { walletSource, setWalletSource } = useWalletSourcePreference();
   const connectedChainId = useChainId();
   const activeChainId = connectedChainId || ARC_CHAIN_ID;
   const isInternalWalletDisabled =
     activeChainId === BASE_SEPOLIA_CHAIN_ID || activeChainId === TEMPO_CHAIN_ID;
+  const internalWalletUnavailableNetwork =
+    activeChainId === BASE_SEPOLIA_CHAIN_ID ? 'Base Sepolia' : 'Tempo Testnet';
   const canUseInternalWallet = hasDeveloperWallet && !isInternalWalletDisabled;
 
   useEffect(() => {
@@ -103,6 +105,14 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
 
   return (
     <div className="space-y-6">
+      {isInternalWalletDisabled ? (
+        <p
+          role="status"
+          className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+        >
+          Internal Wallet is unavailable on {internalWalletUnavailableNetwork}. Switch to Arc Testnet to create or use it.
+        </p>
+      ) : null}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="send">Send</TabsTrigger>

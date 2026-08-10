@@ -1,37 +1,13 @@
-import { getApiUrl } from '@/lib/supabase/client';
-import { publicAnonKey } from '@/lib/supabase/info';
+import { edgeFetch } from '@/lib/supabase/client';
 import { arcTestnet } from '@/lib/web3/wagmiConfig';
 import { ZKSEND_CONTRACT_ADDRESS } from '@/lib/web3/constants';
+import type { ZkSendPaymentRecord } from '@/types/zksend';
 
-/** Base URL for zkSEND Edge Function. Use .../v1 (no function name); code appends /zk-sender/payments. */
-const SUPABASE_FUNCTION_URL =
-  import.meta.env.VITE_SUPABASE_ZKSEND_FUNCTION_URL ||
-  import.meta.env.VITE_SUPABASE_FUNCTION_URL ||
-  getApiUrl();
+export type { ZkSendPaymentRecord };
 
 /** Default chain ID and contract for zkSEND (used when caller does not pass them). */
 const DEFAULT_CHAIN_ID = String(arcTestnet.id);
 const DEFAULT_CONTRACT_ADDRESS = (ZKSEND_CONTRACT_ADDRESS || '').trim().toLowerCase();
-
-export interface ZkSendPaymentRecord {
-  id: string;
-  payment_id: string;
-  sender_address: string;
-  recipient_identity_hash: string;
-  social_platform: string;
-  recipient_username: string | null;
-  recipient_username_raw: string | null;
-  amount: string;
-  currency: string;
-  recipient_wallet: string | null;
-  claimed: boolean;
-  claimed_at: string | null;
-  created_at: string;
-  tx_hash: string | null;
-  claim_tx_hash: string | null;
-  chain_id?: string;
-  contract_address?: string;
-}
 
 export interface CreateZkSendPaymentInput {
   paymentId: string;
@@ -69,41 +45,25 @@ export interface ClaimZkSendPaymentInput {
   contractAddress?: string | null;
 }
 
-async function handleResponse(response: Response): Promise<ZkSendPaymentRecord> {
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-    const errorMessage = errorData.error || `HTTP ${response.status}`;
-    throw new Error(errorMessage);
-  }
-
-  const result = (await response.json()) as { payment?: ZkSendPaymentRecord };
-  if (!result.payment) {
-    throw new Error('Missing payment record in response');
-  }
-  return result.payment;
-}
-
 export async function createZkSendPaymentRecord(input: CreateZkSendPaymentInput): Promise<ZkSendPaymentRecord> {
   const chainId = input.chainId != null ? String(input.chainId).trim() : DEFAULT_CHAIN_ID;
   const contractAddress = (input.contractAddress ?? DEFAULT_CONTRACT_ADDRESS).toString().trim().toLowerCase();
   if (!chainId || !contractAddress) {
     throw new Error('chainId and contractAddress are required for zkSEND Edge Function');
   }
-  const body = {
-    ...input,
-    chainId,
-    contractAddress,
-  };
-  const response = await fetch(`${SUPABASE_FUNCTION_URL}/zk-sender/payments`, {
+  const result = await edgeFetch<{ payment?: ZkSendPaymentRecord }>('zk-sender', '/payments', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${publicAnonKey}`,
+    auth: 'anon',
+    body: {
+      ...input,
+      chainId,
+      contractAddress,
     },
-    body: JSON.stringify(body),
   });
-
-  return handleResponse(response);
+  if (!result.payment) {
+    throw new Error('Missing payment record in response');
+  }
+  return result.payment;
 }
 
 export async function markZkSendPaymentClaimed(input: ClaimZkSendPaymentInput): Promise<ZkSendPaymentRecord> {
@@ -112,19 +72,21 @@ export async function markZkSendPaymentClaimed(input: ClaimZkSendPaymentInput): 
   if (!chainId || !contractAddress) {
     throw new Error('chainId and contractAddress are required for zkSEND Edge Function');
   }
-  const body = {
-    ...input,
-    chainId,
-    contractAddress,
-  };
-  const response = await fetch(`${SUPABASE_FUNCTION_URL}/zk-sender/payments/${input.paymentId}/claim`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${publicAnonKey}`,
+  const result = await edgeFetch<{ payment?: ZkSendPaymentRecord }>(
+    'zk-sender',
+    `/payments/${input.paymentId}/claim`,
+    {
+      method: 'PATCH',
+      auth: 'anon',
+      body: {
+        ...input,
+        chainId,
+        contractAddress,
+      },
     },
-    body: JSON.stringify(body),
-  });
-
-  return handleResponse(response);
+  );
+  if (!result.payment) {
+    throw new Error('Missing payment record in response');
+  }
+  return result.payment;
 }

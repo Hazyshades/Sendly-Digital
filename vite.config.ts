@@ -77,6 +77,7 @@ function architecturePresentationPlugin(): Plugin {
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+  const isE2E = mode === 'e2e' && (env.VITE_E2E === 'true' || env.VITE_E2E === '1');
 
   // Disable HTTPS when VITE_DEV_HTTPS=false to avoid ERR_SSL_VERSION_OR_CIPHER_MISMATCH
   // on Windows (Node self-signed cert often uses ciphers rejected by Chrome).
@@ -107,7 +108,9 @@ export default defineConfig(({ mode }) => {
   const server: Record<string, unknown> = {
     port: 3000,
     host: true,
-    open: useHttps ? 'https://localhost:3000' : true,
+    // Playwright owns browser startup in E2E mode. Opening a developer browser
+    // here would create an unrelated, non-isolated session for every test run.
+    open: isE2E ? false : useHttps ? 'https://localhost:3000' : true,
     strictPort: true,
     proxy: {
       '/api': {
@@ -140,4 +143,4 @@ export default defineConfig(({ mode }) => {
     envDir: '.',
     envPrefix: 'VITE_',
   };
-}) 
+})

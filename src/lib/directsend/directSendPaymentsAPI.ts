@@ -1,12 +1,5 @@
-import { getApiUrl } from '@/lib/supabase/client';
-import { publicAnonKey } from '@/lib/supabase/info';
+import { edgeFetch, isEdgeFetchError } from '@/lib/supabase/client';
 import { arcTestnet } from '@/lib/web3/wagmiConfig';
-
-/** Base URL for Supabase Edge Functions (same pattern as zksendPaymentsAPI). */
-const SUPABASE_FUNCTION_URL =
-  import.meta.env.VITE_SUPABASE_ZKSEND_FUNCTION_URL ||
-  import.meta.env.VITE_SUPABASE_FUNCTION_URL ||
-  getApiUrl();
 
 const DEFAULT_CHAIN_ID = String(arcTestnet.id);
 
@@ -44,20 +37,6 @@ export interface MarkDirectDepositClaimedInput {
   contractAddress: string;
 }
 
-async function handleResponse(response: Response): Promise<DirectDepositRecord> {
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-    const errorMessage = (errorData as { error?: string }).error || `HTTP ${response.status}`;
-    throw new Error(errorMessage);
-  }
-
-  const result = (await response.json()) as { deposit?: DirectDepositRecord };
-  if (!result.deposit) {
-    throw new Error('Missing deposit record in response');
-  }
-  return result.deposit;
-}
-
 /**
  * Upsert a DirectSend V2 deposit (requires Edge Function `direct-send/deposits` or compatible REST).
  */
@@ -67,21 +46,19 @@ export async function createDirectDepositRecord(input: CreateDirectDepositInput)
   if (!chainId || !contractAddress) {
     throw new Error('chainId and contractAddress are required');
   }
-  const body = {
-    ...input,
-    chainId,
-    contractAddress,
-  };
-  const response = await fetch(`${SUPABASE_FUNCTION_URL}/direct-send/deposits`, {
+  const result = await edgeFetch<{ deposit?: DirectDepositRecord }>('direct-send', '/deposits', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${publicAnonKey}`,
+    auth: 'anon',
+    body: {
+      ...input,
+      chainId,
+      contractAddress,
     },
-    body: JSON.stringify(body),
   });
-
-  return handleResponse(response);
+  if (!result.deposit) {
+    throw new Error('Missing deposit record in response');
+  }
+  return result.deposit;
 }
 
 /**
@@ -103,21 +80,23 @@ export async function fetchDirectDepositsPendingForRecipient(params: {
     claimed: 'false',
   });
   try {
-    const response = await fetch(`${SUPABASE_FUNCTION_URL}/direct-send/deposits?${q.toString()}`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${publicAnonKey}`,
-        Accept: 'application/json',
+    const { ok, status, data } = await edgeFetch<{ deposits?: DirectDepositRecord[] } | DirectDepositRecord[]>(
+      'direct-send',
+      `/deposits?${q.toString()}`,
+      {
+        method: 'GET',
+        auth: 'anon',
+        headers: { Accept: 'application/json' },
+        rawResponse: true,
       },
-    });
-    if (response.status === 404 || response.status === 501) {
+    );
+    if (status === 404 || status === 501) {
       return null;
     }
-    if (!response.ok) {
-      console.warn('[directsend] GET /direct-send/deposits', response.status);
+    if (!ok) {
+      console.warn('[directsend] GET /direct-send/deposits', status);
       return null;
     }
-    const data = (await response.json()) as { deposits?: DirectDepositRecord[] } | DirectDepositRecord[];
     if (Array.isArray(data)) {
       return data;
     }
@@ -126,6 +105,10 @@ export async function fetchDirectDepositsPendingForRecipient(params: {
     }
     return [];
   } catch (e) {
+    if (isEdgeFetchError(e)) {
+      console.warn('[directsend] GET /direct-send/deposits', e.status);
+      return null;
+    }
     console.warn('[directsend] fetchDirectDepositsPendingForRecipient', e);
     return null;
   }
@@ -137,19 +120,21 @@ export async function markDirectDepositClaimed(input: MarkDirectDepositClaimedIn
   if (!chainId || !contractAddress) {
     throw new Error('chainId and contractAddress are required');
   }
-  const body = {
-    ...input,
-    chainId,
-    contractAddress,
-  };
-  const response = await fetch(`${SUPABASE_FUNCTION_URL}/direct-send/deposits/${input.depositId}/claim`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${publicAnonKey}`,
+  const result = await edgeFetch<{ deposit?: DirectDepositRecord }>(
+    'direct-send',
+    `/deposits/${input.depositId}/claim`,
+    {
+      method: 'PATCH',
+      auth: 'anon',
+      body: {
+        ...input,
+        chainId,
+        contractAddress,
+      },
     },
-    body: JSON.stringify(body),
-  });
-
-  return handleResponse(response);
+  );
+  if (!result.deposit) {
+    throw new Error('Missing deposit record in response');
+  }
+  return result.deposit;
 }

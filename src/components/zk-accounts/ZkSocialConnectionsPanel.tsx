@@ -729,6 +729,10 @@ export function ZkSocialConnectionsPanel({
     () => platforms.filter((platform) => !platform.isConnected && !platform.disabled),
     [platforms],
   );
+  const unavailablePlatforms = useMemo(
+    () => platforms.filter((platform) => !platform.isConnected && platform.disabled),
+    [platforms],
+  );
 
   const { primaryId, setPrimary } = usePrimaryIdentity(linkedPlatforms);
 
@@ -792,6 +796,21 @@ export function ZkSocialConnectionsPanel({
                 <SectionLabel>Available to connect</SectionLabel>
                 <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
                   {availablePlatforms.map((platform) => (
+                    <AvailablePlatformRow
+                      key={platform.id}
+                      platform={platform}
+                      motionSafe={motionSafe}
+                    />
+                  ))}
+                </ul>
+              </>
+            ) : null}
+
+            {unavailablePlatforms.length > 0 ? (
+              <>
+                <SectionLabel>Coming soon</SectionLabel>
+                <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
+                  {unavailablePlatforms.map((platform) => (
                     <AvailablePlatformRow
                       key={platform.id}
                       platform={platform}

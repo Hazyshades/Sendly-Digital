@@ -11,8 +11,15 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+# Playwright / P0 E2E outputs (reports, traces, screenshots, video, junit)
 /playwright-report/
 /test-results/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+/test/e2e/.auth/
+# Local overrides only — checked-in non-secret defaults live in `.env.e2e`
+.env.e2e.local
 /tests/
 /SolidityScan_ Best Smart Contract Scanner & Auditing Tool_files/
 /SolidityScan_ Best Smart Contract Scanner & Auditing Tool.html
@@ -80,6 +87,7 @@ docs-old/
 *.md
 !docs/Architecture.md
 !docs/Agent-Treasury.md
+!docs/E2E.md
 /artifacts/
 /cache/
 /contracts/

@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle } from 'react';
 import { motion, useAnimate } from 'motion/react';
 
 import type { AnimatedIconHandle, AnimatedIconProps } from './types';
@@ -7,17 +7,17 @@ const BrandTelegramIcon = forwardRef<AnimatedIconHandle, AnimatedIconProps>(
   ({ size = 24, color = 'currentColor', strokeWidth = 2, className = '', active }, ref) => {
     const [scope, animate] = useAnimate();
 
-    const start = async () => {
+    const start = useCallback(async () => {
       animate(
         '.plane',
         { x: [0, 10, -10, 0], y: [0, -10, 10, 0], opacity: [1, 0, 0, 1] },
         { duration: 1, times: [0, 0.4, 0.5, 1], ease: 'easeInOut' },
       );
-    };
+    }, [animate]);
 
-    const stop = () => {
+    const stop = useCallback(() => {
       animate('.plane', { x: 0, y: 0, opacity: 1 });
-    };
+    }, [animate]);
 
     useEffect(() => {
       if (typeof active !== 'boolean') return;
@@ -26,12 +26,12 @@ const BrandTelegramIcon = forwardRef<AnimatedIconHandle, AnimatedIconProps>(
       } else {
         stop();
       }
-    }, [active]);
+    }, [active, start, stop]);
 
     useImperativeHandle(ref, () => ({
       startAnimation: start,
       stopAnimation: stop,
-    }));
+    }), [start, stop]);
 
     return (
       <motion.svg

@@ -10,7 +10,9 @@ import { ZK_OAUTH_IDENTITY_UPDATED_EVENT } from '@/lib/zk-oauth/tokenStorage';
 import { resolveGithubDisplayName } from '@/lib/zk-oauth/resolveGithubDisplayName';
 import { resolveGmailDisplayName } from '@/lib/zk-oauth/resolveGmailDisplayName';
 import { resolveLinkedInDisplayName } from '@/lib/zk-oauth/resolveLinkedInDisplayName';
-import { readTwitterOAuthTokens } from '@/lib/zk-oauth/tokenStorage';
+import { resolveTwitterDisplayName } from '@/lib/zk-oauth/resolveTwitterDisplayName';
+import { resolveTwitchDisplayName } from '@/lib/zk-oauth/resolveTwitchDisplayName';
+import { resolveTelegramDisplayName } from '@/lib/zk-oauth/resolveTelegramDisplayName';
 
 export type ZkPanelPlatformId =
   | 'twitter'
@@ -57,76 +59,45 @@ const WALLET_SUPPORTED: Record<ZkPanelPlatformId, boolean> = {
 
 type OAuthPlatformId = Exclude<ZkPanelPlatformId, 'instagram'>;
 
-async function resolveTwitterDisplayName(accessToken: string | null): Promise<string | null> {
-  const tokens = readTwitterOAuthTokens();
-  if (!tokens) return null;
-  if (tokens.kind === 'oauth1' && tokens.screenName) {
-    return `@${tokens.screenName.replace(/^@/, '')}`;
-  }
-  if (tokens.kind === 'oauth2' && accessToken) {
-    try {
-      const response = await fetch('https://api.x.com/2/users/me?user.fields=username', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (!response.ok) return null;
-      const data = (await response.json()) as { data?: { username?: string } };
-      return data.data?.username ? `@${data.data.username}` : null;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
+const OAUTH_PLATFORM_IDS = [
+  'twitter',
+  'twitch',
+  'github',
+  'telegram',
+  'gmail',
+  'linkedin',
+] as const satisfies readonly OAuthPlatformId[];
 
-async function resolveTwitchDisplayName(accessToken: string | null): Promise<string | null> {
-  if (!accessToken) return null;
-  const clientId = import.meta.env.VITE_TWITCH_CLIENT_ID as string | undefined;
-  if (!clientId) return null;
-  try {
-    const response = await fetch('https://api.twitch.tv/helix/users', {
-      headers: { Authorization: `Bearer ${accessToken}`, 'Client-Id': clientId },
-    });
-    if (!response.ok) return null;
-    const data = (await response.json()) as { data?: Array<{ login?: string }> };
-    const login = data.data?.[0]?.login;
-    return login ? login : null;
-  } catch {
-    return null;
-  }
-}
-
-async function resolveTelegramDisplayName(accessToken: string | null): Promise<string | null> {
-  if (!accessToken) return null;
-  const parts = accessToken.split('.');
-  if (parts.length === 3) {
-    try {
-      const json = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
-      const payload = JSON.parse(json) as { username?: string };
-      if (payload.username) return `@${payload.username.replace(/^@/, '')}`;
-    } catch {
-      // fall through
-    }
-  }
-  return null;
-}
-
-const DISPLAY_RESOLVERS: Record<OAuthPlatformId, (accessToken: string | null) => Promise<string | null>> = {
+const DISPLAY_RESOLVERS: Record<OAuthPlatformId, () => Promise<string | null>> = {
   twitter: resolveTwitterDisplayName,
   twitch: resolveTwitchDisplayName,
-  github: async () => resolveGithubDisplayName(),
+  github: resolveGithubDisplayName,
   telegram: resolveTelegramDisplayName,
-  gmail: async () => resolveGmailDisplayName(),
-  linkedin: async () => resolveLinkedInDisplayName(),
+  gmail: resolveGmailDisplayName,
+  linkedin: resolveLinkedInDisplayName,
 };
 
 function cacheKey(platform: OAuthPlatformId, token: string | null): string {
   return `${platform}:${token ?? 'none'}`;
 }
 
-function patchRecord<T>(prev: Partial<Record<OAuthPlatformId, T>>, id: OAuthPlatformId, value: T): Partial<Record<OAuthPlatformId, T>> {
+function patchRecord<T>(
+  prev: Partial<Record<OAuthPlatformId, T>>,
+  id: OAuthPlatformId,
+  value: T,
+): Partial<Record<OAuthPlatformId, T>> {
   if (Object.is(prev[id], value)) return prev;
   return { ...prev, [id]: value };
 }
+
+type PlatformHookState = {
+  isConnected: boolean;
+  connecting: boolean;
+  clearing: boolean;
+  accessToken: string | null;
+  connect: () => Promise<void>;
+  disconnect: () => void;
+};
 
 export function useZkPlatformConnections() {
   const twitter = useTwitterConnection();
@@ -135,6 +106,19 @@ export function useZkPlatformConnections() {
   const telegram = useTelegramConnection();
   const gmail = useGmailConnection();
   const linkedin = useLinkedInConnection();
+
+  const hooksById = useMemo(
+    () =>
+      ({
+        twitter,
+        twitch,
+        github,
+        telegram,
+        gmail,
+        linkedin,
+      }) satisfies Record<OAuthPlatformId, PlatformHookState>,
+    [twitter, twitch, github, telegram, gmail, linkedin],
+  );
 
   const [displayNames, setDisplayNames] = useState<Partial<Record<OAuthPlatformId, string | null>>>({});
   const [displayNameLoading, setDisplayNameLoading] = useState<Partial<Record<OAuthPlatformId, boolean>>>({});
@@ -156,112 +140,11 @@ export function useZkPlatformConnections() {
     [],
   );
 
-  const connectionState = useMemo(
-    () =>
-      ({
-        twitter: {
-          isConnected: twitter.isConnected,
-          connecting: twitter.connecting,
-          clearing: twitter.clearing,
-          accessToken: twitter.accessToken,
-          connect: twitter.connect,
-          disconnect: twitter.disconnect,
-        },
-        twitch: {
-          isConnected: twitch.isConnected,
-          connecting: twitch.connecting,
-          clearing: twitch.clearing,
-          accessToken: twitch.accessToken,
-          connect: twitch.connect,
-          disconnect: twitch.disconnect,
-        },
-        github: {
-          isConnected: github.isConnected,
-          connecting: github.connecting,
-          clearing: github.clearing,
-          accessToken: github.accessToken,
-          connect: github.connect,
-          disconnect: github.disconnect,
-        },
-        telegram: {
-          isConnected: telegram.isConnected,
-          connecting: telegram.connecting,
-          clearing: telegram.clearing,
-          accessToken: telegram.accessToken,
-          connect: telegram.connect,
-          disconnect: telegram.disconnect,
-        },
-        gmail: {
-          isConnected: gmail.isConnected,
-          connecting: gmail.connecting,
-          clearing: gmail.clearing,
-          accessToken: gmail.accessToken,
-          connect: gmail.connect,
-          disconnect: gmail.disconnect,
-        },
-        linkedin: {
-          isConnected: linkedin.isConnected,
-          connecting: linkedin.connecting,
-          clearing: linkedin.clearing,
-          accessToken: linkedin.accessToken,
-          connect: linkedin.connect,
-          disconnect: linkedin.disconnect,
-        },
-      }) as const,
-    [
-      twitter.isConnected,
-      twitter.connecting,
-      twitter.clearing,
-      twitter.accessToken,
-      twitter.connect,
-      twitter.disconnect,
-      twitch.isConnected,
-      twitch.connecting,
-      twitch.clearing,
-      twitch.accessToken,
-      twitch.connect,
-      twitch.disconnect,
-      github.isConnected,
-      github.connecting,
-      github.clearing,
-      github.accessToken,
-      github.connect,
-      github.disconnect,
-      telegram.isConnected,
-      telegram.connecting,
-      telegram.clearing,
-      telegram.accessToken,
-      telegram.connect,
-      telegram.disconnect,
-      gmail.isConnected,
-      gmail.connecting,
-      gmail.clearing,
-      gmail.accessToken,
-      gmail.connect,
-      gmail.disconnect,
-      linkedin.isConnected,
-      linkedin.connecting,
-      linkedin.clearing,
-      linkedin.accessToken,
-      linkedin.connect,
-      linkedin.disconnect,
-    ],
-  );
-
   useEffect(() => {
-    const oauthPlatformIds: OAuthPlatformId[] = [
-      'twitter',
-      'twitch',
-      'github',
-      'telegram',
-      'gmail',
-      'linkedin',
-    ];
-
     let cancelled = false;
 
-    for (const id of oauthPlatformIds) {
-      const hook = connectionState[id];
+    for (const id of OAUTH_PLATFORM_IDS) {
+      const hook = hooksById[id];
 
       if (!hook.isConnected) {
         delete displayCacheRef.current[id];
@@ -283,7 +166,7 @@ export function useZkPlatformConnections() {
         return patchRecord(prev, id, true);
       });
 
-      void DISPLAY_RESOLVERS[id](hook.accessToken).then((name) => {
+      void DISPLAY_RESOLVERS[id]().then((name) => {
         if (cancelled) return;
         displayCacheRef.current[id] = { key, name };
         setDisplayNames((prev) => patchRecord(prev, id, name));
@@ -294,7 +177,7 @@ export function useZkPlatformConnections() {
     return () => {
       cancelled = true;
     };
-  }, [connectionState]);
+  }, [hooksById]);
 
   useEffect(() => {
     const invalidate = () => {
@@ -305,10 +188,8 @@ export function useZkPlatformConnections() {
   }, []);
 
   const platforms: ZkPlatformConnectionState[] = useMemo(() => {
-    const oauthPlatforms: ZkPlatformConnectionState[] = (
-      ['twitter', 'twitch', 'github', 'telegram', 'gmail', 'linkedin'] as const
-    ).map((id) => {
-      const hook = connectionState[id];
+    const oauthPlatforms: ZkPlatformConnectionState[] = OAUTH_PLATFORM_IDS.map((id) => {
+      const hook = hooksById[id];
       return {
         id,
         label: PLATFORM_LABELS[id],
@@ -340,7 +221,7 @@ export function useZkPlatformConnections() {
         disconnect: () => {},
       },
     ];
-  }, [connectionState, displayNames, displayNameLoading, wrapConnect, wrapDisconnect]);
+  }, [hooksById, displayNames, displayNameLoading, wrapConnect, wrapDisconnect]);
 
   const connectedCount = platforms.filter((p) => p.isConnected).length;
   const totalCount = platforms.length;

@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-15T00:00:00.000Z",
+  "title": "Design System: Sendly",
+  "extensions": {
+    "colorMeta": {
+      "background-gradient-start": { "role": "background", "displayName": "Icy Cyan", "canonical": "oklch(94% 0.03 217)", "tonalRamp": ["#002233", "#004466", "#006699", "#0088CC", "#00AAEE", "#55CCFF", "#A0E5FF", "#E0F7FF", "#F0FBFF"] },
+      "background-gradient-mid": { "role": "background", "displayName": "Soft Lavender", "canonical": "oklch(91% 0.04 285)", "tonalRamp": ["#1A0F33", "#331F66", "#4D2E99", "#663DCC", "#8050E6", "#A080F0", "#C0B0F7", "#D7CFFF", "#EFE7FF"] },
+      "background-gradient-end": { "role": "background", "displayName": "Pale Sky Blue", "canonical": "oklch(92% 0.04 230)", "tonalRamp": ["#002233", "#004466", "#006799", "#0089CC", "#24ABEE", "#6DC6F7", "#A6DEFA", "#A8E6FF", "#D3F2FF"] },
+      "surface": { "role": "neutral", "displayName": "White", "canonical": "#FFFFFF", "tonalRamp": ["#000000", "#1F2937", "#4B5563", "#9CA3AF", "#D1D5DB", "#E5E7EB", "#F3F4F6", "#F9FAFB", "#FFFFFF"] },
+      "surface-translucent": { "role": "neutral", "displayName": "Frosted White", "canonical": "rgba(255, 255, 255, 0.90)", "tonalRamp": [] },
+      "surface-glass": { "role": "neutral", "displayName": "Glass White", "canonical": "rgba(255, 255, 255, 0.70)", "tonalRamp": [] },
+      "accent-indigo": { "role": "primary", "displayName": "Sendly Indigo", "canonical": "oklch(58% 0.23 274)", "tonalRamp": ["#1E1B4B", "#312E81", "#4338CA", "#4F46E5", "#6366F1", "#818CF8", "#A5B4FC", "#C7D2FE", "#E0E7FF"] },
+      "accent-violet": { "role": "secondary", "displayName": "Sendly Violet", "canonical": "oklch(63% 0.22 288)", "tonalRamp": ["#2E1065", "#4C1D95", "#5B21B6", "#7C3AED", "#8B5CF6", "#A78BFA", "#C4B5FD", "#DDD6FE", "#EDE9FE"] },
+      "ink-primary": { "role": "neutral", "displayName": "Ink Primary", "canonical": "#111827", "tonalRamp": ["#000000", "#111827", "#374151", "#6B7280", "#9CA3AF", "#D1D5DB", "#E5E7EB", "#F3F4F6", "#FFFFFF"] },
+      "ink-secondary": { "role": "neutral", "displayName": "Ink Secondary", "canonical": "#374151", "tonalRamp": [] },
+      "ink-tertiary": { "role": "neutral", "displayName": "Ink Tertiary", "canonical": "#6B7280", "tonalRamp": [] },
+      "ink-muted": { "role": "neutral", "displayName": "Ink Muted", "canonical": "#9CA3AF", "tonalRamp": [] },
+      "border-subtle": { "role": "neutral", "displayName": "Subtle Border", "canonical": "#E5E7EB", "tonalRamp": [] },
+      "border-frost": { "role": "neutral", "displayName": "Frost Border", "canonical": "rgba(255, 255, 255, 0.30)", "tonalRamp": [] },
+      "success": { "role": "semantic", "displayName": "Success", "canonical": "#10B981", "tonalRamp": [] },
+      "error": { "role": "semantic", "displayName": "Error", "canonical": "#EF4444", "tonalRamp": [] },
+      "warning": { "role": "semantic", "displayName": "Warning", "canonical": "#F59E0B", "tonalRamp": [] },
+      "info": { "role": "semantic", "displayName": "Info", "canonical": "#3B82F6", "tonalRamp": [] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page titles and marketing H1s." },
+      "headline": { "displayName": "Headline", "purpose": "Section headers and card titles." },
+      "title": { "displayName": "Title", "purpose": "Sub-sections and form group labels." },
+      "body": { "displayName": "Body", "purpose": "Paragraphs and descriptions." },
+      "label": { "displayName": "Label", "purpose": "Form labels and small UI labels." },
+      "mono": { "displayName": "Mono", "purpose": "Handles, amounts, code, transaction data." },
+      "hero-display": { "displayName": "Hero Display", "purpose": "Landing hero wordmark only." }
+    },
+    "shadows": [
+      { "name": "card", "value": "0 4px 12px rgba(0, 0, 0, 0.10)", "purpose": "Default lift for cards and panels." },
+      { "name": "dropdown", "value": "0 2px 8px rgba(0, 0, 0, 0.15)", "purpose": "Menus, selects, popovers." },
+      { "name": "accent-glow", "value": "0 0 20px rgba(99, 102, 241, 0.20)", "purpose": "Optional hover glow on featured CTAs." }
+    ],
+    "motion": [
+      { "name": "ease-out", "value": "cubic-bezier(0.23, 1, 0.32, 1)", "purpose": "Default ease-out for UI state changes." },
+      { "name": "ease-in-out", "value": "cubic-bezier(0.77, 0, 0.175, 1)", "purpose": "Drawer and sheet transitions." },
+      { "name": "duration-ui", "value": "200ms", "purpose": "Hover, focus, color transitions." },
+      { "name": "duration-modal", "value": "250ms", "purpose": "Dialogs and sheets." },
+      { "name": "reduced-motion", "value": "transition-duration: 0.01ms", "purpose": "Respects prefers-reduced-motion." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" },
+      { "name": "2xl", "value": "1400px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main CTA and form submit. Indigo fill on frosted surface.",
+      "html": "<button class=\"ds-btn-primary\">Send payment</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 8px 16px; background-color: #6366F1; color: #FFFFFF; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 0.875rem; font-weight: 600; line-height: 1.5; border: none; border-radius: 16px; cursor: pointer; transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1), background-color 200ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 200ms cubic-bezier(0.23, 1, 0.32, 1); box-shadow: 0 4px 12px rgba(0,0,0,0.10); } .ds-btn-primary:hover { background-color: rgba(99, 102, 241, 0.92); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.50); } .ds-btn-primary:active { transform: scale(0.97); } .ds-btn-primary:disabled { opacity: 0.50; pointer-events: none; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Secondary action on frosted translucent surface.",
+      "html": "<button class=\"ds-btn-secondary\">Preview</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 8px 16px; background-color: rgba(255, 255, 255, 0.90); color: #111827; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 0.875rem; font-weight: 600; line-height: 1.5; border: 1px solid #E5E7EB; border-radius: 16px; cursor: pointer; backdrop-filter: blur(8px); transition: background-color 200ms cubic-bezier(0.23, 1, 0.32, 1), transform 140ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-btn-secondary:hover { background-color: #FFFFFF; } .ds-btn-secondary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.50); } .ds-btn-secondary:active { transform: scale(0.97); }"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Standard text field with frosted light background and indigo focus ring.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"@username\" />",
+      "css": ".ds-input { width: 100%; height: 36px; padding: 8px 12px; background-color: #F3F4F6; color: #111827; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 0.875rem; font-weight: 400; line-height: 1.5; border: 1px solid #E5E7EB; border-radius: 12px; outline: none; transition: color 200ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 200ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-input::placeholder { color: #6B7280; } .ds-input:focus-visible { border-color: #6366F1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.50); } .ds-input:disabled { opacity: 0.50; cursor: not-allowed; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Primary content container. Frosted white over the pastel gradient.",
+      "html": "<div class=\"ds-card\"><h4 class=\"ds-card-title\">Payment details</h4><p class=\"ds-card-body\">Send USDC to a social handle without knowing the wallet address.</p></div>",
+      "css": ".ds-card { display: flex; flex-direction: column; gap: 16px; padding: 24px; background-color: rgba(255, 255, 255, 0.90); color: #111827; border: 1px solid #E5E7EB; border-radius: 16px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.10); backdrop-filter: blur(8px); font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; } .ds-card-title { margin: 0; font-family: 'Space Grotesk', 'Inter', sans-serif; font-size: 1.25rem; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; color: #111827; } .ds-card-body { margin: 0; font-size: 0.9375rem; line-height: 1.55; letter-spacing: -0.01em; color: #374151; }"
+    },
+    {
+      "name": "Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Small pill for tags, filters, and compact status.",
+      "html": "<span class=\"ds-chip\">@username</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; padding: 4px 12px; background-color: rgba(255, 255, 255, 0.70); color: #374151; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 0.8125rem; font-weight: 500; line-height: 1.3; letter-spacing: 0.01em; border: 1px solid rgba(255, 255, 255, 0.30); border-radius: 9999px; backdrop-filter: blur(8px); }"
+    },
+    {
+      "name": "Tab",
+      "kind": "nav",
+      "refersTo": "tabs",
+      "description": "Segmented tab switcher on a frosted pill background.",
+      "html": "<div class=\"ds-tabs\" role=\"tablist\"><button class=\"ds-tab ds-tab-active\" role=\"tab\" aria-selected=\"true\">Send</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\">Receive</button></div>",
+      "css": ".ds-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background-color: rgba(255, 255, 255, 0.70); border: 1px solid rgba(255, 255, 255, 0.30); border-radius: 16px; backdrop-filter: blur(8px); font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; } .ds-tab { padding: 8px 12px; background: transparent; color: #374151; font-size: 0.875rem; font-weight: 500; border: none; border-radius: 12px; cursor: pointer; transition: background-color 200ms cubic-bezier(0.23, 1, 0.32, 1), color 200ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-tab-active { background-color: #6366F1; color: #FFFFFF; } .ds-tab:hover:not(.ds-tab-active) { background-color: rgba(255, 255, 255, 0.80); } .ds-tab:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.50); }"
+    },
+    {
+      "name": "Dialog",
+      "kind": "custom",
+      "refersTo": "dialog",
+      "description": "Frosted modal shell used for wallet connection, launch options, and confirmations.",
+      "html": "<div class=\"ds-dialog\"><h4 class=\"ds-dialog-title\">Connect wallet</h4><p class=\"ds-dialog-body\">Choose a wallet to continue.</p><button class=\"ds-btn-primary\">MetaMask</button></div>",
+      "css": ".ds-dialog { display: flex; flex-direction: column; gap: 16px; max-width: 420px; padding: 24px; background-color: rgba(255, 255, 255, 0.90); color: #111827; border: 1px solid rgba(255, 255, 255, 0.30); border-radius: 20px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12); backdrop-filter: blur(24px); font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; } .ds-dialog-title { margin: 0; font-family: 'Space Grotesk', 'Inter', sans-serif; font-size: 1.25rem; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; color: #111827; } .ds-dialog-body { margin: 0; font-size: 0.9375rem; line-height: 1.55; color: #374151; }"
+    },
+    {
+      "name": "Nav Link",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Sticky header link with frosted hover state.",
+      "html": "<a href=\"#\" class=\"ds-nav-link\">Payments</a>",
+      "css": ".ds-nav-link { display: inline-flex; align-items: center; padding: 8px 16px; color: #374151; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 0.875rem; font-weight: 500; line-height: 1.5; text-decoration: none; border-radius: 12px; transition: background-color 200ms cubic-bezier(0.23, 1, 0.32, 1), color 200ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-nav-link:hover { background-color: rgba(255, 255, 255, 0.90); color: #111827; } .ds-nav-link:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.50); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Frosted Social Ledger",
+    "overview": "Sendly lives at the intersection of money and identity, but its visual world is light, personal, and breathable — not the heavy, dark terminal most fintech defaults to. The interface rests on a pastel gradient (icy cyan → soft lavender → pale sky blue) and communicates through translucent white surfaces that let the color breathe underneath. Glassmorphism is intentional and structural: cards, inputs, and dialogs all sit on frosted layers so the background stays present without overwhelming content. The result feels like a social app that happens to move money, rather than a bank app grafted onto social handles. Density is moderate. Marketing surfaces breathe with large type and generous padding; app surfaces (/create, /payments, /zksend) stay compact and task-focused while keeping the same luminous base. Every interactive element responds with a small, fast state change — never a heavy page-load choreography. Motion exists to confirm, orient, and reward, not to decorate.",
+    "keyCharacteristics": [
+      "Light-first UI on a pastel gradient base; dark mode is a legacy/secondary consideration.",
+      "Translucent white surfaces (bg-white/80–bg-white/95) with backdrop-blur-sm are the default container vocabulary.",
+      "Indigo (#6366F1) is the primary action and identity color; violet (#8B5CF6) is its adjacent accent.",
+      "Rounded corners are generous but controlled: 16px (rounded-2xl) for cards, 12px for inputs, 20px–2rem for large pills and dialogs.",
+      "Motion is 200ms–250ms ease-out, with prefers-reduced-motion fallbacks already wired.",
+      "Mixed type system: Space Grotesk/Outfit/Jakarta for display, Inter for body, JetBrains Mono for handles, amounts, and code."
+    ],
+    "rules": [
+      { "name": "The One Gradient Rule", "body": "The page-level background is always the same 135° pastel gradient. Do not introduce new background gradients per page. Variation comes from surface opacity and blur, not from new hues.", "section": "colors" },
+      { "name": "The Indigo Action Rule", "body": "Only #6366F1 is a primary action color. Violet is allowed in gradients and hover glows, but a lone violet CTA is confusing.", "section": "colors" },
+      { "name": "The One Serif Rule", "body": "Cormorant Garamond appears exactly once: the landing hero wordmark/headline. No other screen uses it. The app UI never uses a serif.", "section": "typography" },
+      { "name": "The Mono for Numbers Rule", "body": "Any numeric value a user needs to compare or verify (amounts, balances, quotes) is set in JetBrains Mono with tabular figures. Never use proportional figures for money.", "section": "typography" },
+      { "name": "The Frost-First Rule", "body": "Before adding a shadow, ask whether backdrop-blur + a white translucent layer already solves the separation. Shadows are secondary to glass.", "section": "elevation" },
+      { "name": "The No-Heavy-Drop Rule", "body": "Avoid shadows larger than 16px blur or darker than rgba(0,0,0,0.15). Heavy drops contradict the airy gradient base.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep the page background on the canonical pastel gradient (#E0F7FF → #D7CFFF → #A8E6FF).",
+      "Do use frosted white surfaces (bg-white/80–bg-white/95) with backdrop-blur as the default container.",
+      "Do use #6366F1 for primary actions, focus states, and active tab triggers.",
+      "Do use JetBrains Mono with tabular-nums for handles, amounts, and transaction data.",
+      "Do use rounded-2xl (16px) for cards and CTAs; rounded-xl (12px) for inputs and small buttons.",
+      "Do keep motion under 250ms with cubic-bezier(0.23, 1, 0.32, 1) ease-out and provide prefers-reduced-motion fallbacks.",
+      "Do vary spacing for rhythm: generous on landing, compact in task flows.",
+      "Do use text-wrap: balance on headings and text-wrap: pretty on body paragraphs.",
+      "Do treat landing hero gradient text as a one-off signature; isolate it to the hero wordmark."
+    ],
+    "donts": [
+      "Don't switch to a dark UI as the default. Dark mode is supported but secondary.",
+      "Don't use neon, saturated glows, or casino-style crypto aesthetics.",
+      "Don't use cream, sand, beige, or warm editorial backgrounds; keep the cool pastel base.",
+      "Don't add tiny uppercase tracked eyebrows (\"ABOUT\", \"PROCESS\") above every section. If a section label is needed, use plain sentence-case labels.",
+      "Don't use numbered section markers (01 / 02 / 03) unless the content is genuinely sequential.",
+      "Don't spread gradient text beyond the landing hero wordmark. It is a signature, not a pattern.",
+      "Don't pair a 1px border with a wide soft shadow on the same element for decorative effect (\"ghost-card\"). Pick one.",
+      "Don't use border-radius larger than 16px on cards or sections. Reserve 2rem+ pills for buttons, badges, and large dialog shells.",
+      "Don't animate layout properties (width, height, top) except in progressive-disclosure contexts like accordions.",
+      "Don't rely on color alone for transaction status; pair color with icon + text."
+    ]
+  }
+}

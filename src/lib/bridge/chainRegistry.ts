@@ -1,3 +1,10 @@
+import {
+  ARC_CHAIN_ID,
+  BASE_SEPOLIA_CHAIN_ID,
+  TEMPO_CHAIN_ID,
+  getChain,
+} from '@/lib/web3/chains';
+
 export interface ChainConfig {
   chainId: number;
   name: string;
@@ -96,13 +103,13 @@ export const SUPPORTED_CHAINS: ChainConfig[] = [
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 }
   },
   {
-    chainId: 84532,
+    chainId: BASE_SEPOLIA_CHAIN_ID,
     name: 'Base Sepolia',
     slug: 'base-sepolia',
     domain: 6,
     bridgeKitId: 'Base_Sepolia',
-    rpcUrl: 'https://sepolia.base.org',
-    blockExplorer: 'https://sepolia.basescan.org',
+    rpcUrl: getChain(BASE_SEPOLIA_CHAIN_ID).rpcUrls[0],
+    blockExplorer: getChain(BASE_SEPOLIA_CHAIN_ID).explorerUrl,
     isTestnet: true,
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 }
   },
@@ -357,22 +364,24 @@ export const SUPPORTED_CHAINS: ChainConfig[] = [
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 }
   },
   {
-    chainId: 5042002,
+    chainId: ARC_CHAIN_ID,
     name: 'Arc Testnet',
     slug: 'arc-testnet',
     domain: 26,
     bridgeKitId: 'Arc_Testnet',
-    blockExplorer: 'https://testnet.arcscan.app',
+    rpcUrl: getChain(ARC_CHAIN_ID).rpcUrls[0],
+    blockExplorer: getChain(ARC_CHAIN_ID).explorerUrl,
     isTestnet: true,
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 }
   },
   {
-    chainId: 42431,
+    chainId: TEMPO_CHAIN_ID,
     name: 'Tempo Testnet',
     slug: 'tempo-testnet',
     domain: 99,
     bridgeKitId: 'Tempo_Testnet',
-    blockExplorer: 'https://explore.tempo.xyz',
+    rpcUrl: getChain(TEMPO_CHAIN_ID).rpcUrls[0],
+    blockExplorer: getChain(TEMPO_CHAIN_ID).explorerUrl,
     isTestnet: true,
     nativeCurrency: { name: 'USD', symbol: 'USD', decimals: 18 }
   }

@@ -15,6 +15,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
+import { getPrivySocialIdentity } from '@/lib/circle/walletResolution';
 import { useAccount } from 'wagmi';
 import { useNavigate } from 'react-router-dom';
 import { apiCall } from '@/lib/supabase/client';
@@ -114,9 +115,9 @@ export function ContactsManager({ contacts, onContactsChange }: ContactsManagerP
   const twitchAccount = user?.twitch;
   const twitterAccount = user?.twitter;
   const telegramAccount = (user as any)?.telegram as (Record<string, any> | undefined);
-  const hasTwitch = !!twitchAccount?.subject;
-  const hasTwitter = !!twitterAccount?.subject;
-  const hasTelegram = Boolean(telegramAccount?.telegramUserId || telegramAccount?.id || telegramAccount?.subject);
+  const hasTwitch = Boolean(getPrivySocialIdentity(user, 'twitch'));
+  const hasTwitter = Boolean(getPrivySocialIdentity(user, 'twitter'));
+  const hasTelegram = Boolean(getPrivySocialIdentity(user, 'telegram'));
 
   const loadSocialContacts = async () => {
     try {
@@ -324,7 +325,6 @@ export function ContactsManager({ contacts, onContactsChange }: ContactsManagerP
     };
 
     migrateContactsToWallet();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address]);
 
   useEffect(() => {
@@ -353,7 +353,7 @@ export function ContactsManager({ contacts, onContactsChange }: ContactsManagerP
       return;
     }
 
-    const twitchUserId = twitchAccount.subject;
+    const twitchUserId = getPrivySocialIdentity(user, 'twitch')?.socialUserId;
     if (!twitchUserId) {
       toast.error('Twitch user ID not found');
       return;
@@ -607,7 +607,7 @@ export function ContactsManager({ contacts, onContactsChange }: ContactsManagerP
       return;
     }
 
-    const twitterUserId = twitterAccount.subject;
+    const twitterUserId = getPrivySocialIdentity(user, 'twitter')?.socialUserId;
     if (!twitterUserId) {
       toast.error('Twitter user ID not found');
       return;
@@ -749,7 +749,7 @@ export function ContactsManager({ contacts, onContactsChange }: ContactsManagerP
       return;
     }
 
-    const telegramUserId = telegramAccount.telegramUserId || telegramAccount.id || telegramAccount.subject;
+    const telegramUserId = getPrivySocialIdentity(user, 'telegram')?.socialUserId;
     if (!telegramUserId) {
       toast.error('Telegram user ID not found');
       return;

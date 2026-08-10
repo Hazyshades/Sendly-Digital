@@ -253,6 +253,7 @@ export function TransactionHistory() {
       });
       setTransactions([]);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Cache and reentrancy refs govern fetch scheduling; stabilizing fetchData requires refactoring its sibling data loaders.
   }, [checkingWallet, activeAddress, walletSource, activeChainId]);
 
   const zkSendFilter = useMemo(() => ({

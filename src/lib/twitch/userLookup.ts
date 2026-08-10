@@ -3,8 +3,7 @@
  * Calls zk-sender Edge Function GET /zk-sender/twitch/user (Helix API + DB cache).
  */
 
-import { getApiUrl } from '@/lib/supabase/client';
-import { publicAnonKey } from '@/lib/supabase/info';
+import { edgeFetch } from '@/lib/supabase/client';
 
 export interface TwitchUserPreview {
   login: string;
@@ -26,14 +25,6 @@ export interface TwitchUserLookupError {
 
 export type TwitchUserLookupResponse = TwitchUserLookupResult | TwitchUserLookupError;
 
-function getTwitchLookupBaseUrl(): string {
-  return (
-    (import.meta.env.VITE_SUPABASE_ZKSEND_FUNCTION_URL as string | undefined) ||
-    (import.meta.env.VITE_SUPABASE_FUNCTION_URL as string | undefined) ||
-    getApiUrl()
-  );
-}
-
 /**
  * Normalize login: trim, remove leading @, lowercase.
  */
@@ -54,6 +45,15 @@ export function formatTwitchFollowers(total: number): string {
   return String(total);
 }
 
+type TwitchEdgeBody = {
+  login?: string;
+  display_name?: string;
+  profile_image_url?: string | null;
+  followers_total?: number;
+  error?: string;
+  code?: string;
+};
+
 /**
  * Fetch Twitch user profile by login for preview.
  * Returns result with success/error for UI to show avatar, display_name, followers, or error message.
@@ -64,17 +64,14 @@ export async function fetchTwitchUserPreview(login: string): Promise<TwitchUserL
     return { success: false, error: 'Enter a username', code: 'MISSING_LOGIN' };
   }
 
-  const base = getTwitchLookupBaseUrl().replace(/\/$/, '');
-  const url = `${base}/zk-sender/twitch/user?login=${encodeURIComponent(normalized)}`;
-
   try {
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${publicAnonKey}` },
-    });
-    const body = await res.json().catch(() => ({}));
+    const { ok, status, data: body } = await edgeFetch<TwitchEdgeBody>(
+      'zk-sender',
+      `/twitch/user?login=${encodeURIComponent(normalized)}`,
+      { method: 'GET', auth: 'anon', rawResponse: true },
+    );
 
-    if (res.ok && body.login) {
+    if (ok && body.login) {
       return {
         success: true,
         data: {
@@ -86,10 +83,10 @@ export async function fetchTwitchUserPreview(login: string): Promise<TwitchUserL
       };
     }
 
-    if (res.status === 404 || body.code === 'USER_NOT_FOUND') {
+    if (status === 404 || body.code === 'USER_NOT_FOUND') {
       return { success: false, error: 'User not found', code: 'USER_NOT_FOUND' };
     }
-    if (res.status === 429 || body.code === 'RATE_LIMITED') {
+    if (status === 429 || body.code === 'RATE_LIMITED') {
       return { success: false, error: 'Too many requests', code: 'RATE_LIMITED' };
     }
 

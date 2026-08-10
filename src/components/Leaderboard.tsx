@@ -269,11 +269,12 @@ export function Leaderboard() {
       switch (sortBy) {
         case 'cards':
           return b.cardsSentTotal - a.cardsSentTotal;
-        case 'amount':
+        case 'amount': {
           // Divide by 1,000,000 for 6 decimals when comparing amounts
           const aTotal = Object.values(a.amountSentByCurrency).reduce((sum, val) => sum + val, 0) / TOKEN_DECIMALS_DIVISOR;
           const bTotal = Object.values(b.amountSentByCurrency).reduce((sum, val) => sum + val, 0) / TOKEN_DECIMALS_DIVISOR;
           return bTotal - aTotal;
+        }
         case 'date':
           return new Date(b.lastSentAt || 0).getTime() - new Date(a.lastSentAt || 0).getTime();
         default:
@@ -390,11 +391,12 @@ export function Leaderboard() {
       switch (effectiveSortBy) {
         case 'cards':
           return b.cardsSentTotal - a.cardsSentTotal;
-        case 'amount':
+        case 'amount': {
           // Divide by 1,000,000 for 6 decimals when comparing amounts
           const aTotal = Object.values(a.amountSentByCurrency).reduce((sum, val) => sum + val, 0) / TOKEN_DECIMALS_DIVISOR;
           const bTotal = Object.values(b.amountSentByCurrency).reduce((sum, val) => sum + val, 0) / TOKEN_DECIMALS_DIVISOR;
           return bTotal - aTotal;
+        }
         case 'date':
           return new Date(b.lastSentAt || 0).getTime() - new Date(a.lastSentAt || 0).getTime();
         default:

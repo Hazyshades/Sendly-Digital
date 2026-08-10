@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:e2e": "vite --mode e2e --host 127.0.0.1",
     "build": "npm run sync:agent-docs && tsc && vite build",
     "sync:agent-docs": "node scripts/sync-agent-docs.mjs",
     "preview": "vite preview",
@@ -18,14 +19,26 @@
     "compile:tempo": "node compileTempo.mjs",
     "test:tempo": "node contracts/tempo_deploy/testTempoContracts.mjs",
     "typecheck": "tsc --noEmit",
+    "e2e:typecheck": "tsc --project tsconfig.e2e.json --noEmit",
+    "e2e:p0": "node scripts/run-e2e.mjs all",
+    "e2e:p0:legacy": "node scripts/run-e2e.mjs legacy",
+    "e2e:p0:escrow": "node scripts/run-e2e.mjs escrow_v2",
+    "e2e:p0:ui": "node scripts/run-e2e.mjs legacy --ui",
+    "e2e:p0:debug": "node scripts/run-e2e.mjs legacy --debug",
     "openspec": "openspec",
     "openspec:update": "openspec update",
     "openspec:list": "openspec list",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint src test/e2e vite.config.ts playwright.config.ts --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "backfill:zksend": "node scripts/backfill-zksend-from-subgraph.mjs",
     "test:directsend": "hardhat test test/DirectSendV2.test.cjs",
-    "compile:hardhat": "hardhat compile"
+    "compile:hardhat": "hardhat compile",
+    "test:unit": "node --test test/transactionHistoryAmounts.test.cjs test/zksendIdentity.test.cjs"
   },
+  "engines": {
+    "node": "22.22.0",
+    "npm": "10.9.4"
+  },
+  "packageManager": "npm@10.9.4",
   "dependencies": {
     "@circle-fin/adapter-viem-v2": "^1.0.1",
     "@circle-fin/bridge-kit": "^1.1.0",
@@ -100,11 +113,14 @@
   "devDependencies": {
     "@fission-ai/openspec": "^1.2.0",
     "@nomicfoundation/hardhat-toolbox": "^6.1.0",
+    "@playwright/test": "1.55.0",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
+    "@typescript-eslint/parser": "^8.57.0",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.16",
     "eslint": "^8.55.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
     "hardhat": "^2.26.4",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.3.6",

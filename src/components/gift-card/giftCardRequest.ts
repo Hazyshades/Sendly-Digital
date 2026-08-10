@@ -1,3 +1,4 @@
+import { toMicro } from '@/lib/tokenAmount';
 import type { GiftCardCurrency, GiftCardData, RecipientType, WalletSource } from './types';
 
 const RECIPIENT_LABELS: Record<RecipientType, string> = {
@@ -22,11 +23,11 @@ export function resolveCreateWallet(params: {
     return { error: 'Please connect your wallet first' };
   }
 
-  if (walletSource === 'developer' && hasDeveloperWallet && developerWallet) {
+  if (walletSource === 'circle' && hasDeveloperWallet && developerWallet) {
     return { createAddress: developerWallet.wallet_address, useDeveloperWallet: true };
   }
 
-  if (walletSource === 'metamask' && isConnected && address) {
+  if (walletSource === 'external' && isConnected && address) {
     return { createAddress: address, useDeveloperWallet: false };
   }
 
@@ -75,7 +76,7 @@ export function getTokenAddress(currency: GiftCardCurrency, contracts: any) {
 }
 
 export function toTokenUnits(amount: string) {
-  return (parseFloat(amount) * 1000000).toString();
+  return toMicro(amount).toString();
 }
 
 export function normalizeRecipientUsername(formData: GiftCardData) {

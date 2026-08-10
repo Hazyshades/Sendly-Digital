@@ -713,6 +713,24 @@ export function BlogPostRoute() {
       .catch(() => {});
   }, [post?.slug]);
 
+  useEffect(() => {
+    if (!activeImage) {
+      return;
+    }
+
+    // Close the image preview on Escape for better accessibility.
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setActiveImage(null);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeImage]);
+
   if (!post) {
     return (
       <BlogLayout backLink={{ to: '/blog', label: <><ArrowLeft className="w-4 h-4" /> Back to blog</> }}>
@@ -841,24 +859,6 @@ export function BlogPostRoute() {
 
     return <div className="prose prose-lg max-w-none">{elements}</div>;
   };
-
-  useEffect(() => {
-    if (!activeImage) {
-      return;
-    }
-
-    // Close the image preview on Escape for better accessibility.
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setActiveImage(null);
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [activeImage]);
 
   const renderSections = (
     sections: BlogSection[],

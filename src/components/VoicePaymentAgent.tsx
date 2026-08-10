@@ -21,6 +21,7 @@ import aimlapiService, { ParsedPaymentCommand } from '@/lib/aimlapiService';
 import type { Contact } from '@/components/ContactsManager';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
 import { DeveloperWalletService } from '@/lib/circle/developerWalletService';
+import { DEFAULT_BLOCKCHAIN, getPrivySocialIdentity, type SocialPlatform } from '@/lib/circle/walletResolution';
 
 type RecordingState = 'idle' | 'recording' | 'processing' | 'confirming' | 'creating';
 
@@ -262,28 +263,16 @@ export function VoicePaymentAgent() {
 
       try {
         // Check for a Internal Wallet for linked social networks (without showing loading indicator)
-        const socialPlatforms = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'];
-        const blockchain = 'ARC-TESTNET';
+        const socialPlatforms: SocialPlatform[] = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'];
+        const blockchain = DEFAULT_BLOCKCHAIN;
         
         for (const platform of socialPlatforms) {
-          let socialUserId: string | null = null;
-          
-          if (platform === 'twitter' && privyUser.twitter) {
-            socialUserId = (privyUser.twitter as any).subject;
-          } else if (platform === 'twitch' && privyUser.twitch) {
-            socialUserId = (privyUser.twitch as any).subject;
-          } else if (platform === 'telegram' && privyUser.telegram) {
-            socialUserId = privyUser.telegram.telegramUserId || (privyUser.telegram as any).subject;
-          } else if (platform === 'tiktok' && privyUser.tiktok) {
-            socialUserId = (privyUser.tiktok as any).subject;
-          } else if (platform === 'instagram' && (privyUser as any).instagram) {
-            socialUserId = ((privyUser as any).instagram as any).subject;
-          }
+          const identity = getPrivySocialIdentity(privyUser, platform);
 
-          if (socialUserId) {
+          if (identity) {
             const foundWallet = await DeveloperWalletService.getWalletBySocial(
-              platform as 'twitter' | 'twitch' | 'telegram' | 'tiktok' | 'instagram',
-              socialUserId,
+              identity.platform,
+              identity.socialUserId,
               blockchain
             );
             

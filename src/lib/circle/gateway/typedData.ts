@@ -1,4 +1,5 @@
 import { type Address } from 'viem';
+import { toMicro } from '@/lib/tokenAmount';
 
 export interface TransferSpec {
   sourceSigner: Address;        // Address that signs the burn intent
@@ -83,7 +84,7 @@ export function createBurnIntent(params: {
   destinationCaller?: Address;
 }, currentBlockHeight: bigint, maxFee: string = '0'): BurnIntent {
   // USDC has 6 decimals
-  const amountInWei = BigInt(Math.floor(parseFloat(params.amount) * 1e6)).toString();
+  const amountInWei = toMicro(params.amount).toString();
   
   // Expiration: current block + ~1000 blocks (approximately 3-4 hours for Ethereum)
   const expirationBlocks = BigInt(1000);

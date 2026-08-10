@@ -1,3 +1,5 @@
+import { normalizePrivyUserId } from '@/lib/circle/walletResolution';
+
 export function getPrivyUserIdForDeveloperWallet(params: {
   developerWallet: any;
   isConnected: boolean;
@@ -5,7 +7,8 @@ export function getPrivyUserIdForDeveloperWallet(params: {
   privyUserId?: string;
 }) {
   const { developerWallet, isConnected, address, privyUserId } = params;
-  const walletCreatedWithAddress = developerWallet &&
+  const walletCreatedWithAddress =
+    developerWallet &&
     developerWallet.user_id &&
     developerWallet.user_id.startsWith('0x') &&
     !developerWallet.privy_user_id &&
@@ -14,13 +17,11 @@ export function getPrivyUserIdForDeveloperWallet(params: {
     developerWallet.user_id.toLowerCase() === address.toLowerCase();
 
   if (walletCreatedWithAddress) {
-    return address.toLowerCase();
+    return address!.toLowerCase();
   }
 
   if (privyUserId) {
-    return privyUserId.startsWith('did:privy:')
-      ? privyUserId.replace('did:privy:', '')
-      : privyUserId;
+    return normalizePrivyUserId(privyUserId);
   }
 
   if (isConnected && address) {

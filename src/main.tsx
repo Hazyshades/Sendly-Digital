@@ -21,9 +21,14 @@ import { getPrivyAppIdByMode } from '@/lib/privy'
 
 const queryClient = new QueryClient()
 
-const disablePrivy = isZkHost()
+// Browser E2E fixtures supply `window.__SENDLY_E2E_PRIVY__` through usePrivySafe.
+// Keep the real Privy SDK/provider entirely out of that deterministic test path.
+const isE2E =
+  import.meta.env.MODE === 'e2e' &&
+  (import.meta.env.VITE_E2E === 'true' || import.meta.env.VITE_E2E === '1')
+const disablePrivy = isZkHost() || isE2E
 
-// Lazy load PrivyProvider only when not on zk host (Privy disabled; zk uses direct OAuth)
+// Lazy load PrivyProvider only outside zk and deterministic E2E runtime modes.
 const PrivyProviderWrapper = disablePrivy 
   ? null 
   : lazy(async () => {
@@ -119,4 +124,4 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <AppRoot />
   </React.StrictMode>,
-) 
+)

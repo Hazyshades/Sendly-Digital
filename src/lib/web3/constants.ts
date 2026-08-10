@@ -1,65 +1,43 @@
-// Base/Arc Contract Addresses (env-first; Arc variables preferred)
-export const CONTRACT_ADDRESS =
-  import.meta.env.VITE_ARC_CONTRACT_ADDRESS ||
-  import.meta.env.VITE_CONTRACT_ADDRESS ||
-  "0x7f5c9e8548002134cde6093f2ca3ff5b8bd26982";
-export const USDC_ADDRESS =
-  import.meta.env.VITE_ARC_USDC_ADDRESS ||
-  import.meta.env.VITE_USDC_ADDRESS ||
-  "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+import {
+  ARC_CHAIN_ID,
+  BASE_SEPOLIA_CHAIN_ID,
+  TEMPO_CHAIN_ID,
+  getChain,
+  getContractsForChain as getContractsForChainFromRegistry,
+  type ChainContracts,
+} from './chains';
 
-export const EURC_ADDRESS =
-  import.meta.env.VITE_ARC_EURC_ADDRESS ||
-  "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a";
+export type { ChainContracts };
+export { ARC_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID, TEMPO_CHAIN_ID };
 
-export const USYC_ADDRESS =
-  import.meta.env.VITE_ARC_USYC_ADDRESS ||
-  "0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C";
+// ---------------------------------------------------------------------------
+// Address / RPC constants — single source: chains.ts registry
+// Exported names unchanged; expressions live in the registry.
+// ---------------------------------------------------------------------------
 
-export const VAULT_CONTRACT_ADDRESS =
-  import.meta.env.VITE_ARC_TWITTER_VAULT_ADDRESS ||
-  import.meta.env.VITE_ARC_VAULT_CONTRACT_ADDRESS ||
-  "0xF8A0870530bb7CD1D658742A079f85E91dFC8E3C";
+const arc = getChain(ARC_CHAIN_ID);
+const tempo = getChain(TEMPO_CHAIN_ID);
+const baseSepoliaEntry = getChain(BASE_SEPOLIA_CHAIN_ID);
 
-export const TWITCH_VAULT_CONTRACT_ADDRESS =
-  import.meta.env.VITE_ARC_TWITCH_VAULT_CONTRACT_ADDRESS ||
-  import.meta.env.VITE_ARC_TWITCH_VAULT_ADDRESS ||
-  "0xA27E6Cef4e9d794EE0356461fe65437Bb5f7cbE3";
+export const CONTRACT_ADDRESS = arc.contracts.giftCard!;
+export const USDC_ADDRESS = arc.contracts.usdc!;
+export const EURC_ADDRESS = arc.contracts.eurc!;
+export const USYC_ADDRESS = arc.contracts.usyc!;
 
-export const TELEGRAM_VAULT_CONTRACT_ADDRESS =
-  import.meta.env.VITE_ARC_TELEGRAM_VAULT_CONTRACT_ADDRESS ||
-  import.meta.env.VITE_ARC_TELEGRAM_VAULT_ADDRESS ||
-  "0x619A49213860A0448736880c4f456bCDfB96D938";
+export const VAULT_CONTRACT_ADDRESS = arc.contracts.vaults!.twitter!;
+export const TWITCH_VAULT_CONTRACT_ADDRESS = arc.contracts.vaults!.twitch!;
+export const TELEGRAM_VAULT_CONTRACT_ADDRESS = arc.contracts.vaults!.telegram!;
+export const TIKTOK_VAULT_CONTRACT_ADDRESS = arc.contracts.vaults!.tiktok!;
+export const INSTAGRAM_VAULT_CONTRACT_ADDRESS = arc.contracts.vaults!.instagram!;
 
-export const TIKTOK_VAULT_CONTRACT_ADDRESS =
-  import.meta.env.VITE_ARC_TIKTOK_VAULT_CONTRACT_ADDRESS ||
-  import.meta.env.VITE_ARC_TIKTOK_VAULT_ADDRESS ||
-  "0xA4A44F97B8778B4Da8b9562d56A94BfCc0fB9893";
-
-export const INSTAGRAM_VAULT_CONTRACT_ADDRESS =
-  import.meta.env.VITE_ARC_INSTAGRAM_VAULT_CONTRACT_ADDRESS ||
-  import.meta.env.VITE_ARC_INSTAGRAM_VAULT_ADDRESS ||
-  "0x3332dEf130Ea17C69B9dFe8F06be1162526873df";
-
-export const ZKSEND_CONTRACT_ADDRESS =
-  import.meta.env.VITE_ARC_ZKSEND_CONTRACT_ADDRESS ||
-  "0x30bbcCBB38B8C99A36c93BC36dcE2F9831FEFa4D";
-
-export const DIRECT_SEND_CONTRACT_ADDRESS =
-  import.meta.env.VITE_ARC_DIRECT_SEND_CONTRACT_ADDRESS ||
-  "0x0000000000000000000000000000000000000000";
+export const ZKSEND_CONTRACT_ADDRESS = arc.contracts.zkSend!;
+export const DIRECT_SEND_CONTRACT_ADDRESS = arc.contracts.directSend!;
 
 /** DirectSend V2 (escrow + claim). Deploy `contracts/hardhat/DirectSendV2.sol` / `DirectSendTempoV2.sol`. */
-export const ARC_DIRECT_SEND_V2_CONTRACT_ADDRESS =
-  import.meta.env.VITE_ARC_DIRECT_SEND_V2_CONTRACT_ADDRESS ||
-  '0x55c1AaE779c774c5bB622045CC30278F64E90AAf';
-export const TEMPO_DIRECT_SEND_V2_CONTRACT_ADDRESS =
-  import.meta.env.VITE_TEMPO_DIRECT_SEND_V2_CONTRACT_ADDRESS ||
-  '0x7B46C6f4dcDF763608F2FA2652754E819d3c6E14';
+export const ARC_DIRECT_SEND_V2_CONTRACT_ADDRESS = arc.contracts.directSendV2!;
+export const TEMPO_DIRECT_SEND_V2_CONTRACT_ADDRESS = tempo.contracts.directSendV2!;
 /** Base Sepolia V2 (`VITE_BASE_CHAIN_ID` defaults to 84532). */
-export const BASE_SEPOLIA_DIRECT_SEND_V2_CONTRACT_ADDRESS =
-  import.meta.env.VITE_BASE_DIRECT_SEND_V2_CONTRACT_ADDRESS ||
-  '0x85a8A0cb107b03bc7a25DD54fF76cA2719B6F0be';
+export const BASE_SEPOLIA_DIRECT_SEND_V2_CONTRACT_ADDRESS = baseSepoliaEntry.contracts.directSendV2!;
 
 /** `legacy` = instant send (DirectSend v1). `escrow_v2` = deposit + claim when V2 address is set. */
 export type DirectSendClaimMode = 'legacy' | 'escrow_v2';
@@ -141,16 +119,13 @@ export function getDirectSendV2MaxLogChunks(): number {
   return 500;
 }
 
-export const RECLAIM_VERIFIER_CONTRACT_ADDRESS =
-  import.meta.env.VITE_RECLAIM_VERIFIER_CONTRACT_ADDRESS ||
-  import.meta.env.VITE_ARC_ZKTLS_VERIFIER_ADDRESS ||
-  "0xfDd1D064529aA8c8058CDD574452c3FF9d6256a7";
+export const RECLAIM_VERIFIER_CONTRACT_ADDRESS = arc.contracts.reclaimVerifier!;
 
 if (typeof window !== 'undefined' && USDC_ADDRESS !== '0x3600000000000000000000000000000000000000') {
   console.warn('Using fallback USDC address; set VITE_ARC_USDC_ADDRESS in .env and restart.');
 }
 
-export const USDT_ADDRESS = import.meta.env.VITE_USDT_ADDRESS || "0xfde4c96c8593536e31f229ea8f37b2ada2699bb2";
+export const USDT_ADDRESS = arc.contracts.usdt!;
 
 // Base Network RPC URLs with fallback - added more reliable endpoints
 export const BASE_RPC_URLS = [
@@ -165,167 +140,44 @@ export const BASE_RPC_URLS = [
 export const BASE_RPC_URL = BASE_RPC_URLS[0]; // Primary RPC for backward compatibility
 
 // Arc Network RPC URLs with fallback (env-first)
-export const ARC_RPC_URLS = (
-  import.meta.env.VITE_ARC_RPC_URLS?.split(',').map((s: string) => s.trim()).filter(Boolean)
-  || []
-).concat([
-  // default fallbacks (can be overridden by env)
-  import.meta.env.VITE_ARC_RPC_URL || 'https://rpc.testnet.arc.network',
-]).filter(Boolean);
-
+export const ARC_RPC_URLS = [...arc.rpcUrls];
 export const ARC_RPC_URL = ARC_RPC_URLS[0];
 
 // Arc block explorer API (Blockscout-based)
-export const ARCSCAN_API_URL = 'https://testnet.arcscan.app/api/v2';
+export const ARCSCAN_API_URL = arc.explorerApiUrl;
 
 // Base Sepolia Testnet (84532)
-export const BASE_SEPOLIA_CHAIN_ID = Number(import.meta.env.VITE_BASE_CHAIN_ID || 84532);
-export const BASE_SEPOLIA_RPC_URLS = (
-  import.meta.env.VITE_BASE_RPC_URLS?.split(',').map((s: string) => s.trim()).filter(Boolean)
-  || []
-).concat([
-  import.meta.env.VITE_BASE_RPC_URL || 'https://sepolia.base.org',
-  import.meta.env.VITE_BASE_RPC_FALLBACK_URL || 'https://base-sepolia-rpc.publicnode.com',
-]).filter(Boolean);
+export const BASE_SEPOLIA_RPC_URLS = [...baseSepoliaEntry.rpcUrls];
 export const BASE_SEPOLIA_RPC_URL = BASE_SEPOLIA_RPC_URLS[0];
-export const BASE_SEPOLIA_EXPLORER_URL = import.meta.env.VITE_BASE_BLOCK_EXPLORER_URL || 'https://sepolia.basescan.org';
-export const BASE_SEPOLIA_EXPLORER_API_URL = 'https://api-sepolia.basescan.org/api';
+export const BASE_SEPOLIA_EXPLORER_URL = baseSepoliaEntry.explorerUrl;
+export const BASE_SEPOLIA_EXPLORER_API_URL = baseSepoliaEntry.explorerApiUrl;
 
-export const BASE_SEPOLIA_ZKSEND_CONTRACT_ADDRESS =
-  import.meta.env.VITE_BASE_ZKSEND_CONTRACT_ADDRESS || '';
-export const BASE_SEPOLIA_USDC_ADDRESS =
-  import.meta.env.VITE_BASE_USDC_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
-export const BASE_SEPOLIA_USDT_ADDRESS =
-  import.meta.env.VITE_BASE_USDT_ADDRESS || '';
-export const BASE_SEPOLIA_RECLAIM_VERIFIER_CONTRACT_ADDRESS =
-  import.meta.env.VITE_BASE_RECLAIM_VERIFIER_ADDRESS || '';
-export const BASE_SEPOLIA_DIRECT_SEND_CONTRACT_ADDRESS =
-  import.meta.env.VITE_BASE_DIRECT_SEND_CONTRACT_ADDRESS || '';
+export const BASE_SEPOLIA_ZKSEND_CONTRACT_ADDRESS = baseSepoliaEntry.contracts.zkSend ?? '';
+export const BASE_SEPOLIA_USDC_ADDRESS = baseSepoliaEntry.contracts.usdc!;
+export const BASE_SEPOLIA_USDT_ADDRESS = baseSepoliaEntry.contracts.usdt ?? '';
+export const BASE_SEPOLIA_RECLAIM_VERIFIER_CONTRACT_ADDRESS = baseSepoliaEntry.contracts.reclaimVerifier ?? '';
+export const BASE_SEPOLIA_DIRECT_SEND_CONTRACT_ADDRESS = baseSepoliaEntry.contracts.directSend ?? '';
 
 // Tempo Testnet (42431)
-export const TEMPO_CHAIN_ID = Number(import.meta.env.VITE_TEMPO_CHAIN_ID || 42431);
-export const TEMPO_RPC_URLS = (
-  import.meta.env.VITE_TEMPO_RPC_URLS?.split(',').map((s: string) => s.trim()).filter(Boolean)
-  || []
-).concat([
-  import.meta.env.VITE_TEMPO_RPC_URL || 'https://rpc.moderato.tempo.xyz',
-]).filter(Boolean);
-export const TEMPO_EXPLORER_URL = import.meta.env.VITE_TEMPO_BLOCK_EXPLORER_URL || 'https://explore.tempo.xyz';
-export const TEMPO_EXPLORER_API_URL = import.meta.env.VITE_TEMPO_BLOCK_EXPLORER_API_URL || 'https://explore.tempo.xyz/api';
+export const TEMPO_RPC_URLS = [...tempo.rpcUrls];
+export const TEMPO_EXPLORER_URL = tempo.explorerUrl;
+export const TEMPO_EXPLORER_API_URL = tempo.explorerApiUrl;
 
-export const TEMPO_GIFTCARD_CONTRACT_ADDRESS =
-  import.meta.env.VITE_TEMPO_GIFTCARD_CONTRACT_ADDRESS || '';
-export const TEMPO_ZKSEND_CONTRACT_ADDRESS =
-  import.meta.env.VITE_TEMPO_ZKSEND_CONTRACT_ADDRESS || '';
-export const TEMPO_DIRECT_SEND_CONTRACT_ADDRESS =
-  import.meta.env.VITE_TEMPO_DIRECT_SEND_CONTRACT_ADDRESS || '';
-export const TEMPO_PATHUSD_ADDRESS =
-  import.meta.env.VITE_TEMPO_PATHUSD_ADDRESS || '0x20c0000000000000000000000000000000000000';
-export const TEMPO_ALPHAUSD_ADDRESS =
-  import.meta.env.VITE_TEMPO_ALPHAUSD_ADDRESS || '0x20c0000000000000000000000000000000000001';
-export const TEMPO_BETAUSD_ADDRESS =
-  import.meta.env.VITE_TEMPO_BETAUSD_ADDRESS || '0x20c0000000000000000000000000000000000002';
-export const TEMPO_THETAUSD_ADDRESS =
-  import.meta.env.VITE_TEMPO_THETAUSD_ADDRESS || '0x20c0000000000000000000000000000000000003';
-export const TEMPO_TWITTER_VAULT_ADDRESS =
-  import.meta.env.VITE_TEMPO_TWITTER_VAULT_ADDRESS || import.meta.env.VITE_TEMPO_TWITTER_VAULT_CONTRACT_ADDRESS || '';
-export const TEMPO_TWITCH_VAULT_ADDRESS =
-  import.meta.env.VITE_TEMPO_TWITCH_VAULT_ADDRESS || import.meta.env.VITE_TEMPO_TWITCH_VAULT_CONTRACT_ADDRESS || '';
-export const TEMPO_TELEGRAM_VAULT_ADDRESS =
-  import.meta.env.VITE_TEMPO_TELEGRAM_VAULT_ADDRESS || import.meta.env.VITE_TEMPO_TELEGRAM_VAULT_CONTRACT_ADDRESS || '';
-export const TEMPO_TIKTOK_VAULT_ADDRESS =
-  import.meta.env.VITE_TEMPO_TIKTOK_VAULT_ADDRESS || import.meta.env.VITE_TEMPO_TIKTOK_VAULT_CONTRACT_ADDRESS || '';
-export const TEMPO_INSTAGRAM_VAULT_ADDRESS =
-  import.meta.env.VITE_TEMPO_INSTAGRAM_VAULT_ADDRESS || import.meta.env.VITE_TEMPO_INSTAGRAM_VAULT_CONTRACT_ADDRESS || '';
-
-export interface ChainContracts {
-  chainId: number;
-  contractAddress?: string;
-  zksend: string;
-  usdc: string;
-  usdt?: string;
-  eurc?: string;
-  usyc?: string;
-  pathusd?: string;
-  alphausd?: string;
-  betausd?: string;
-  thetausd?: string;
-  reclaimVerifier: string;
-  vaultContract?: string;
-  twitchVault?: string;
-  telegramVault?: string;
-  tiktokVault?: string;
-  instagramVault?: string;
-  directSend?: string;
-  /** Escrow + claim (EIP-712). See `contracts/hardhat/DirectSendV2.sol`. */
-  directSendV2?: string;
-  rpcUrls: string[];
-  explorerUrl: string;
-  explorerApiUrl: string;
-}
-
-export const ARC_CHAIN_ID = Number(import.meta.env.VITE_ARC_CHAIN_ID || 5042002);
+export const TEMPO_GIFTCARD_CONTRACT_ADDRESS = tempo.contracts.giftCard ?? '';
+export const TEMPO_ZKSEND_CONTRACT_ADDRESS = tempo.contracts.zkSend ?? '';
+export const TEMPO_DIRECT_SEND_CONTRACT_ADDRESS = tempo.contracts.directSend ?? '';
+export const TEMPO_PATHUSD_ADDRESS = tempo.contracts.pathusd!;
+export const TEMPO_ALPHAUSD_ADDRESS = tempo.contracts.alphausd!;
+export const TEMPO_BETAUSD_ADDRESS = tempo.contracts.betausd!;
+export const TEMPO_THETAUSD_ADDRESS = tempo.contracts.thetausd!;
+export const TEMPO_TWITTER_VAULT_ADDRESS = tempo.contracts.vaults?.twitter ?? '';
+export const TEMPO_TWITCH_VAULT_ADDRESS = tempo.contracts.vaults?.twitch ?? '';
+export const TEMPO_TELEGRAM_VAULT_ADDRESS = tempo.contracts.vaults?.telegram ?? '';
+export const TEMPO_TIKTOK_VAULT_ADDRESS = tempo.contracts.vaults?.tiktok ?? '';
+export const TEMPO_INSTAGRAM_VAULT_ADDRESS = tempo.contracts.vaults?.instagram ?? '';
 
 export function getContractsForChain(chainId: number): ChainContracts {
-  if (chainId === BASE_SEPOLIA_CHAIN_ID) {
-    return {
-      chainId: BASE_SEPOLIA_CHAIN_ID,
-      contractAddress: undefined,
-      zksend: BASE_SEPOLIA_ZKSEND_CONTRACT_ADDRESS,
-      usdc: BASE_SEPOLIA_USDC_ADDRESS,
-      usdt: BASE_SEPOLIA_USDT_ADDRESS || undefined,
-      reclaimVerifier: BASE_SEPOLIA_RECLAIM_VERIFIER_CONTRACT_ADDRESS,
-      directSend: BASE_SEPOLIA_DIRECT_SEND_CONTRACT_ADDRESS || undefined,
-      directSendV2: BASE_SEPOLIA_DIRECT_SEND_V2_CONTRACT_ADDRESS || undefined,
-      rpcUrls: [...BASE_SEPOLIA_RPC_URLS],
-      explorerUrl: BASE_SEPOLIA_EXPLORER_URL,
-      explorerApiUrl: BASE_SEPOLIA_EXPLORER_API_URL,
-    };
-  }
-  if (chainId === TEMPO_CHAIN_ID) {
-    return {
-      chainId: TEMPO_CHAIN_ID,
-      contractAddress: TEMPO_GIFTCARD_CONTRACT_ADDRESS || CONTRACT_ADDRESS,
-      zksend: TEMPO_ZKSEND_CONTRACT_ADDRESS,
-      usdc: TEMPO_PATHUSD_ADDRESS,
-      pathusd: TEMPO_PATHUSD_ADDRESS,
-      alphausd: TEMPO_ALPHAUSD_ADDRESS,
-      betausd: TEMPO_BETAUSD_ADDRESS,
-      thetausd: TEMPO_THETAUSD_ADDRESS,
-      reclaimVerifier: RECLAIM_VERIFIER_CONTRACT_ADDRESS,
-      vaultContract: TEMPO_TWITTER_VAULT_ADDRESS || VAULT_CONTRACT_ADDRESS,
-      twitchVault: TEMPO_TWITCH_VAULT_ADDRESS || TWITCH_VAULT_CONTRACT_ADDRESS,
-      telegramVault: TEMPO_TELEGRAM_VAULT_ADDRESS || TELEGRAM_VAULT_CONTRACT_ADDRESS,
-      tiktokVault: TEMPO_TIKTOK_VAULT_ADDRESS || TIKTOK_VAULT_CONTRACT_ADDRESS,
-      instagramVault: TEMPO_INSTAGRAM_VAULT_ADDRESS || INSTAGRAM_VAULT_CONTRACT_ADDRESS,
-      directSend: TEMPO_DIRECT_SEND_CONTRACT_ADDRESS || undefined,
-      directSendV2: TEMPO_DIRECT_SEND_V2_CONTRACT_ADDRESS || undefined,
-      rpcUrls: [...TEMPO_RPC_URLS],
-      explorerUrl: TEMPO_EXPLORER_URL,
-      explorerApiUrl: TEMPO_EXPLORER_API_URL,
-    };
-  }
-  // Default: Arc Testnet
-  return {
-    chainId: ARC_CHAIN_ID,
-    contractAddress: CONTRACT_ADDRESS,
-    zksend: ZKSEND_CONTRACT_ADDRESS,
-    usdc: USDC_ADDRESS,
-    usdt: USDT_ADDRESS,
-    eurc: EURC_ADDRESS,
-    usyc: USYC_ADDRESS,
-    reclaimVerifier: RECLAIM_VERIFIER_CONTRACT_ADDRESS,
-    vaultContract: VAULT_CONTRACT_ADDRESS,
-    twitchVault: TWITCH_VAULT_CONTRACT_ADDRESS,
-    telegramVault: TELEGRAM_VAULT_CONTRACT_ADDRESS,
-    tiktokVault: TIKTOK_VAULT_CONTRACT_ADDRESS,
-    instagramVault: INSTAGRAM_VAULT_CONTRACT_ADDRESS,
-    directSend: DIRECT_SEND_CONTRACT_ADDRESS,
-    directSendV2: ARC_DIRECT_SEND_V2_CONTRACT_ADDRESS || undefined,
-    rpcUrls: [...ARC_RPC_URLS],
-    explorerUrl: import.meta.env.VITE_ARC_BLOCK_EXPLORER_URL || 'https://testnet.arcscan.app',
-    explorerApiUrl: ARCSCAN_API_URL,
-  };
+  return getContractsForChainFromRegistry(chainId);
 }
 
 export function getExplorerTxUrl(chainId: number, txHash: string): string {

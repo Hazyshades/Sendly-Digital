@@ -1,9 +1,5 @@
-import { getApiUrl } from '@/lib/supabase/client';
-import { publicAnonKey } from '@/lib/supabase/info';
-
-const CREATOR_PAYWALL_BASE =
-  (import.meta.env.VITE_CREATOR_PAYWALL_URL as string | undefined)?.trim().replace(/\/$/, '') ||
-  `${getApiUrl()}/creator-paywall`;
+import { isEdgeFetchError } from '@/lib/supabase/client';
+import { creatorPaywallClient, getCreatorPaywallBase } from '@/lib/paywall/paywallClient';
 
 export const MIN_PAYWALL_PRICE_USDC = 0.5;
 
@@ -59,9 +55,9 @@ export type CreatePaywallResponse = {
   };
 };
 
-function paywallUrl(slug: string): string {
+function paywallPath(slug: string): string {
   const encoded = slug.split('/').map(encodeURIComponent).join('/');
-  return `${CREATOR_PAYWALL_BASE}/paywall/${encoded}`;
+  return `/paywall/${encoded}`;
 }
 
 export async function fetchPaywall(
@@ -80,10 +76,7 @@ export async function fetchPaywall(
   | { status: 'unlocked'; data: PaywallUnlockedResponse }
   | { status: 'not_found' }
 > {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${publicAnonKey}`,
-  };
+  const headers: Record<string, string> = {};
   if (proof?.paymentId) {
     headers['X-Sendly-Payment-Id'] = proof.paymentId;
     if (proof.txHash) headers['X-Sendly-Tx-Hash'] = proof.txHash;
@@ -100,50 +93,56 @@ export async function fetchPaywall(
     }
   }
 
-  const response = await fetch(paywallUrl(slug), { method: 'GET', headers });
+  const { ok, status, data } = await creatorPaywallClient<
+    PaywallLockedResponse | PaywallUnlockedResponse | { error?: string }
+  >(paywallPath(slug), {
+    method: 'GET',
+    headers,
+    rawResponse: true,
+  });
 
-  if (response.status === 404) {
+  if (status === 404) {
     return { status: 'not_found' };
   }
 
-  if (response.status === 402) {
-    const body = (await response.json()) as PaywallLockedResponse;
+  if (status === 402) {
+    const body = data as PaywallLockedResponse;
     return { status: 'locked', instructions: body.paywall };
   }
 
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error((err as { error?: string }).error || `HTTP ${response.status}`);
+  if (!ok) {
+    throw new Error((data as { error?: string }).error || `HTTP ${status}`);
   }
 
-  const data = (await response.json()) as PaywallUnlockedResponse;
-  return { status: 'unlocked', data };
+  return { status: 'unlocked', data: data as PaywallUnlockedResponse };
 }
 
 export async function createPaywall(input: CreatePaywallInput): Promise<CreatePaywallResponse> {
-  const response = await fetch(`${CREATOR_PAYWALL_BASE}/paywall`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${publicAnonKey}`,
-    },
-    body: JSON.stringify({
-      platform: input.platform ?? 'github',
-      githubAccessToken: input.githubAccessToken,
-      slug: input.slug,
-      handle: input.handle,
-      priceUsdc: input.priceUsdc,
-      title: input.title,
-      contentBody: input.contentBody,
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error((err as { error?: string; details?: string }).details || (err as { error?: string }).error || `HTTP ${response.status}`);
+  try {
+    return await creatorPaywallClient<CreatePaywallResponse>('/paywall', {
+      method: 'POST',
+      body: {
+        platform: input.platform ?? 'github',
+        githubAccessToken: input.githubAccessToken,
+        slug: input.slug,
+        handle: input.handle,
+        priceUsdc: input.priceUsdc,
+        title: input.title,
+        contentBody: input.contentBody,
+      },
+    });
+  } catch (err) {
+    if (isEdgeFetchError(err)) {
+      const details = err.errorData?.details;
+      const error = err.errorData?.error;
+      throw new Error(
+        (typeof details === 'string' && details) ||
+          (typeof error === 'string' && error) ||
+          err.message,
+      );
+    }
+    throw err;
   }
-
-  return response.json() as Promise<CreatePaywallResponse>;
 }
 
 export function getCreatorPaywallPublicPath(slug: string): string {
@@ -151,5 +150,5 @@ export function getCreatorPaywallPublicPath(slug: string): string {
 }
 
 export function getCreatorPaywallApiBase(): string {
-  return CREATOR_PAYWALL_BASE;
+  return getCreatorPaywallBase();
 }
