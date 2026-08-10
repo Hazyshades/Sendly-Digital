@@ -730,6 +730,7 @@ html {
 
 /* The supplied hero art carries the actual star pattern. */
 .hero-stars {
+  z-index: 1;
   opacity: 0.78;
   animation: hero-stars-twinkle 11s ease-in-out infinite;
 }

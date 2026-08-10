@@ -176,10 +176,10 @@ export function HeroSection() {
         className="hero-stars pointer-events-none absolute inset-x-0 top-0 h-auto w-full select-none"
       />
       <img
-        src="/images/landing/hero-scenery.svg"
+        src="/images/landing/6CnligMRZTqS1M171eobYauJ90.png"
         alt=""
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-[46%] w-full select-none"
+        className="pointer-events-none absolute inset-0 h-full w-full scale-[1.09] select-none object-cover object-center"
       />
 
       <div className="hero-copy relative z-10 mx-auto flex w-full max-w-[600px] flex-col items-center px-6 pt-32 text-center md:pt-40">
