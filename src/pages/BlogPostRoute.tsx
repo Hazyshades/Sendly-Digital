@@ -16,9 +16,13 @@ import { BlogEngagementBar } from '@/components/blog/BlogEngagementBar';
 import { BlogPostHead } from '@/components/blog/BlogPostHead';
 import { BlogStepFrame } from '@/components/blog/BlogStepFrame';
 import { GiftCardAmountPreview } from '@/components/blog/GiftCardAmountPreview';
+import { GiftCardClaimLinkPreview } from '@/components/blog/GiftCardClaimLinkPreview';
 import { GiftCardNavPreview } from '@/components/blog/GiftCardNavPreview';
+import { GiftCardPendingClaimPreview } from '@/components/blog/GiftCardPendingClaimPreview';
+import { GiftCardReceivedPreview } from '@/components/blog/GiftCardReceivedPreview';
 import { GiftCardRecipientTypePreview } from '@/components/blog/GiftCardRecipientTypePreview';
 import { GiftCardReviewPreview } from '@/components/blog/GiftCardReviewPreview';
+import { GiftCardSocialLoginPreview } from '@/components/blog/GiftCardSocialLoginPreview';
 import { GiftCardWalletSourcePreview } from '@/components/blog/GiftCardWalletSourcePreview';
 import {
   getBlogPostMeta,
@@ -74,6 +78,10 @@ type BlogImageComponentId =
   | 'gift-card-recipient-type-embed'
   | 'gift-card-amount-embed'
   | 'gift-card-review-embed'
+  | 'gift-card-claim-link-embed'
+  | 'gift-card-social-login-embed'
+  | 'gift-card-pending-claim-embed'
+  | 'gift-card-received-embed'
   | 'internal-wallet-dashboard-embed'
   | 'internal-wallet-create-embed';
 
@@ -93,6 +101,10 @@ const GIFT_CARD_STEP_LIGHTBOX: Partial<
   'gift-card-recipient-type-embed': GiftCardRecipientTypePreview,
   'gift-card-amount-embed': GiftCardAmountPreview,
   'gift-card-review-embed': GiftCardReviewPreview,
+  'gift-card-claim-link-embed': GiftCardClaimLinkPreview,
+  'gift-card-social-login-embed': GiftCardSocialLoginPreview,
+  'gift-card-pending-claim-embed': GiftCardPendingClaimPreview,
+  'gift-card-received-embed': GiftCardReceivedPreview,
 };
 
 const blogPosts: Record<string, BlogPost> = {
@@ -373,6 +385,30 @@ const blogPosts: Record<string, BlogPost> = {
         alt: 'Review gift card details and confirm in wallet',
         caption: '',
       },
+      {
+        id: 'gift-card-claim-link',
+        componentId: 'gift-card-claim-link-embed',
+        alt: 'Claim link shared as a post on X',
+        caption: '',
+      },
+      {
+        id: 'gift-card-social-login',
+        componentId: 'gift-card-social-login-embed',
+        alt: 'Connect social account modal in Sendly',
+        caption: '',
+      },
+      {
+        id: 'gift-card-pending-claim',
+        componentId: 'gift-card-pending-claim-embed',
+        alt: 'Pending Claims with MetaMask or Internal Wallet options',
+        caption: '',
+      },
+      {
+        id: 'gift-card-received',
+        componentId: 'gift-card-received-embed',
+        alt: 'Received gift cards with active status in My Cards',
+        caption: '',
+      },
     ],
     sections: [
       {
@@ -471,17 +507,43 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'recipient-flow',
         title: 'How the recipient claims it',
         paragraphs: [
-          'Steps:',
-          '(1) Open the claim link or log in to Sendly with the social account that should receive the card.',
-          '(2) Verify ownership of the username or wallet (OAuth or wallet signature, depending on the path).',
-          '(3) Click Claim and confirm in the wallet.',
-          '(4) Use a Circle Internal Wallet (created automatically if needed) or connect an external wallet to receive the card and access the funds.'
+          'After you share the claim link or send to a username, the recipient proves they own that account and claims the card in Sendly.',
         ],
         bullets: [
           'Wallet recipient: the card can appear in that wallet after mint.',
           'Username recipient: the recipient logs in with that platform, proves ownership, then claims.',
-          'No wallet yet? Sendly can create a Circle Internal Wallet so they can still claim.'
-        ]
+          'No wallet yet? Sendly can create a Circle Internal Wallet so they can still claim.',
+        ],
+      },
+      {
+        id: 'recipient-step-link',
+        title: 'Step 1 · Open the claim link',
+        variant: 'step',
+        imageId: 'gift-card-claim-link',
+        paragraphs: [
+          'Open the claim link from the message, post, or share the sender gave you - for example a link on X (Twitter).',
+          'The link takes you to Sendly so you can sign in and claim the gift card.',
+        ],
+      },
+      {
+        id: 'recipient-step-login',
+        title: 'Step 2 · Connect social account',
+        variant: 'step',
+        imageId: 'gift-card-social-login',
+        paragraphs: [
+          'In Sendly, open Social Accounts and connect the platform the card was sent to - X (Twitter), Twitch, Telegram, or another supported account.',
+          'This step verifies you own that username. Without it, pending cards for that identity stay hidden.',
+        ],
+      },
+      {
+        id: 'recipient-step-claim',
+        title: 'Step 3 · Claim & confirm',
+        variant: 'step',
+        imageId: 'gift-card-pending-claim',
+        paragraphs: [
+          'Go to My Cards → Pending Claims. You will see gift cards waiting for your username.',
+          'Choose Claim with MetaMask (or another browser wallet) or Use Internal Wallet, then confirm in the wallet when prompted.',
+        ],
       },
       {
         id: 'wallet-vs-username',
@@ -495,9 +557,10 @@ const blogPosts: Record<string, BlogPost> = {
       {
         id: 'after-claiming',
         title: 'After claiming',
+        imageId: 'gift-card-received',
         paragraphs: [
-          'The card carries value in USDC or EURC. In Sendly, the recipient can claim the card and access the funds through the supported claim flow.',
-          'After claiming, the recipient can see the card in their wallet. Other apps may display the NFT differently depending on their support for this standard.',
+          'The card carries value in USDC or EURC. After a successful claim, it shows up under My Cards → Received with an active status.',
+          'In Sendly, the recipient can access the funds through the supported claim flow and see the card in their wallet.',
           'For developers: the card is represented as an ERC-721 NFT after claim; metadata lives on IPFS (Pinata).'
         ]
       },
@@ -913,6 +976,18 @@ export function BlogPostRoute() {
       }
       if (img.componentId === 'gift-card-review-embed') {
         return renderGiftCardStepEmbed(img, GiftCardReviewPreview);
+      }
+      if (img.componentId === 'gift-card-claim-link-embed') {
+        return renderGiftCardStepEmbed(img, GiftCardClaimLinkPreview);
+      }
+      if (img.componentId === 'gift-card-social-login-embed') {
+        return renderGiftCardStepEmbed(img, GiftCardSocialLoginPreview);
+      }
+      if (img.componentId === 'gift-card-pending-claim-embed') {
+        return renderGiftCardStepEmbed(img, GiftCardPendingClaimPreview);
+      }
+      if (img.componentId === 'gift-card-received-embed') {
+        return renderGiftCardStepEmbed(img, GiftCardReceivedPreview);
       }
       if (img.componentId === 'payments-send-embed') {
         return (<button type="button" onClick={() => setActiveImage(img)} className="w-full text-left rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden" aria-label={`Open: ${img.alt}`}><div className="p-4 min-h-[200px]"><ZkSendPanel initialTab="send" preview previewValues={paymentsPreviewValues ?? PAYMENTS_SEND_PREVIEW_FALLBACK} /></div></button>);
