@@ -610,9 +610,7 @@ const blogPosts: Record<string, BlogPost> = {
         paragraphs: [],
         bullets: [
           'Do recipients need a wallet before I send? No - send by username and they can claim later, optionally with a new Internal Wallet.',
-          'Is this real money? This guide is for Arc Testnet. Use test tokens only; do not treat testnet balances as production funds.',
           'What is the NFT part? It is how ownership is tracked on-chain. You do not need to understand NFTs to send or claim a gift card.',
-          'Can I send to Gmail? Yes - use the full @gmail.com address or the supported username flow in the Create form.',
           'What if I sent to the wrong person? On-chain transactions are final. Always verify the recipient before confirming.'
         ]
       },
