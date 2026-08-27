@@ -25,7 +25,6 @@ import { BlogRoute } from '@/pages/BlogRoute';
 import { BlogPostRoute } from '@/pages/BlogPostRoute';
 import { ReclaimCallbackRoute } from '@/pages/ReclaimCallbackRoute';
 import { ZkSendRoute } from '@/pages/ZkSendRoute';
-import { RemitRoute } from '@/pages/RemitRoute';
 import { CreatorWriteRoute } from '@/pages/CreatorWriteRoute';
 import { CreatorHomeRoute } from '@/pages/CreatorHomeRoute';
 import { CreatorProfileRoute } from '@/pages/CreatorProfileRoute';
@@ -65,7 +64,6 @@ function SharedAppRoutes({ zkMode }: { zkMode: boolean }) {
       <Route path="/auth/telegram" element={<TelegramAuthRoute />} />
       <Route path="/reclaim/callback" element={<ReclaimCallbackRoute />} />
       <Route path="/payments" element={zkMode ? <ZkSendRoute /> : <ZkHostRedirect />} />
-      <Route path="/remit" element={zkMode ? <RemitRoute /> : <ZkHostRedirect />} />
       <Route path="/creator/write" element={zkMode ? <CreatorWriteRoute /> : <ZkHostRedirect />} />
       <Route path="/creator/:platform/:handle" element={zkMode ? <CreatorProfileRoute /> : <ZkHostRedirect />} />
       <Route path="/creator" element={zkMode ? <CreatorHomeRoute /> : <ZkHostRedirect />} />

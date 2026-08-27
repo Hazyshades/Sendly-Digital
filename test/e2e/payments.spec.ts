@@ -10,7 +10,6 @@ import {
 } from './fixtures';
 
 const ARC_CHAIN_ID = 5_042_002;
-const BASE_SEPOLIA_CHAIN_ID = 84_532;
 const directSendClaimMode = process.env.E2E_DIRECT_SEND_CLAIM_MODE === 'escrow_v2' ? 'escrow_v2' : 'legacy';
 
 const twitterIdentity = {
@@ -36,7 +35,7 @@ function pendingPayment(paymentId: string) {
 function requireZkDesktop(testInfo: TestInfo) {
   test.skip(
     testInfo.project.name !== 'zk-desktop',
-    'Payment and remittance interaction coverage runs once in the desktop zk-host project.',
+    'Payment interaction coverage runs once in the desktop zk-host project.',
   );
 }
 
@@ -324,72 +323,4 @@ test.describe('Receive payment UI', () => {
     });
   });
 
-});
-
-test.describe('Sendly Remit', () => {
-  test('validates the AED fee threshold, shows the deterministic quote, and exposes funding choices', async ({ app }, testInfo) => {
-    requireZkDesktop(testInfo);
-    await app.gotoZk('/remit');
-
-    const amount = app.page.getByLabel('Amount in AED');
-    await amount.fill('1.50');
-    await expect(app.page.getByText('Enter more than 1.50 AED to cover the remittance fee.')).toBeVisible();
-    await expect(app.page.getByRole('button', { name: 'Send remittance', exact: true })).toBeDisabled();
-
-    await amount.fill('100');
-    await expect(app.page.getByText('26.82155 USDC', { exact: true })).toBeVisible();
-    await expect(app.page.getByText('1 AED = 0.2723 USDC', { exact: true })).toBeVisible();
-    await expect(app.page.getByRole('button', { name: /^Internal Wallet\b/ })).toBeDisabled();
-    await expect(app.page.getByRole('button', { name: /^External Wallet\b/ })).toBeDisabled();
-    await expect(app.page.getByRole('button', { name: /^UAE Bank Card\b/ })).toBeEnabled();
-
-    await app.page.getByRole('button', { name: /^UAE Bank Card\b/ }).click();
-    await expect(app.page.getByText('Settle demo pay-in with')).toBeVisible();
-  });
-
-  test.describe('wrong-network external wallet', () => {
-    test.use({
-      scenario: {
-        wallet: { connected: true, address: E2E_ADDRESS, chainId: BASE_SEPOLIA_CHAIN_ID },
-      },
-    });
-
-    test('offers Switch to Arc and returns to the normal settlement action after switching', async ({ app }, testInfo) => {
-      requireZkDesktop(testInfo);
-      await app.gotoZk('/remit');
-      await app.page.getByLabel('Twitter username').fill('alice');
-
-      const switchToArc = app.page.getByRole('button', { name: 'Switch to Arc Testnet', exact: true });
-      await expect(switchToArc).toBeVisible();
-      await switchToArc.click();
-      await expect(app.page.getByRole('button', { name: 'Send remittance', exact: true })).toBeVisible();
-    });
-  });
-
-  test.describe('Internal Wallet settlement', () => {
-    test.use({
-      scenario: {
-        identities: [twitterIdentity],
-        internalWallet: createInternalWallet(),
-      },
-    });
-
-    test('settles, copies a normalized claim link, and resets for another payment', async ({ app }, testInfo) => {
-      requireZkDesktop(testInfo);
-      await app.gotoZk('/remit');
-      await app.page.getByRole('button', { name: /^Internal Wallet\b/ }).click();
-      await app.page.getByLabel('Twitter username').fill('@Alice');
-
-      await app.page.getByRole('button', { name: 'Send remittance', exact: true }).click();
-      await expect(app.page.getByRole('heading', { name: 'Payment sent', exact: true })).toBeVisible();
-      await app.page.getByRole('button', { name: 'Copy claim link', exact: true }).click();
-      await expect.poll(app.readClipboard).toBe(
-        `${app.zkUrl}/payments?tab=receive&platform=twitter&username=alice`,
-      );
-
-      await app.page.getByRole('button', { name: 'Send another payment', exact: true }).click();
-      await expect(app.page.getByRole('heading', { name: 'Your remittance', exact: true })).toBeVisible();
-      await expect(app.page.getByLabel('Twitter username')).toHaveValue('');
-    });
-  });
 });

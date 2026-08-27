@@ -1,0 +1,45 @@
+{
+  "target": 43,
+  "started": "2026-08-27T11:12:14.831523+00:00",
+  "interval_sec": 251.1627906976744,
+  "merged_count": 4,
+  "attempts": 4,
+  "merged": [
+    {
+      "pr": 174,
+      "title": "fix: validate maxSizeMB prop to prevent NaN/zero/negative bypass (Fixes #92)",
+      "author": "ZacLou",
+      "issues": [
+        92
+      ],
+      "at": "2026-08-27T11:12:22.469942+00:00"
+    },
+    {
+      "pr": 173,
+      "title": "fix: add accessible labels and aria-describedby to all file inputs (Fixes #88)",
+      "author": "ZacLou",
+      "issues": [
+        88
+      ],
+      "at": "2026-08-27T11:17:37.418886+00:00"
+    },
+    {
+      "pr": 160,
+      "title": "Fix #84: Add CI workflow running tests on push and PR",
+      "author": "shamyl",
+      "issues": [
+        84
+      ],
+      "at": "2026-08-27T11:21:49.586268+00:00"
+    },
+    {
+      "pr": 137,
+      "title": "fix: solution for issue #91",
+      "author": "adityawaghamare04",
+      "issues": [
+        91
+      ],
+      "at": "2026-08-27T11:26:00.595045+00:00"
+    }
+  ]
+}

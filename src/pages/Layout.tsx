@@ -162,16 +162,6 @@ export function Layout({ children }: LayoutProps) {
                 Payments
               </Link>
             ) : null}
-            <Link
-              to="/remit"
-              className={`px-4 py-2 rounded-2xl transition-[transform,background-color,color,box-shadow] duration-200 ease-[var(--ease-out)] active:scale-[0.97] flex items-center gap-2 font-semibold motion-reduce:transition-none motion-reduce:active:scale-100 ${
-                isActive('/remit')
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100'
-              }`}
-            >
-              Ignyte
-            </Link>
             <ConnectButton />
           </div>
         </div>

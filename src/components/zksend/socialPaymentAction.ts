@@ -53,8 +53,6 @@ type SubmitSocialPaymentInput = {
   developerWallet?: DeveloperWallet | null;
   hasDeveloperWallet: boolean;
   privyUserId?: string;
-  /** Remit uses Arc only; generic payments preserve their current selected-chain behaviour. */
-  requireArc?: boolean;
 };
 
 function parseUsdcAmount(amount: string): bigint {
@@ -97,9 +95,6 @@ function normalizeRecipient(platform: string, username: string) {
 
 export async function submitSocialZkSendPayment(input: SubmitSocialPaymentInput): Promise<SocialPaymentOutcome> {
   if (!input.amount || Number(input.amount) <= 0) throw new Error('Enter amount > 0');
-  if (input.requireArc && input.chainId !== ARC_CHAIN_ID) {
-    throw new Error('Switch your wallet to Arc Testnet to send this remittance');
-  }
 
   const { normalizedPlatform, normalizedUsername, recipientIdentityHash } = normalizeRecipient(input.platform, input.username);
   const fees = getZkSendFeeBreakdown(input.amount);
@@ -206,7 +201,7 @@ export async function submitSocialZkSendPayment(input: SubmitSocialPaymentInput)
   return {
     paymentId,
     txHash,
-    chainId: input.requireArc ? ARC_CHAIN_ID : input.chainId,
+    chainId: input.chainId,
     platform: normalizedPlatform,
     normalizedUsername,
     recipientIdentityHash,

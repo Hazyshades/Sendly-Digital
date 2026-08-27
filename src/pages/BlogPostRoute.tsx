@@ -36,12 +36,12 @@ const PAYMENTS_SEND_PREVIEW_FALLBACK: SendPaymentPreviewValues = {
   amount: '100',
   token: 'USDC',
   platform: 'twitter',
-  username: 'arc',
+  username: 'circle',
   balance: '362.347036',
-  suggestionLabel: 'Arc @arc',
+  suggestionLabel: 'Circle @circle',
 };
 
-const BLOG_PREVIEW_USERNAME = 'arc';
+const BLOG_PREVIEW_USERNAME = 'circle';
 
 interface BlogPost {
   slug: string;
@@ -201,10 +201,10 @@ const blogPosts: Record<string, BlogPost> = {
   },
   'zktls-payments-guide': {
     slug: 'zktls-payments-guide',
-    title: 'User Guide: Payments (zkTLS and zkSend)',
+    title: 'zkTLS in Sendly Payments: prove ownership and unlock USDC',
     description:
-      'Send money to platform:username. The recipient proves they control that account (zkTLS), then the contract sends funds to their wallet.',
-    date: '2026-02-11',
+      'We use platform:username as the recipient identifier (e.g. twitter:alice). zkTLS proves ownership, then the contract unlocks USDC to the recipient wallet.',
+    date: '2026-08-01',
     category: 'Tutorial',
     tags: ['zkTLS', 'zkSend', 'Payments'],
     readTime: '8 min',
@@ -242,10 +242,10 @@ const blogPosts: Record<string, BlogPost> = {
         paragraphs: [
           'TLS encrypts traffic to websites (the "s" in HTTPS). It does not by itself let anyone else verify what happened in that session. zkTLS adds a zero-knowledge layer: you can prove something about your Web2 session (for example that you control a social account) without handing over credentials, session keys, or raw responses. A verifier can check that proof on-chain.',
           'Sendly uses a proxy (witness) model. An attestor sits between your device and the social site, relays encrypted TLS traffic, and signs that a real session happened. It does not terminate TLS or hold your client keys. Your device keeps the TLS session; the attestor sees metadata and signs a claim. It cannot read your traffic. We use Reclaim Protocol for this in production.',
-          'In Payments, zkTLS proofs back platform:username (e.g. twitter:alice). A claim includes claimId, identifier (platform:username), timestamp, requestUrl, and the attestor signature. The contract checks the signature before it pays out.'
+          'In Payments, we use platform:username as the recipient identifier (e.g. twitter:alice). zkTLS proofs back that handle identifier. A claim includes claimId, the recipient identifier, timestamp, requestUrl, and the attestor signature. The contract checks the signature before it pays out.'
         ],
         bullets: [
-          'Claim fields: claimId, identifier (platform:username), timestamp, requestUrl, attestor signature.',
+          'Claim fields: claimId, recipient identifier, timestamp, requestUrl, attestor signature.',
           'The attestor does not terminate TLS; it checks that the client-server session is valid. TLS keys stay on your device.',
           'The contract verifies the attestor signature before paying out.'
         ],
@@ -263,18 +263,17 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'how-it-works',
         title: 'How it works',
         paragraphs: [
-          'The sender sets the recipient as platform:username (e.g. twitter:alice), not a wallet address. Funds sit in the contract until the recipient claims.',
-          'The recipient opens Payments, proves they own the account (zkTLS proof), and clicks Claim. The contract checks the proof and pays their wallet.',
-          'The sender never needs the recipient\'s address; the username is enough.'
+          'The sender sets a platform + handle pair (e.g. twitter:alice), not a wallet address. Funds sit in the contract until the recipient claims.',
+          'The recipient opens Payments, proves they own the account (zkTLS proof), and clicks Claim. The contract pays based on that identifier, not a pre-shared wallet address.',
+          'The sender never needs the recipient\'s address; the social handle is enough.'
         ],
-        imageId: 'payments-fees'
       },
       {
         id: 'platform-username',
         title: 'platform:username rules',
         paragraphs: [
-          'Normalize platform: lowercase and trim; map x to twitter. Normalize username: trim, lowercase, strip @. Example: X (Twitter) + @Alice becomes twitter:alice; x + Bob becomes twitter:bob.',
-          'Usernames max 64 characters; letters, digits, underscores, hyphens. The UI and contract reject invalid or too-long values.'
+          'We normalize platform:username (lowercase, trim, strip @). Map x to twitter. Example: X (Twitter) + @Alice becomes twitter:alice; x + Bob becomes twitter:bob.',
+          'Your recipient\'s social handle (normalized) is max 64 characters; letters, digits, underscores, hyphens. The UI and contract reject invalid or too-long values.'
         ]
       },
       {
@@ -285,7 +284,7 @@ const blogPosts: Record<string, BlogPost> = {
           <>(1) Open <a href="https://www.zk.sendly.digital/payments" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">zk.sendly.digital → Payments</a> → Send tab.</>,
           '(2) Connect your wallet.',
           '(3) Enter amount, pick USDC or EURC, pick platform, enter the recipient username.',
-          '(4) Click Send and confirm in your wallet. The contract stores a paymentId; it shows up on Receive for that same platform:username.'
+          '(4) Click Send and confirm in your wallet. The contract stores a paymentId; it shows up on Receive for that same recipient identifier.'
         ],
         bullets: [
           'Send stays gray: connect wallet, amount above zero, valid username.',
@@ -309,7 +308,7 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'claim',
         title: 'Claim: how to collect your funds',
         paragraphs: [
-          'Each row shows paymentId, sender, amount, token. One payment: Claim, then confirm in your wallet. Several: Claim all, one confirmation. Payout goes to the wallet you connected.'
+          'Each row shows paymentId, sender, amount, token. One payment: Claim, then confirm in your wallet. Several: Claim all, one confirmation. The contract pays based on that identifier, not a pre-shared wallet address — payout goes to the wallet you connected.'
         ]
       },
       {
@@ -321,10 +320,10 @@ const blogPosts: Record<string, BlogPost> = {
         bullets: [
           'Wrong platform: pick another one from the list.',
           'Need a proof: on Receive, set platform and username, Connect, finish OAuth, Refresh.',
-          'Username on proof does not match: fix platform or spelling, reconnect if needed.',
+          'Handle identifier on the proof does not match: fix platform or spelling, reconnect if needed.',
           'Incomplete Reclaim signatures: build the proof again; if it happens twice, wait a few minutes and retry.',
           'Proof failed or zkFetch failed: Refresh, reconnect the account, try a new proof.',
-          'Nothing pending: same platform and username as the sender, Refresh, and use the zk payments URL.'
+          'Nothing pending: same platform + handle pair as the sender, Refresh, and use the zk payments URL.'
         ]
       },
       {
@@ -333,7 +332,7 @@ const blogPosts: Record<string, BlogPost> = {
         paragraphs: [
           'Connection tokens live in your browser (localStorage) so zkTLS proofs can run. We do not store them on our servers. XSS can read localStorage; use a clean browser, skip sketchy extensions, and avoid shared machines when you can.',
           'Tokens are session-scoped. Disconnect or refresh when you are done. On a shared device, use Disconnect if the UI offers it, or clear site data after.',
-          'Do not share wallet access or sign transactions you do not understand. Proofs only show you control platform:username; credentials do not go on-chain.'
+          'Do not share wallet access or sign transactions you do not understand. Proofs only show you control the recipient\'s social handle; credentials do not go on-chain.'
         ]
       }
     ],

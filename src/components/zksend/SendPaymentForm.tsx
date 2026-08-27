@@ -198,8 +198,7 @@ export function SendPaymentForm({
     try {
       setLastCreatedTxHash(null);
 
-      // Social payments share one action with the remit flow. Direct address sends
-      // remain on their existing path below.
+      // Direct address sends remain on their existing path below.
       if (platform !== 'address') {
         setLoading(true);
         const outcome = await submitSocialZkSendPayment({

@@ -13,10 +13,6 @@ async function loadIdentity() {
   return import('../src/lib/reclaim/identity.ts');
 }
 
-async function loadRemitQuote() {
-  return import('../src/components/zksend/remitQuote.ts');
-}
-
 async function loadClaimService() {
   return import('../src/lib/zksend/claimService.ts');
 }
@@ -55,31 +51,6 @@ test('gmail canonical vs legacy dual-hash', async () => {
   const hashes = gmailIdentityHashes('user');
   assert.deepEqual(hashes, [canonical, legacy]);
   assert.deepEqual(gmailIdentityHashes('user@gmail.com'), [canonical, legacy]);
-});
-
-test('remitQuote AED->USDC exact bigint conversions and rounding', async () => {
-  const { getRemitQuote, REMIT_FEE_AED, REMIT_RATE_USDC_PER_AED } = await loadRemitQuote();
-  assert.equal(REMIT_FEE_AED, 1.5);
-  assert.equal(REMIT_RATE_USDC_PER_AED, 0.2723);
-
-  const invalid = getRemitQuote('1.00');
-  assert.equal(invalid.isValid, false);
-  assert.equal(invalid.recipientUsdc, '0');
-
-  // 100.00 AED => (10000 - 150) * 2723 = 26821550 micro-USDC => 26.82155
-  // protocol fee 10 bps => 26821 micro => 0.026821; total 26848371 => 26.848371
-  const quote = getRemitQuote('100');
-  assert.equal(quote.isValid, true);
-  assert.equal(quote.recipientUsdc, '26.82155');
-  assert.equal(quote.protocolFeeUsdc, '0.026821');
-  assert.equal(quote.totalDebitUsdc, '26.848371');
-
-  // Two-decimal AED cents path: 10.50 => (1050-150)*2723 = 2450700 => 2.4507
-  const q2 = getRemitQuote('10.50');
-  assert.equal(q2.isValid, true);
-  assert.equal(q2.recipientUsdc, '2.4507');
-  assert.equal(q2.protocolFeeUsdc, '0.00245');
-  assert.equal(q2.totalDebitUsdc, '2.45315');
 });
 
 test('buildZkFetchDescriptor returns required fields for every platform', async () => {

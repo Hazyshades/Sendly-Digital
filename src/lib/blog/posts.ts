@@ -34,10 +34,10 @@ export const BLOG_POSTS: BlogPostMeta[] = [
   },
   {
     slug: 'zktls-payments-guide',
-    title: 'User Guide: Payments (zkTLS and zkSend)',
+    title: 'zkTLS in Sendly Payments: prove ownership and unlock USDC',
     description:
-      'Send money to platform:username. The recipient proves they control that account (zkTLS), then the contract sends funds to their wallet.',
-    date: '2026-02-11',
+      'We use platform:username as the recipient identifier (e.g. twitter:alice). zkTLS proves ownership, then the contract unlocks USDC to the recipient wallet.',
+    date: '2026-08-01',
     category: 'Tutorial',
     tags: ['zkTLS', 'zkSend', 'Payments'],
     readTime: '8 min',
@@ -74,6 +74,7 @@ export const PUBLIC_BLOG_SLUGS = new Set<string>([
   'nft-gift-cards-guide',
   'privy-results',
   'circle-sdk-wallet-playbook',
+  'zktls-payments-guide',
 ]);
 
 export function resolveBlogSlug(slug: string): string {

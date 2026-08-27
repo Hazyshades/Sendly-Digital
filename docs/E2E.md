@@ -3,7 +3,7 @@
 ## Purpose
 
 The P0 browser suite protects Sendly's hostname boundary, payment identities,
-Internal Wallet, zkSend, remittance, and gift-card journeys. It is deliberately
+Internal Wallet, zkSend, and gift-card journeys. It is deliberately
 mock-only: it does not authenticate with real OAuth providers, load a wallet
 extension, call a funded testnet account, or mutate Supabase/Circle/chain data.
 

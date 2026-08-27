@@ -105,7 +105,7 @@ type Props = {
   hasDeveloperWallet?: boolean;
   /** Override card title (default: Receive). */
   title?: string;
-  /** Payment to visually identify when opened from a remit claim link. */
+  /** Payment to visually identify when opened from a claim link. */
   highlightPaymentId?: string | null;
 };
 

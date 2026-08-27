@@ -6,7 +6,6 @@ test.describe('main-to-zk route boundary', () => {
 
     const routes = [
       '/payments?tab=receive&from=e2e',
-      '/remit?recipient=alice',
       '/creator?draft=e2e',
       '/pay/e2e-checkout?currency=USDC',
       '/lepton/receipts?repo=sendly',

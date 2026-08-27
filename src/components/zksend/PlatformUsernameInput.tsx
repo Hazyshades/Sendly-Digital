@@ -159,9 +159,7 @@ type Props = {
   ariaLabel?: string;
   /** Read-only display (e.g. blog embed): no editing, same look, no disabled styling. */
   readOnly?: boolean;
-  /** Hide platform picker and keep the current platform fixed (e.g. Remit → Twitter only). */
-  lockPlatform?: boolean;
-  /** In readOnly mode, show this as the suggestion line (e.g. "Arc @arc") without fetching. */
+  /** In readOnly mode, show this as the suggestion line (e.g. "Circle @circle") without fetching. */
   previewSuggestionLabel?: string;
   /** In readOnly mode, show this avatar in the suggestion line. */
   previewProfileImageUrl?: string | null;
@@ -178,7 +176,6 @@ export function PlatformUsernameInput({
   inputId = 'platform-username-input',
   ariaLabel = 'Username',
   readOnly = false,
-  lockPlatform = false,
   previewSuggestionLabel,
   previewProfileImageUrl,
 }: Props) {
@@ -636,48 +633,38 @@ export function PlatformUsernameInput({
             </button>
           )}
         </div>
-        {lockPlatform ? (
-          <div
-            className="flex items-center gap-1.5 shrink-0 h-9 pl-2 pr-3 py-1 border-input text-muted-foreground"
-            aria-label={currentPlatformOpt.label}
-          >
-            <PlatformBadge option={currentPlatformOpt} active={false} />
-            <span className="text-sm font-medium text-foreground">{currentPlatformOpt.label}</span>
-          </div>
-        ) : (
-          <Popover open={platformPopoverOpen} onOpenChange={setPlatformPopoverOpen}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="flex items-center gap-1.5 shrink-0 h-9 pl-2 pr-2 py-1 border-input text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer active:scale-[0.97] motion-reduce:active:scale-100"
-                aria-label="Choose platform"
-                onMouseEnter={() => setTriggerHovered(true)}
-                onMouseLeave={() => setTriggerHovered(false)}
-                onFocus={() => setTriggerHovered(true)}
-                onBlur={() => setTriggerHovered(false)}
-              >
-                <PlatformBadge option={currentPlatformOpt} active={triggerHovered || platformPopoverOpen} />
-                <ChevronDown
-                  className={`h-4 w-4 shrink-0 transition-transform ${platformPopoverOpen ? 'rotate-180' : ''}`}
-                  aria-hidden
+        <Popover open={platformPopoverOpen} onOpenChange={setPlatformPopoverOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 shrink-0 h-9 pl-2 pr-2 py-1 border-input text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer active:scale-[0.97] motion-reduce:active:scale-100"
+              aria-label="Choose platform"
+              onMouseEnter={() => setTriggerHovered(true)}
+              onMouseLeave={() => setTriggerHovered(false)}
+              onFocus={() => setTriggerHovered(true)}
+              onBlur={() => setTriggerHovered(false)}
+            >
+              <PlatformBadge option={currentPlatformOpt} active={triggerHovered || platformPopoverOpen} />
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 transition-transform ${platformPopoverOpen ? 'rotate-180' : ''}`}
+                aria-hidden
+              />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 p-2" align="end" sideOffset={4}>
+            <div className="space-y-0.5">
+              {PLATFORM_OPTIONS.map((opt) => (
+                <PlatformOptionRow
+                  key={opt.value}
+                  opt={opt}
+                  selected={platform === opt.value}
+                  onSelect={onPlatformChange}
+                  onClose={() => setPlatformPopoverOpen(false)}
                 />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-72 p-2" align="end" sideOffset={4}>
-              <div className="space-y-0.5">
-                {PLATFORM_OPTIONS.map((opt) => (
-                  <PlatformOptionRow
-                    key={opt.value}
-                    opt={opt}
-                    selected={platform === opt.value}
-                    onSelect={onPlatformChange}
-                    onClose={() => setPlatformPopoverOpen(false)}
-                  />
-                ))}
-              </div>
-            </PopoverContent>
-          </Popover>
-        )}
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {showTwitterPreview && normalizedUsername && (
