@@ -211,7 +211,7 @@ export function buildZkFetchDescriptor(
       if (useOAuth1) {
         return {
           requestUrl:
-            'https://api.x.com/1.1/account/verify_credentials.json?include_email=false&skip_status=true',
+            'https://api.x.com/1.1/account/verify_credentials.json?skip_status=true',
           regexPattern: '"screen_name":"(?<username>[^"]+)"',
           oauth1: {
             token: tokens.oauth1Token!,
@@ -220,7 +220,7 @@ export function buildZkFetchDescriptor(
         };
       }
       return {
-        requestUrl: 'https://api.x.com/2/users/me?user.fields=username',
+        requestUrl: 'https://api.x.com/2/users/me',
         accessToken: tokens.twitterAccessToken || undefined,
         regexPattern: '"username":"(?<username>[^"]+)"',
       };

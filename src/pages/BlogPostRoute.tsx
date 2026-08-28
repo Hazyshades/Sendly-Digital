@@ -24,6 +24,17 @@ import { GiftCardRecipientTypePreview } from '@/components/blog/GiftCardRecipien
 import { GiftCardReviewPreview } from '@/components/blog/GiftCardReviewPreview';
 import { GiftCardSocialLoginPreview } from '@/components/blog/GiftCardSocialLoginPreview';
 import { GiftCardWalletSourcePreview } from '@/components/blog/GiftCardWalletSourcePreview';
+import { PaymentsAmountPreview } from '@/components/blog/PaymentsAmountPreview';
+import { PaymentsClaimPreview } from '@/components/blog/PaymentsClaimPreview';
+import { PaymentsConnectWalletPreview } from '@/components/blog/PaymentsConnectWalletPreview';
+import { PaymentsIdentitiesPreview } from '@/components/blog/PaymentsIdentitiesPreview';
+import { PaymentsIdentityPreview } from '@/components/blog/PaymentsIdentityPreview';
+import {
+  PaymentsReceiveNavPreview,
+  PaymentsSendNavPreview,
+} from '@/components/blog/PaymentsNavPreview';
+import { PaymentsPendingPreview } from '@/components/blog/PaymentsPendingPreview';
+import { PaymentsRecipientPreview } from '@/components/blog/PaymentsRecipientPreview';
 import {
   getBlogPostMeta,
   isPublicBlogSlug,
@@ -72,6 +83,15 @@ type BlogImageComponentId =
   | 'privy-oauth-infographic'
   | 'payments-send-embed'
   | 'payments-receive-embed'
+  | 'payments-send-nav-embed'
+  | 'payments-receive-nav-embed'
+  | 'payments-connect-wallet-embed'
+  | 'payments-identities-embed'
+  | 'payments-amount-embed'
+  | 'payments-recipient-embed'
+  | 'payments-identity-embed'
+  | 'payments-pending-embed'
+  | 'payments-claim-embed'
   | 'gift-card-create-embed'
   | 'gift-card-nav-embed'
   | 'gift-card-wallet-source-embed'
@@ -105,6 +125,20 @@ const GIFT_CARD_STEP_LIGHTBOX: Partial<
   'gift-card-social-login-embed': GiftCardSocialLoginPreview,
   'gift-card-pending-claim-embed': GiftCardPendingClaimPreview,
   'gift-card-received-embed': GiftCardReceivedPreview,
+};
+
+const PAYMENTS_STEP_LIGHTBOX: Partial<
+  Record<BlogImageComponentId, ComponentType<{ compact?: boolean }>>
+> = {
+  'payments-send-nav-embed': PaymentsSendNavPreview,
+  'payments-receive-nav-embed': PaymentsReceiveNavPreview,
+  'payments-connect-wallet-embed': PaymentsConnectWalletPreview,
+  'payments-identities-embed': PaymentsIdentitiesPreview,
+  'payments-amount-embed': PaymentsAmountPreview,
+  'payments-recipient-embed': PaymentsRecipientPreview,
+  'payments-identity-embed': PaymentsIdentityPreview,
+  'payments-pending-embed': PaymentsPendingPreview,
+  'payments-claim-embed': PaymentsClaimPreview,
 };
 
 const blogPosts: Record<string, BlogPost> = {
@@ -221,7 +255,6 @@ const blogPosts: Record<string, BlogPost> = {
         alt: 'zkTLS architecture: device, attestor, platform, contract, chain',
         caption: ''
       },
-  
       {
         id: 'send-tab',
         componentId: 'payments-send-embed',
@@ -229,11 +262,71 @@ const blogPosts: Record<string, BlogPost> = {
         caption: ''
       },
       {
+        id: 'payments-send-nav',
+        componentId: 'payments-send-nav-embed',
+        alt: 'Payments navigation with Send tab selected',
+        caption: '',
+      },
+      {
+        id: 'payments-connect-wallet',
+        componentId: 'payments-connect-wallet-embed',
+        alt: 'Connect Wallet button on zk Payments',
+        caption: '',
+      },
+      {
+        id: 'payments-identities',
+        componentId: 'payments-identities-embed',
+        alt: 'Payment identities panel with Connect for social accounts',
+        caption: '',
+      },
+      {
+        id: 'payments-amount',
+        componentId: 'payments-amount-embed',
+        alt: 'Amount, token, and wallet source on Send form',
+        caption: '',
+      },
+      {
+        id: 'payments-recipient',
+        componentId: 'payments-recipient-embed',
+        alt: 'Recipient lookup with platform and username suggestion',
+        caption: '',
+      },
+      {
         id: 'receive-tab',
         componentId: 'payments-receive-embed',
         alt: 'Payments: Receive tab (preview)',
         caption: ''
-      }
+      },
+      {
+        id: 'payments-receive-nav',
+        componentId: 'payments-receive-nav-embed',
+        alt: 'Payments navigation with Receive tab selected',
+        caption: '',
+      },
+      {
+        id: 'payments-identity',
+        componentId: 'payments-identity-embed',
+        alt: 'Enter platform and username on Receive',
+        caption: '',
+      },
+      {
+        id: 'payments-connect',
+        componentId: 'payments-identities-embed',
+        alt: 'Connect social account via Payment identities',
+        caption: '',
+      },
+      {
+        id: 'payments-pending',
+        componentId: 'payments-pending-embed',
+        alt: 'Pending payments list with Refresh',
+        caption: '',
+      },
+      {
+        id: 'payments-claim',
+        componentId: 'payments-claim-embed',
+        alt: 'Claim one payment or Claim all',
+        caption: '',
+      },
     ],
     sections: [
       {
@@ -280,36 +373,140 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'sending',
         title: 'Sending a payment (Send tab)',
         paragraphs: [
-          'Steps:',
-          <>(1) Open <a href="https://www.zk.sendly.digital/payments" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">zk.sendly.digital → Payments</a> → Send tab.</>,
-          '(2) Connect your wallet.',
-          '(3) Enter amount, pick USDC or EURC, pick platform, enter the recipient username.',
-          '(4) Click Send and confirm in your wallet. The contract stores a paymentId; it shows up on Receive for that same recipient identifier.'
+          'Follow the steps below to send USDC or EURC to a social username on zk Payments.',
+          'Funds stay in the contract until the recipient proves they own that handle and claims.',
         ],
         bullets: [
-          'Send stays gray: connect wallet, amount above zero, valid username.',
-          'Platform missing: it may be turned off in the UI for now.'
+          'Send stays gray until wallet is connected, amount is above zero, and the username is valid.',
+          'Double-check platform + spelling before you confirm — on-chain sends cannot be undone.',
         ],
         imageId: 'send-tab'
+      },
+      {
+        id: 'send-step-open',
+        title: 'Step 1 · Open Payments → Send',
+        variant: 'step',
+        imageId: 'payments-send-nav',
+        paragraphs: [
+          <>Open <a href="https://www.zk.sendly.digital/payments" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">zk.sendly.digital → Payments</a> and select the <strong>Send</strong> tab.</>,
+        ],
+      },
+      {
+        id: 'send-step-connect-wallet',
+        title: 'Step 2.1 · Connect browser wallet',
+        variant: 'step',
+        imageId: 'payments-connect-wallet',
+        paragraphs: [
+          'Click Connect Wallet and approve the connection in your browser wallet (MetaMask, Rabby, or another supported wallet).',
+          'This wallet can pay gas and sign the Send transaction.',
+        ],
+      },
+      {
+        id: 'send-step-connect-identity',
+        title: 'Step 2.2 · Connect a social identity',
+        variant: 'step',
+        imageId: 'payments-identities',
+        paragraphs: [
+          'Open the Identities tab and connect the social account you use for payments (X / Twitter, Twitch, GitHub, Telegram, Gmail, or LinkedIn).',
+          'Linked identities let you send and later receive by username or email without sharing a wallet address upfront.',
+        ],
+      },
+      {
+        id: 'send-step-amount',
+        title: 'Step 3 · Enter amount & token',
+        variant: 'step',
+        imageId: 'payments-amount',
+        paragraphs: [
+          'Set the amount and pick USDC or EURC. Your available balance shows next to the amount field.',
+        ],
+      },
+      {
+        id: 'send-step-source',
+        title: 'Step 4 · Choose source of sending',
+        variant: 'step',
+        paragraphs: [
+          'If both an external browser wallet and an Internal Wallet are connected, you can choose the source of funds for the send.',
+          'Use the Rabby Wallet / Internal Wallet toggle next to the balance, then confirm the amount still looks right for that source.',
+        ],
+      },
+      {
+        id: 'send-step-recipient',
+        title: 'Step 5 · Choose recipient',
+        variant: 'step',
+        imageId: 'payments-recipient',
+        paragraphs: [
+          'In the To field, pick a platform and enter the recipient username.',
+          'Sendly shows a profile suggestion when the handle is found — for example Arc @arc on X.',
+        ],
+      },
+      {
+        id: 'send-step-confirm',
+        title: 'Step 6 · Review & Send',
+        variant: 'step',
+        paragraphs: [
+          'Confirm the recipient suggestion matches who you intend to pay, then click Send and approve in your wallet.',
+          'The contract stores a paymentId; it shows up on Receive for that same recipient identifier.',
+        ],
       },
       {
         id: 'receiving',
         title: 'Receiving a payment (Receive tab)',
         paragraphs: [
-          'Steps:',
-          <>(1) Open <a href="https://www.zk.sendly.digital/payments" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Payments</a> → Receive tab, connect wallet.</>,
-          '(2) Enter username and select platform.',
-          '(3) Wait for pending items or hit Refresh.',
-          '(4) To prove ownership, use Connect X (Twitter), Twitch, GitHub, Telegram, or LinkedIn; finish OAuth, come back, then Refresh.'
+          'After someone sends to your social handle, open Receive, prove ownership, and claim into the wallet you connect.',
+        ],
+        bullets: [
+          'Use the same platform + username the sender used.',
+          'No wallet address needed upfront — zkTLS proves the handle, then the contract pays your connected wallet.',
         ],
         imageId: 'receive-tab'
+      },
+      {
+        id: 'receive-step-open',
+        title: 'Step 1 · Open Payments → Receive',
+        variant: 'step',
+        imageId: 'payments-receive-nav',
+        paragraphs: [
+          <>Open <a href="https://www.zk.sendly.digital/payments" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Payments</a>, connect your wallet, and select the <strong>Receive</strong> tab.</>,
+        ],
+      },
+      {
+        id: 'receive-step-identity',
+        title: 'Step 2 · Enter your identity',
+        variant: 'step',
+        imageId: 'payments-identity',
+        paragraphs: [
+          'Select the platform and enter the username that should receive payments.',
+          'This must match the platform:username pair the sender used.',
+        ],
+      },
+      {
+        id: 'receive-step-connect',
+        title: 'Step 3 · Connect social account',
+        variant: 'step',
+        imageId: 'payments-connect',
+        paragraphs: [
+          'Open Identities and connect X (Twitter), Twitch, GitHub, Telegram, or LinkedIn; finish OAuth and come back.',
+          'This step proves you own that account so pending payments for that identity can unlock.',
+        ],
+      },
+      {
+        id: 'receive-step-refresh',
+        title: 'Step 4 · Refresh pending payments',
+        variant: 'step',
+        imageId: 'payments-pending',
+        paragraphs: [
+          'Hit Refresh to load pending items for that platform + username.',
+          'Each row shows paymentId, sender, amount, and token.',
+        ],
       },
       {
         id: 'claim',
         title: 'Claim: how to collect your funds',
         paragraphs: [
-          'Each row shows paymentId, sender, amount, token. One payment: Claim, then confirm in your wallet. Several: Claim all, one confirmation. The contract pays based on that identifier, not a pre-shared wallet address — payout goes to the wallet you connected.'
-        ]
+          'One payment: Claim, then confirm in your wallet. Several: Claim all, one confirmation.',
+          'The contract pays based on that identifier, not a pre-shared wallet address — payout goes to the wallet you connected.',
+        ],
+        imageId: 'payments-claim',
       },
       {
         id: 'troubleshooting',
@@ -469,7 +666,7 @@ const blogPosts: Record<string, BlogPost> = {
         variant: 'step',
         imageId: 'gift-card-wallet-source',
         paragraphs: [
-          'Connect MetaMask, Rabby, or another browser wallet -or use your Circle Internal Wallet if you already have one in Sendly.',
+          'Connect a browser wallet - or use your Circle Internal Wallet if you already have one in Sendly.',
           'The wallet you select here pays gas and signs the transaction when you create the card.',
         ],
       },
@@ -986,6 +1183,9 @@ export function BlogPostRoute() {
       if (img.componentId === 'gift-card-received-embed') {
         return renderGiftCardStepEmbed(img, GiftCardReceivedPreview);
       }
+      if (img.componentId && PAYMENTS_STEP_LIGHTBOX[img.componentId]) {
+        return renderGiftCardStepEmbed(img, PAYMENTS_STEP_LIGHTBOX[img.componentId]!);
+      }
       if (img.componentId === 'payments-send-embed') {
         return (<button type="button" onClick={() => setActiveImage(img)} className="w-full text-left rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden" aria-label={`Open: ${img.alt}`}><div className="p-4 min-h-[200px]"><ZkSendPanel initialTab="send" preview previewValues={paymentsPreviewValues ?? PAYMENTS_SEND_PREVIEW_FALLBACK} /></div></button>);
       }
@@ -1337,6 +1537,17 @@ export function BlogPostRoute() {
               <div className="max-h-[85vh] overflow-y-auto p-2">
                 {(() => {
                   const StepPreview = GIFT_CARD_STEP_LIGHTBOX[activeImage.componentId!]!;
+                  return (
+                    <BlogStepFrame>
+                      <StepPreview />
+                    </BlogStepFrame>
+                  );
+                })()}
+              </div>
+            ) : activeImage.componentId && PAYMENTS_STEP_LIGHTBOX[activeImage.componentId] ? (
+              <div className="max-h-[85vh] overflow-y-auto p-2">
+                {(() => {
+                  const StepPreview = PAYMENTS_STEP_LIGHTBOX[activeImage.componentId!]!;
                   return (
                     <BlogStepFrame>
                       <StepPreview />

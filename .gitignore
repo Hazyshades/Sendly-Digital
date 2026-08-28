@@ -112,3 +112,7 @@ openspec/
 /contracts_reclaim_protocol/
 
 /zktls-service/supabase
+
+
+.tmp_bounty/**
+.tmp_bounty\merge_worker_state.json

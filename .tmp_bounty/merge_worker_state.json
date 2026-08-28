@@ -1,9 +1,11 @@
 {
   "target": 43,
-  "started": "2026-08-27T11:12:14.831523+00:00",
-  "interval_sec": 251.1627906976744,
-  "merged_count": 4,
-  "attempts": 4,
+  "version": 2,
+  "started": "2026-08-27T12:55:33.463732+00:00",
+  "finished": "2026-08-27T14:13:13.559975+00:00",
+  "interval_sec": 165.51724137931035,
+  "merged_count": 43,
+  "attempts": 29,
   "merged": [
     {
       "pr": 174,
@@ -40,6 +42,385 @@
         91
       ],
       "at": "2026-08-27T11:26:00.595045+00:00"
+    },
+    {
+      "pr": 135,
+      "title": "fix: solution for issue #93",
+      "author": "adityawaghamare04",
+      "issues": [
+        93
+      ],
+      "at": "2026-08-27T11:30:13.766089+00:00"
+    },
+    {
+      "pr": 134,
+      "title": "fix: solution for issue #94",
+      "author": "adityawaghamare04",
+      "issues": [
+        94
+      ],
+      "at": "2026-08-27T11:34:21.048379+00:00"
+    },
+    {
+      "pr": 126,
+      "title": "fix: solution for issue #86",
+      "author": "adityawaghamare04",
+      "issues": [
+        86
+      ],
+      "at": "2026-08-27T11:38:32.406760+00:00"
+    },
+    {
+      "pr": 123,
+      "title": "fix: solution for issue #87",
+      "author": "adityawaghamare04",
+      "issues": [
+        87
+      ],
+      "at": "2026-08-27T11:42:43.872969+00:00"
+    },
+    {
+      "pr": 120,
+      "title": "fix: solution for issue #89",
+      "author": "adityawaghamare04",
+      "issues": [
+        89
+      ],
+      "at": "2026-08-27T11:46:55.536485+00:00"
+    },
+    {
+      "pr": 136,
+      "title": "fix: solution for issue #92",
+      "author": "adityawaghamare04",
+      "issues": [
+        92
+      ],
+      "at": "2026-08-27T11:51:07.580342+00:00"
+    },
+    {
+      "pr": 122,
+      "title": "fix: solution for issue #88",
+      "author": "adityawaghamare04",
+      "issues": [
+        88
+      ],
+      "at": "2026-08-27T11:55:16.829188+00:00"
+    },
+    {
+      "pr": 119,
+      "title": "fix: solution for issue #90",
+      "author": "adityawaghamare04",
+      "issues": [
+        90
+      ],
+      "at": "2026-08-27T11:59:28.201040+00:00"
+    },
+    {
+      "pr": 118,
+      "title": "fix: solution for issue #91",
+      "author": "adityawaghamare04",
+      "issues": [
+        91
+      ],
+      "at": "2026-08-27T12:03:40.264631+00:00"
+    },
+    {
+      "pr": 117,
+      "title": "fix: solution for issue #94",
+      "author": "adityawaghamare04",
+      "issues": [
+        94
+      ],
+      "at": "2026-08-27T12:07:50.178574+00:00"
+    },
+    {
+      "pr": 171,
+      "title": "Fix fix.py stale hardcoded stub",
+      "author": "1234adi1234",
+      "issues": [
+        82
+      ],
+      "at": "2026-08-27T12:55:47.759605+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 169,
+      "title": "fix(test): execute all root and component test suites automatically (#76)",
+      "author": "angelTomo9",
+      "issues": [
+        76
+      ],
+      "at": "2026-08-27T12:58:32.171865+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 168,
+      "title": "fix: npm test picks up all test files automatically",
+      "author": "carldesbiens-ui",
+      "issues": [
+        76
+      ],
+      "at": "2026-08-27T13:01:17.947640+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 167,
+      "title": "fix: replace stale hardcoded stub with proper CLI utility",
+      "author": "carldesbiens-ui",
+      "issues": [
+        82
+      ],
+      "at": "2026-08-27T13:04:01.967528+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 166,
+      "title": "Miko: [Bug] Login.tsx uploads to hardcoded https://example.com",
+      "author": "pampire1999-oss",
+      "issues": [],
+      "at": "2026-08-27T13:06:47.806642+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 165,
+      "title": "ci: add GitHub Actions workflow running npm test (closes #84)",
+      "author": "a145137265",
+      "issues": [
+        84
+      ],
+      "at": "2026-08-27T13:09:33.221741+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 164,
+      "title": "Fix #76: Auto-discover all test files in npm test script",
+      "author": "shamyl",
+      "issues": [
+        76
+      ],
+      "at": "2026-08-27T13:12:18.601657+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 163,
+      "title": "Fix #75: Fix syntax error and deduplicate file_upload_component.test.js",
+      "author": "shamyl",
+      "issues": [
+        75
+      ],
+      "at": "2026-08-27T13:15:03.659629+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 162,
+      "title": "Fix #90: Add ref-based in-flight guard to prevent double-submit race",
+      "author": "shamyl",
+      "issues": [
+        90
+      ],
+      "at": "2026-08-27T13:17:49.713361+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 161,
+      "title": "Fix #94: Enter key submits upload when file is selected",
+      "author": "shamyl",
+      "issues": [
+        94
+      ],
+      "at": "2026-08-27T13:20:34.637509+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 159,
+      "title": "Fix #78: Make upload URL configurable via prop with env-based default",
+      "author": "shamyl",
+      "issues": [
+        78
+      ],
+      "at": "2026-08-27T13:23:19.987750+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 158,
+      "title": "Fix #86: Add per-file remove button with stable preview keys",
+      "author": "shamyl",
+      "issues": [
+        86
+      ],
+      "at": "2026-08-27T13:26:06.918211+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 157,
+      "title": "fix: add guarded keyboard form submission for uploads",
+      "author": "EazyHood",
+      "issues": [
+        94
+      ],
+      "at": "2026-08-27T13:28:51.405093+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 156,
+      "title": "feat: validate drag-and-drop uploads through shared path",
+      "author": "EazyHood",
+      "issues": [
+        93
+      ],
+      "at": "2026-08-27T13:31:37.296459+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 155,
+      "title": "fix: label file inputs and link upload feedback",
+      "author": "EazyHood",
+      "issues": [
+        88
+      ],
+      "at": "2026-08-27T13:34:23.588894+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 154,
+      "title": "fix: safely normalize invalid maxSizeMB values",
+      "author": "EazyHood",
+      "issues": [
+        92
+      ],
+      "at": "2026-08-27T13:37:07.435539+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 153,
+      "title": "fix: show friendly upload transport errors",
+      "author": "EazyHood",
+      "issues": [
+        87
+      ],
+      "at": "2026-08-27T13:39:52.643660+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 152,
+      "title": "build(types): add strict TypeScript checking",
+      "author": "EazyHood",
+      "issues": [
+        81
+      ],
+      "at": "2026-08-27T13:42:40.040011+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 151,
+      "title": "refactor: centralize uploads in useFileUpload",
+      "author": "EazyHood",
+      "issues": [
+        91
+      ],
+      "at": "2026-08-27T13:45:24.009801+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 150,
+      "title": "fix(upload): enforce accepted MIME and extension rules",
+      "author": "EazyHood",
+      "issues": [
+        80
+      ],
+      "at": "2026-08-27T13:48:09.321598+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 149,
+      "title": "fix: remove individual files without stale previews",
+      "author": "EazyHood",
+      "issues": [
+        86
+      ],
+      "at": "2026-08-27T13:50:55.935248+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 148,
+      "title": "fix(upload): consolidate duplicate implementation",
+      "author": "EazyHood",
+      "issues": [
+        79
+      ],
+      "at": "2026-08-27T13:53:41.629482+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 147,
+      "title": "fix: reject oversized files in Login before upload",
+      "author": "EazyHood",
+      "issues": [
+        85
+      ],
+      "at": "2026-08-27T13:56:30.398743+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 146,
+      "title": "fix(login): make upload endpoint configurable",
+      "author": "EazyHood",
+      "issues": [
+        78
+      ],
+      "at": "2026-08-27T13:59:15.079213+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 145,
+      "title": "docs: update bounty claims for ARC Testnet",
+      "author": "EazyHood",
+      "issues": [
+        83
+      ],
+      "at": "2026-08-27T14:02:00.248580+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 144,
+      "title": "fix: make issue reference CLI argument-driven",
+      "author": "EazyHood",
+      "issues": [
+        82
+      ],
+      "at": "2026-08-27T14:04:49.137933+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 143,
+      "title": "fix(test): unify FileUpload validation contract",
+      "author": "EazyHood",
+      "issues": [
+        77
+      ],
+      "at": "2026-08-27T14:07:29.608680+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 142,
+      "title": "fix: prevent synchronous duplicate upload submissions",
+      "author": "EazyHood",
+      "issues": [
+        90
+      ],
+      "at": "2026-08-27T14:10:19.627575+00:00",
+      "method": "v2"
+    },
+    {
+      "pr": 141,
+      "title": "ci: run tests and optional typecheck on pushes and PRs",
+      "author": "EazyHood",
+      "issues": [
+        84
+      ],
+      "at": "2026-08-27T14:13:06.681534+00:00",
+      "method": "v2"
     }
-  ]
+  ],
+  "success": true
 }
