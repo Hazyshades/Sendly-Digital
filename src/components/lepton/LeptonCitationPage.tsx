@@ -71,7 +71,7 @@ export function LeptonCitationPage() {
           </p>
         </div>
         <Button variant="outline" size="sm" asChild>
-          <Link to="/lepton/receipts">Receipts</Link>
+          <Link to="/agent/receipts">Receipts</Link>
         </Button>
       </div>
 

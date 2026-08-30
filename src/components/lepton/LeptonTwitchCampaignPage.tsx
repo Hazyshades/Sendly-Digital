@@ -138,10 +138,10 @@ export function LeptonTwitchCampaignPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" asChild>
-            <Link to="/lepton/twitch/receipts">Receipts</Link>
+            <Link to="/agent/twitch/receipts">Receipts</Link>
           </Button>
           <Button variant="outline" size="sm" asChild>
-            <Link to="/lepton">Hub</Link>
+            <Link to="/agent">Hub</Link>
           </Button>
         </div>
       </div>

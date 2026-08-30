@@ -152,6 +152,41 @@ export function generateTwitchUidIdentityHash(
   return keccak256(toUtf8Bytes(buildTwitchUidIdentity(id))) as `0x${string}`;
 }
 
+/** Human send uses twitch:login; raid payouts use twitch:uid:{id}. Lookup both. */
+export function twitchIdentityHashes(
+  login: string,
+  userId?: string | number | null,
+): `0x${string}`[] {
+  const hashes: `0x${string}`[] = [];
+  const seen = new Set<string>();
+  const add = (hash: `0x${string}` | null) => {
+    if (!hash) return;
+    const key = hash.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    hashes.push(hash);
+  };
+  add(userId != null && String(userId).trim() ? generateTwitchUidIdentityHash(userId) : null);
+  add(generateSocialIdentityHash('twitch', login));
+  return hashes;
+}
+
+/**
+ * Proof context must keccak to the payment identity hash.
+ * uid-hash payments prove `uid:{id}`; username-hash payments prove the login.
+ */
+export function twitchHandleForIdentityHash(
+  identityHash: `0x${string}`,
+  login: string,
+  userId: string | null,
+): string {
+  const uidHash = userId ? generateTwitchUidIdentityHash(userId) : null;
+  if (uidHash && uidHash.toLowerCase() === identityHash.toLowerCase()) {
+    return twitchUidHandleSegment(userId!);
+  }
+  return normalizeSocialUsername(login.replace(/^@/, '')) ?? login.replace(/^@/, '');
+}
+
 export type TwitchHelixUser = {
   userId: string;
   login: string;

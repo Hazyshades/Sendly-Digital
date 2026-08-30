@@ -45,10 +45,10 @@ export function LeptonPrBountyPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" asChild>
-            <Link to="/lepton/repo-settings">Repo settings</Link>
+            <Link to="/agent/repo-settings">Repo settings</Link>
           </Button>
           <Button variant="outline" size="sm" asChild>
-            <Link to="/lepton/receipts">Receipts</Link>
+            <Link to="/agent/receipts">Receipts</Link>
           </Button>
         </div>
       </div>

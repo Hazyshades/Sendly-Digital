@@ -17,7 +17,6 @@ const navItems = [
   { id: "signals", label: "Gift Cards" },
   { id: "work", label: "Payments" },
   { id: "blog", label: "Blog", href: "/blog" },
-  { id: "lepton", label: "Lepton", href: "/lepton" },
 ]
 
 export function SideNav() {

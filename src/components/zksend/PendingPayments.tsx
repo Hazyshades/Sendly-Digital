@@ -6,10 +6,10 @@ import web3Service from '@/lib/web3/web3Service';
 import {
   fetchTwitchAuthenticatedUser,
   generateSocialIdentityHash,
-  generateTwitchUidIdentityHash,
   gmailIdentityHashes,
   normalizeGmailIdentity,
   normalizeSocialUsername,
+  twitchIdentityHashes,
 } from '@/lib/reclaim/identity';
 import { fetchReclaimProofRequestConfig } from '@/lib/reclaim/api';
 import type { ReclaimProof } from '@/lib/reclaim/types';
@@ -82,6 +82,7 @@ type PaymentRow = {
   token: string;
   claimed: boolean;
   createdAt: number;
+  socialIdentityHash?: string;
 };
 
 type DirectDepositRow = {
@@ -336,9 +337,8 @@ export function PendingPayments({
   const identityHashes = useMemo(() => {
     if (platform === 'address') return null;
     if (platform === 'twitch') {
-      if (!twitchResolvedUserId) return null;
-      const hash = generateTwitchUidIdentityHash(twitchResolvedUserId);
-      return hash ? [hash] : null;
+      const hashes = twitchIdentityHashes(username, twitchResolvedUserId);
+      return hashes.length > 0 ? hashes : null;
     }
     if (platform === 'gmail') {
       const hashes = gmailIdentityHashes(username);
@@ -552,6 +552,7 @@ export function PendingPayments({
           token: p.token,
           claimed: p.claimed,
           createdAt: p.createdAt,
+          socialIdentityHash: p.socialIdentityHash,
         }))
       );
       setDirectRows([]);

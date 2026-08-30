@@ -80,7 +80,7 @@ export function Layout({ children }: LayoutProps) {
       </nav>
 
       {/* Non-zk pages still use a shared page shell; Dashboard owns its own Card. */}
-      {location.pathname === '/dashboard' || location.pathname === '/agent' ? (
+      {location.pathname === '/dashboard' ? (
         children
       ) : (
         <Card className="gap-0 overflow-hidden bg-white shadow-circle-card rounded-2xl backdrop-blur-sm">

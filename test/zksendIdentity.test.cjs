@@ -30,6 +30,35 @@ test('generateSocialIdentityHash is stable keccak for platform:username', async 
   assert.equal(buildSocialIdentity('github', 'SendlyDev'), 'github:sendlydev');
 });
 
+test('twitch username hash matches human send and is looked up alongside uid hash', async () => {
+  const {
+    generateSocialIdentityHash,
+    generateTwitchUidIdentityHash,
+    twitchIdentityHashes,
+    twitchHandleForIdentityHash,
+  } = await loadIdentity();
+  const { keccak256, toUtf8Bytes } = await import('ethers');
+
+  const usernameHash = generateSocialIdentityHash('twitch', 'Kurdypel');
+  assert.equal(usernameHash, keccak256(toUtf8Bytes('twitch:kurdypel')));
+  assert.equal(
+    usernameHash,
+    '0x66d507b1373f5af660f7d688faee10157b86a4d080004dd07fa405f018f3fc0f',
+  );
+
+  const uidHash = generateTwitchUidIdentityHash('12345');
+  assert.equal(uidHash, keccak256(toUtf8Bytes('twitch:uid:12345')));
+  assert.notEqual(usernameHash, uidHash);
+
+  const hashes = twitchIdentityHashes('kurdypel', '12345');
+  assert.deepEqual(hashes, [uidHash, usernameHash]);
+  assert.deepEqual(twitchIdentityHashes('kurdypel', null), [usernameHash]);
+  assert.deepEqual(twitchIdentityHashes('', '12345'), [uidHash]);
+
+  assert.equal(twitchHandleForIdentityHash(uidHash, 'kurdypel', '12345'), 'uid:12345');
+  assert.equal(twitchHandleForIdentityHash(usernameHash, 'kurdypel', '12345'), 'kurdypel');
+});
+
 test('gmail canonical vs legacy dual-hash', async () => {
   const {
     generateSocialIdentityHash,

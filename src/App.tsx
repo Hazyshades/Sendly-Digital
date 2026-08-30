@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { SplashScreen } from '@/components/SplashScreen';
 import { LandingRoute } from '@/pages/LandingRoute';
 import { AgentRoute } from '@/pages/AgentRoute';
@@ -44,7 +44,13 @@ function SharedAppRoutes({ zkMode }: { zkMode: boolean }) {
     <Routes>
       <Route path="/" element={<LandingRoute />} />
       <Route path="/dashboard" element={<AgentRoute />} />
-      <Route path="/agent" element={<AgentRoute />} />
+      <Route path="/agent" element={zkMode ? <LeptonHubRoute /> : <ZkHostRedirect />} />
+      <Route path="/agent/receipts" element={zkMode ? <LeptonReceiptsRoute /> : <ZkHostRedirect />} />
+      <Route path="/agent/pr-bounty" element={zkMode ? <LeptonPrBountyRoute /> : <ZkHostRedirect />} />
+      <Route path="/agent/repo-settings" element={zkMode ? <LeptonRepoSettingsRoute /> : <ZkHostRedirect />} />
+      <Route path="/agent/citation" element={zkMode ? <LeptonCitationRoute /> : <ZkHostRedirect />} />
+      <Route path="/agent/twitch/campaign" element={zkMode ? <LeptonTwitchCampaignRoute /> : <ZkHostRedirect />} />
+      <Route path="/agent/twitch/receipts" element={zkMode ? <LeptonTwitchReceiptsRoute /> : <ZkHostRedirect />} />
       <Route path="/create" element={<CreateRoute />} />
       <Route path="/my" element={<MyRoute />} />
       <Route path="/spend" element={<SpendRoute />} />
@@ -69,13 +75,8 @@ function SharedAppRoutes({ zkMode }: { zkMode: boolean }) {
       <Route path="/creator" element={zkMode ? <CreatorHomeRoute /> : <ZkHostRedirect />} />
       <Route path="/paywall/create" element={zkMode ? <Navigate to="/creator/write" replace /> : <ZkHostRedirect />} />
       <Route path="/pay/*" element={zkMode ? <PaywallRoute /> : <ZkHostRedirect />} />
-      <Route path="/lepton" element={zkMode ? <LeptonHubRoute /> : <ZkHostRedirect />} />
-      <Route path="/lepton/receipts" element={zkMode ? <LeptonReceiptsRoute /> : <ZkHostRedirect />} />
-      <Route path="/lepton/pr-bounty" element={zkMode ? <LeptonPrBountyRoute /> : <ZkHostRedirect />} />
-      <Route path="/lepton/repo-settings" element={zkMode ? <LeptonRepoSettingsRoute /> : <ZkHostRedirect />} />
-      <Route path="/lepton/citation" element={zkMode ? <LeptonCitationRoute /> : <ZkHostRedirect />} />
-      <Route path="/lepton/twitch/campaign" element={zkMode ? <LeptonTwitchCampaignRoute /> : <ZkHostRedirect />} />
-      <Route path="/lepton/twitch/receipts" element={zkMode ? <LeptonTwitchReceiptsRoute /> : <ZkHostRedirect />} />
+      <Route path="/lepton" element={<LeptonToAgentRedirect />} />
+      <Route path="/lepton/*" element={<LeptonToAgentRedirect />} />
       <Route path="/zksend" element={<Navigate to="/payments" replace />} />
       <Route path="/Circle-Mint" element={<CircleMintRoute />} />
       <Route path="/blog" element={<BlogRoute />} />
@@ -86,6 +87,12 @@ function SharedAppRoutes({ zkMode }: { zkMode: boolean }) {
       <Route path="/architecture/" element={<ArchitectureRoute />} />
     </Routes>
   );
+}
+
+function LeptonToAgentRedirect() {
+  const location = useLocation();
+  const nextPath = location.pathname.replace(/^\/lepton/, '/agent') || '/agent';
+  return <Navigate to={`${nextPath}${location.search}${location.hash}`} replace />;
 }
 
 function ZkHostRedirect() {

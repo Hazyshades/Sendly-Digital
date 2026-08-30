@@ -313,7 +313,7 @@ const SETTINGS_MODULES: SecondaryModule[] = [
       'All payout rules for a repo - merge PR, issue bounties, release pool, review rewards.',
     actor: 'maintainer',
     icon: Settings,
-    to: '/lepton/repo-settings',
+    to: '/agent/repo-settings',
   },
   {
     id: 'agent-api',
@@ -353,7 +353,7 @@ const PAYWALL_MODULES: SecondaryModule[] = [
     description: 'An AI agent pays for paywall slugs, then returns a cited answer - real Arc txs.',
     actor: 'agent',
     icon: Bot,
-    to: '/lepton/citation',
+    to: '/agent/citation',
     badgeLoader: async () => {
       const sources = await fetchCitationSources();
       return sources.length > 0 ? `${sources.length} sources` : null;
@@ -528,7 +528,7 @@ export function LeptonHubPage() {
       <header className="lepton-reveal space-y-3">
        
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-          Sendly × Lepton
+          Sendly and agents
         </h1>
         <p className="max-w-xl text-[15px] leading-relaxed text-muted-foreground">
         GitHub pool (merge, bounty, release, review) and Twitch pool (raid-to-pay and others) 
@@ -538,7 +538,7 @@ export function LeptonHubPage() {
       {/* Hero modules - uniform 2×2 grid */}
       <section className="grid gap-4 sm:grid-cols-2">
         <Link
-          to="/lepton/pr-bounty"
+          to="/agent/pr-bounty"
           style={{ animationDelay: '60ms' }}
           className="lepton-reveal group flex h-full min-h-[13.5rem] flex-col justify-between rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/80 to-card p-6 shadow-circle-card transition duration-200 [transition-timing-function:var(--ease-out)] hover:border-indigo-200 hover:shadow-md motion-safe:hover:-translate-y-0.5 active:scale-[0.99]"
         >
@@ -566,7 +566,7 @@ export function LeptonHubPage() {
         </Link>
 
         <Link
-          to="/lepton/receipts"
+          to="/agent/receipts"
           style={{ animationDelay: '120ms' }}
           className="lepton-reveal group flex h-full min-h-[13.5rem] flex-col justify-between rounded-2xl border bg-card p-6 shadow-circle-card transition duration-200 [transition-timing-function:var(--ease-out)] hover:border-indigo-200 hover:shadow-md motion-safe:hover:-translate-y-0.5 active:scale-[0.99]"
         >
@@ -595,7 +595,7 @@ export function LeptonHubPage() {
         </Link>
 
         <Link
-          to="/lepton/twitch/campaign"
+          to="/agent/twitch/campaign"
           style={{ animationDelay: '180ms' }}
           className="lepton-reveal group flex h-full min-h-[13.5rem] flex-col justify-between rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-card p-6 shadow-circle-card transition duration-200 [transition-timing-function:var(--ease-out)] hover:border-violet-200 hover:shadow-md motion-safe:hover:-translate-y-0.5 active:scale-[0.99]"
         >
@@ -623,7 +623,7 @@ export function LeptonHubPage() {
         </Link>
 
         <Link
-          to="/lepton/twitch/receipts"
+          to="/agent/twitch/receipts"
           style={{ animationDelay: '240ms' }}
           className="lepton-reveal group flex h-full min-h-[13.5rem] flex-col justify-between rounded-2xl border bg-card p-6 shadow-circle-card transition duration-200 [transition-timing-function:var(--ease-out)] hover:border-violet-200 hover:shadow-md motion-safe:hover:-translate-y-0.5 active:scale-[0.99]"
         >
@@ -669,7 +669,7 @@ export function LeptonHubPage() {
               rule={ruleForKind(policy, config.kind)}
               paidCount={paidByKind[config.kind]}
               variant="github"
-              linkTo={`/lepton/receipts?kind=${config.kind}`}
+              linkTo={`/agent/receipts?kind=${config.kind}`}
               style={{ animationDelay: `${150 + i * 60}ms` }}
             />
           ))}
@@ -696,7 +696,7 @@ export function LeptonHubPage() {
               variant="twitch"
               soon={config.soon}
               linkTo={
-                config.soon ? undefined : `/lepton/twitch/receipts?kind=${config.kind}`
+                config.soon ? undefined : `/agent/twitch/receipts?kind=${config.kind}`
               }
               style={{ animationDelay: `${300 + i * 60}ms` }}
             />

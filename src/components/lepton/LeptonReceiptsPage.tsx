@@ -78,7 +78,7 @@ export function LeptonReceiptsPage() {
             Refresh
           </Button>
           <Button variant="secondary" size="sm" asChild>
-            <Link to="/lepton/repo-settings">Repo settings</Link>
+            <Link to="/agent/repo-settings">Repo settings</Link>
           </Button>
         </div>
       </div>

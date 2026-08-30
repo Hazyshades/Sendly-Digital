@@ -81,7 +81,7 @@ export function LeptonTwitchReceiptsPage() {
             Refresh
           </Button>
           <Button variant="secondary" size="sm" asChild>
-            <Link to="/lepton/twitch/campaign">Campaign setup</Link>
+            <Link to="/agent/twitch/campaign">Campaign setup</Link>
           </Button>
         </div>
       </div>

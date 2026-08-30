@@ -6,7 +6,7 @@ import {
   normalizeSocialPlatform,
   normalizeSocialUsername,
   socialProofUsernamesMatch,
-  twitchUidHandleSegment,
+  twitchHandleForIdentityHash,
   type SocialPlatform,
 } from '@/lib/reclaim/identity';
 import { verifyReclaimProofs } from '@/lib/reclaim/api';
@@ -66,6 +66,7 @@ export type ClaimPaymentRow = {
   platform: string;
   amount: string;
   token: string;
+  socialIdentityHash?: string;
 };
 
 export type ClaimOutcome = {
@@ -147,9 +148,19 @@ export function resolveClaimIdentityHash(
   return generateSocialIdentityHash(platform, loginUsername);
 }
 
-function twitchProveUsername(twitchUserId: string | null, loginUsername: string): string {
-  if (twitchUserId) return twitchUidHandleSegment(twitchUserId);
-  return loginUsername;
+function twitchProveUsername(
+  twitchUserId: string | null,
+  loginUsername: string,
+  identityHash?: `0x${string}` | null,
+): string {
+  if (identityHash) {
+    return twitchHandleForIdentityHash(identityHash, loginUsername, twitchUserId);
+  }
+  if (twitchUserId) {
+    const uidHash = generateTwitchUidIdentityHash(twitchUserId);
+    if (uidHash) return twitchHandleForIdentityHash(uidHash, loginUsername, twitchUserId);
+  }
+  return loginUsername.replace(/^@/, '');
 }
 
 function validateZkFetchExtraction(
@@ -322,6 +333,7 @@ async function acquireZkFetchProofs(input: {
   recipient: string;
   tokens: ClaimOAuthTokens;
   getReclaimApiUrl: (path: string) => string;
+  identityHash?: `0x${string}` | null;
 }): Promise<ReclaimProof[]> {
   const descriptor = buildZkFetchDescriptor(input.platform, input.tokens, {
     getReclaimApiUrl: input.getReclaimApiUrl,
@@ -345,7 +357,7 @@ async function acquireZkFetchProofs(input: {
       platform: input.platform,
       username:
         input.platform === 'twitch'
-          ? twitchProveUsername(input.twitchUserId, input.loginUsername)
+          ? twitchProveUsername(input.twitchUserId, input.loginUsername, input.identityHash)
           : input.loginUsername,
       paymentId: input.paymentId,
       recipient: input.recipient,
@@ -444,6 +456,28 @@ export async function claimPayments(input: {
   const { payments, executorContext: ctx, callbacks } = input;
   if (payments.length === 0) return [];
 
+  const hashOf = (p: ClaimPaymentRow) => (p.socialIdentityHash || '').toLowerCase();
+  const hashed = payments.filter((p) => hashOf(p));
+  const uniqueHashes = [...new Set(hashed.map(hashOf))];
+  if (uniqueHashes.length > 1) {
+    const results: ClaimOutcome[] = [];
+    for (const hash of uniqueHashes) {
+      const group = hashed.filter((p) => hashOf(p) === hash);
+      results.push(
+        ...(await claimPayments({
+          payments: group,
+          executorContext: { ...ctx, primaryIdentityHash: hash as `0x${string}` },
+          callbacks,
+        })),
+      );
+    }
+    const unhashed = payments.filter((p) => !hashOf(p));
+    if (unhashed.length > 0) {
+      results.push(...(await claimPayments({ payments: unhashed, executorContext: ctx, callbacks })));
+    }
+    return results;
+  }
+
   if (ctx.walletSource === 'circle' && !ctx.developerWallet) {
     throw new Error('Internal Wallet not available');
   }
@@ -455,6 +489,7 @@ export async function claimPayments(input: {
   const { platform: normalizedPlatform, twitchUserId } = prerequisites;
 
   const identityHashValue =
+    (payments[0]?.socialIdentityHash as `0x${string}` | undefined) ??
     ctx.primaryIdentityHash ??
     resolveClaimIdentityHash(normalizedPlatform, ctx.loginUsername, twitchUserId);
   if (!identityHashValue) throw new Error('Invalid identity');
@@ -468,6 +503,7 @@ export async function claimPayments(input: {
         recipient: ctx.recipientAddress,
         tokens: ctx.tokens,
         getReclaimApiUrl: ctx.getReclaimApiUrl,
+        identityHash: identityHashValue,
       })
     : await acquireReclaimProofs({
         platform: normalizedPlatform,
