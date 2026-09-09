@@ -108,7 +108,13 @@ export function PaymentsOnboarding({
 
   return (
     <div className="flex justify-end">
-      <Button type="button" variant="ghost" size="sm" onClick={() => startTour('replay')}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="min-h-11"
+        onClick={() => startTour('replay')}
+      >
         Show Payments guide
       </Button>
     </div>

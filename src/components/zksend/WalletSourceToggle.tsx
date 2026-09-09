@@ -56,6 +56,13 @@ export function WalletSourceToggle({
     }
   }, [showExternal, value, hasCircleWallet, onChange]);
 
+  const availableSources = [
+    showExternal ? 'browser' : null,
+    hasCircleWallet ? 'internal' : null,
+  ]
+    .filter((source): source is string => source !== null)
+    .join(' ');
+
   if (!showExternal && !hasCircleWallet) {
     return (
       <p
@@ -77,6 +84,7 @@ export function WalletSourceToggle({
       aria-label="Wallet source"
       data-tour={dataTour}
       data-tour-state={dataTour && !disabled ? 'available' : 'unavailable'}
+      data-tour-sources={dataTour ? availableSources : undefined}
     >
       {showExternal ? (
         <button

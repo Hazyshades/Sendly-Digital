@@ -24,9 +24,6 @@ export function readPaymentsOnboardingState(): PaymentsOnboardingState | null {
   }
 }
 
-export function shouldStartPaymentsOnboarding(): boolean {
-  return readPaymentsOnboardingState() === null;
-}
 
 export function writePaymentsOnboardingState(state: PaymentsOnboardingState): void {
   const storage = getStorage();

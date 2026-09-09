@@ -8,6 +8,7 @@ import {
   test,
   type E2EApp,
 } from './fixtures';
+import { PAYMENTS_ONBOARDING_STORAGE_KEY } from '../../src/lib/onboarding/paymentsOnboardingStorage';
 
 const ARC_CHAIN_ID = 5_042_002;
 const directSendClaimMode = process.env.E2E_DIRECT_SEND_CLAIM_MODE === 'escrow_v2' ? 'escrow_v2' : 'legacy';
@@ -324,8 +325,6 @@ test.describe('Receive payment UI', () => {
   });
 
 });
-
-const PAYMENTS_ONBOARDING_STORAGE_KEY = 'sendly:onboarding:payments:v1';
 
 function requireZkTourProject(testInfo: TestInfo) {
   test.skip(

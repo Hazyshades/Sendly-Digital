@@ -11,6 +11,7 @@ export type PaymentsTourMode = 'auto' | 'replay';
 export type CreatePaymentsTourOptions = {
   mode?: PaymentsTourMode;
 };
+type ElementResolver = () => Element | null;
 
 function isVisibleElement(element: Element): boolean {
   if (!(element instanceof HTMLElement)) return false;
@@ -34,12 +35,14 @@ function targetStep(
   selector: string,
   title: string,
   description: string,
+  resolveElement: ElementResolver = () => findVisibleElement(selector),
 ): DriveStep | null {
-  const element = findVisibleElement(selector);
+  const element = resolveElement();
   if (!element) return null;
 
   return {
-    element,
+    element: () => resolveElement() as Element,
+    skipMissingElement: true,
     popover: {
       title,
       description,
@@ -47,6 +50,20 @@ function targetStep(
   };
 }
 
+function getWalletSourceDescription(): string {
+  const sourceElement = findVisibleElement(
+    '[data-tour="wallet-source"][data-tour-state="available"]',
+  );
+  const sources = sourceElement?.getAttribute('data-tour-sources');
+
+  if (sources === 'browser') {
+    return 'Use your connected browser wallet before sending or claiming.';
+  }
+  if (sources === 'internal') {
+    return 'Use Internal Wallet before sending or claiming.';
+  }
+  return 'When available, choose your browser wallet or Internal Wallet before sending or claiming.';
+}
 
 function addSkipButton(popover: PopoverDOM, onSkip: () => void): void {
   if (popover.footerButtons.querySelector('.sendly-driver-skip-btn')) return;
@@ -69,10 +86,46 @@ export function createPaymentsTour({ mode = 'auto' }: CreatePaymentsTourOptions 
     dismissed = true;
     if (mode === 'auto') writePaymentsOnboardingState('dismissed');
   };
+  let removeOutsideClickListener: (() => void) | null = null;
+  let outsideClickScheduled = false;
 
-  const identitiesTriggerSelector = window.matchMedia('(max-width: 1023px)').matches
-    ? '[data-tour="identities-trigger-mobile"]'
-    : '[data-tour="identities-trigger-desktop"]';
+  const installOutsideClickListener = () => {
+    if (removeOutsideClickListener) return;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!tour.isActive()) return;
+
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (
+        target.closest(`.${SENDLY_POPOVER_CLASS}`) ||
+        target.closest('.driver-active-element')
+      ) {
+        return;
+      }
+
+      if (outsideClickScheduled) return;
+      outsideClickScheduled = true;
+      markDismissed();
+      window.setTimeout(() => {
+        outsideClickScheduled = false;
+        if (tour.isActive()) tour.destroy();
+      }, 0);
+    };
+
+    document.addEventListener('click', handleOutsideClick, true);
+    removeOutsideClickListener = () => {
+      document.removeEventListener('click', handleOutsideClick, true);
+      removeOutsideClickListener = null;
+    };
+  };
+
+  const resolveIdentitiesTrigger: ElementResolver = () =>
+    findVisibleElement(
+      window.matchMedia('(max-width: 1023px)').matches
+        ? '[data-tour="identities-trigger-mobile"]'
+        : '[data-tour="identities-trigger-desktop"]',
+    );
   const steps: DriveStep[] = [
     {
       popover: {
@@ -99,12 +152,13 @@ export function createPaymentsTour({ mode = 'auto' }: CreatePaymentsTourOptions 
     targetStep(
       '[data-tour="wallet-source"][data-tour-state="available"]',
       'Choose a wallet source',
-      'When available, choose your browser wallet or Internal Wallet before sending or claiming.',
+      getWalletSourceDescription(),
     ),
     targetStep(
-      identitiesTriggerSelector,
+      '[data-tour="identities-trigger-desktop"], [data-tour="identities-trigger-mobile"]',
       'Connect payment identities',
       'Link social accounts here so people can pay you by username or email.',
+      resolveIdentitiesTrigger,
     ),
     targetStep(
       '[data-tour="payments-receive-tab"]',
@@ -119,7 +173,7 @@ export function createPaymentsTour({ mode = 'auto' }: CreatePaymentsTourOptions 
     steps,
     animate: !reducedMotion,
     duration: reducedMotion ? 0 : 220,
-    smoothScroll: true,
+    smoothScroll: !reducedMotion,
     allowClose: true,
     allowScroll: true,
     overlayClickBehavior: 'close',
@@ -136,6 +190,7 @@ export function createPaymentsTour({ mode = 'auto' }: CreatePaymentsTourOptions 
     prevBtnText: 'Back',
     doneBtnText: 'Done',
     onPopoverRender: (popover) => {
+      installOutsideClickListener();
       addSkipButton(popover, () => {
         markDismissed();
         tour.destroy();
@@ -147,6 +202,7 @@ export function createPaymentsTour({ mode = 'auto' }: CreatePaymentsTourOptions 
       tour.destroy();
     },
     onDestroyed: () => {
+      removeOutsideClickListener?.();
       markDismissed();
     },
   });
