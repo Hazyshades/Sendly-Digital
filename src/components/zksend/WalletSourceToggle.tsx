@@ -35,6 +35,7 @@ type Props = {
   disabled?: boolean;
   /** Compact variant for tight layouts (e.g. next to balance). */
   compact?: boolean;
+  dataTour?: string;
 };
 
 export function WalletSourceToggle({
@@ -43,6 +44,7 @@ export function WalletSourceToggle({
   hasCircleWallet,
   disabled = false,
   compact = false,
+  dataTour,
 }: Props) {
   const { isConnected, connector } = useAccount();
   const externalLabel = getExternalWalletLabel(connector, isConnected);
@@ -56,7 +58,11 @@ export function WalletSourceToggle({
 
   if (!showExternal && !hasCircleWallet) {
     return (
-      <p className={`text-slate-500 dark:text-slate-400 ${compact ? 'text-xs' : 'text-sm'}`}>
+      <p
+        className={`text-slate-500 dark:text-slate-400 ${compact ? 'text-xs' : 'text-sm'}`}
+        data-tour={dataTour}
+        data-tour-state={dataTour ? 'unavailable' : undefined}
+      >
         <Link to="/dashboard" className="text-blue-600 dark:text-blue-400 hover:underline">
           Create Internal Wallet
         </Link>
@@ -69,6 +75,8 @@ export function WalletSourceToggle({
       className={`flex rounded-lg bg-slate-200/80 dark:bg-slate-700/80 p-0.5 ${compact ? 'shrink-0' : ''}`}
       role="group"
       aria-label="Wallet source"
+      data-tour={dataTour}
+      data-tour-state={dataTour && !disabled ? 'available' : 'unavailable'}
     >
       {showExternal ? (
         <button

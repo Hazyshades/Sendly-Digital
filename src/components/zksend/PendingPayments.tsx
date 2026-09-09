@@ -697,6 +697,7 @@ export function PendingPayments({
         },
       });
 
+                  data-tour="pending-payment-row"
       setLastClaimedTxHash(txHash);
       toast.success(ZKSEND_SUCCESS_COPY.depositClaimed, {
         description: (
@@ -716,7 +717,7 @@ export function PendingPayments({
   };
 
   return (
-    <Card className="bg-white/90 shadow-circle-card backdrop-blur-sm">
+    <Card data-tour="pending-payments" className="bg-white/90 shadow-circle-card backdrop-blur-sm">
       <CardHeader className="flex flex-row items-center justify-between gap-2">
         <CardTitle>{title}</CardTitle>
         {!truncateAddresses && onWalletSourceChange ? (
@@ -767,6 +768,7 @@ export function PendingPayments({
             <div className="text-xs text-muted-foreground">
               For this platform you’ll generate a Reclaim proof (no OAuth needed).
             </div>
+                  data-tour="pending-payment-row"
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"

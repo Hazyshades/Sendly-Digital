@@ -6,6 +6,7 @@ import { PendingPayments } from './PendingPayments';
 import { SendPaymentForm, type SendPaymentPreviewValues } from './SendPaymentForm';
 import { IdentitySelector } from './IdentitySelector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PaymentsOnboarding } from '@/components/onboarding/PaymentsOnboarding';
 import { isSocialRecipientValid } from '@/lib/reclaim/identity';
 import { useCircleWallet } from '@/hooks/useCircleWallet';
 import { useZkOAuthIdentity } from '@/lib/zk-oauth/useZkOAuthIdentity';
@@ -34,6 +35,7 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
   const claimUsername = claimPlatform ? searchParams.get('username')?.replace(/^@/, '') ?? '' : '';
   const claimPaymentId = claimPlatform ? searchParams.get('paymentId') : null;
   const claimTab = claimPlatform && claimUsername && searchParams.get('tab') === 'receive' ? 'receive' : null;
+  const claimFlow = Boolean(claimPaymentId || (claimPlatform && claimUsername));
   const [activeTab, setActiveTab] = useState<'send' | 'receive'>(claimTab ?? initialTab);
 
   // Send tab: always manual, never seeded from the connected identity.
@@ -105,6 +107,7 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
 
   return (
     <div className="space-y-6">
+      <PaymentsOnboarding activeTab={activeTab} preview={preview} claimFlow={claimFlow} />
       {isInternalWalletDisabled ? (
         <p
           role="status"
@@ -114,9 +117,13 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
         </p>
       ) : null}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="send">Send</TabsTrigger>
-          <TabsTrigger value="receive">Receive</TabsTrigger>
+        <TabsList data-tour="payments-tabs" className="grid w-full grid-cols-2">
+          <TabsTrigger data-tour="payments-send-tab" value="send">
+            Send
+          </TabsTrigger>
+          <TabsTrigger data-tour="payments-receive-tab" value="receive">
+            Receive
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="send" className="mt-4 space-y-6">

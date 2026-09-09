@@ -681,6 +681,7 @@ export function ZkSocialNavToggle({
     <button
       type="button"
       onClick={onClick}
+      data-tour="identities-trigger-desktop"
       className={cn(
         'px-3 py-2 rounded-2xl text-center text-sm font-medium',
         NAV_PILL_BASE,
@@ -756,6 +757,7 @@ export function ZkSocialConnectionsPanel({
           className,
         )}
         aria-label="Payment identities"
+        data-tour="identities-panel"
         data-expanded={expanded ? 'true' : 'false'}
       >
         {!embedded ? (

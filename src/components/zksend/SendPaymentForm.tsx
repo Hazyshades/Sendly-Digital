@@ -423,7 +423,7 @@ export function SendPaymentForm({
     <Card>
       <CardContent className="pt-6 space-y-6">
         {/* Amount */}
-        <div className="space-y-2">
+        <div data-tour="amount-field" className="space-y-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="amount-input">Amount</Label>
             <div className="flex items-center gap-2">
@@ -433,6 +433,7 @@ export function SendPaymentForm({
                   onChange={onWalletSourceChange}
                   hasCircleWallet={hasDeveloperWallet}
                   compact
+                  dataTour="wallet-source"
                 />
               ) : null}
               <div className="flex items-center gap-1.5 text-sm text-muted-foreground">

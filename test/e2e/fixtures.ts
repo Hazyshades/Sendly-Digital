@@ -48,6 +48,7 @@ export type E2EScenario = {
   payments?: Record<string, unknown>[];
   directDeposits?: Record<string, unknown>[];
   giftCards?: Record<string, unknown>[];
+  paymentsOnboarding?: 'first-run' | 'dismissed';
   /** A controlled failure returned by an app-owned mock endpoint. */
   serviceError?: string | null;
 };
@@ -179,6 +180,7 @@ const defaultScenario: E2EScenario = {
   payments: [],
   directDeposits: [],
   giftCards: [],
+  paymentsOnboarding: 'dismissed',
   serviceError: null,
 };
 
@@ -683,11 +685,19 @@ async function installBrowserFixture(context: BrowserContext, scenario: E2EScena
           },
         ],
         [defaultIdentity.platform]: { subject: defaultIdentity.socialUserId, username: defaultIdentity.username },
+      if (paymentsOnboarding === 'first-run') {
+        if (localStorage.getItem('sendly:e2e:payments-onboarding-initialized') !== 'true') {
+          localStorage.removeItem('sendly:onboarding:payments:v1');
+          localStorage.setItem('sendly:e2e:payments-onboarding-initialized', 'true');
+        }
+      } else {
+        localStorage.setItem('sendly:onboarding:payments:v1', 'dismissed');
+      }
       }
     : null);
 
   await context.addInitScript(
-    ({ configuredWallet, configuredIdentities, configuredPrivyUser }) => {
+    ({ configuredWallet, configuredIdentities, configuredPrivyUser, paymentsOnboarding }) => {
       const byPlatform = Object.fromEntries(configuredIdentities.map((identity) => [identity.platform, identity]));
       const twitter = byPlatform.twitter;
       if (twitter) {
@@ -790,7 +800,7 @@ async function installBrowserFixture(context: BrowserContext, scenario: E2EScena
         } as unknown as Window;
       }) as typeof window.open;
     },
-    { configuredWallet: wallet, configuredIdentities: identities, configuredPrivyUser: privyUser },
+    { configuredWallet: wallet, configuredIdentities: identities, configuredPrivyUser: privyUser, paymentsOnboarding: scenario.paymentsOnboarding },
   );
 }
 
