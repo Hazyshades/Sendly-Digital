@@ -1,4 +1,4 @@
-import { creatorPaywallClient, unwrapItems } from '@/lib/paywall/paywallClient';
+import { leptonApiClient, unwrapItems } from '@/lib/lepton/leptonApiClient';
 
 export type TwitchCampaignStatus = 'draft' | 'active' | 'paused' | 'ended';
 
@@ -43,17 +43,17 @@ export type TwitchPayoutReceipt = {
 };
 
 export async function fetchTwitchCampaigns(): Promise<TwitchCampaign[]> {
-  const data = await creatorPaywallClient<Record<string, unknown>>('/twitch/campaigns');
+  const data = await leptonApiClient<Record<string, unknown>>('/twitch/campaigns');
   return unwrapItems<TwitchCampaign>(data, 'campaigns');
 }
 
 export async function fetchTwitchPayoutPolicies(): Promise<TwitchRaidPolicy[]> {
-  const data = await creatorPaywallClient<Record<string, unknown>>('/twitch/payout-policies');
+  const data = await leptonApiClient<Record<string, unknown>>('/twitch/payout-policies');
   return unwrapItems<TwitchRaidPolicy>(data, 'policies');
 }
 
 export async function fetchTwitchPayoutReceipts(): Promise<TwitchPayoutReceipt[]> {
-  const data = await creatorPaywallClient<Record<string, unknown>>('/twitch-payouts');
+  const data = await leptonApiClient<Record<string, unknown>>('/twitch-payouts');
   return unwrapItems<TwitchPayoutReceipt>(data, 'receipts');
 }
 
@@ -65,7 +65,7 @@ export async function createTwitchCampaign(input: {
   totalBudgetUsdc: number;
   status?: TwitchCampaignStatus;
 }): Promise<TwitchCampaign> {
-  const data = await creatorPaywallClient<{ campaign: TwitchCampaign }>('/twitch/campaigns', {
+  const data = await leptonApiClient<{ campaign: TwitchCampaign }>('/twitch/campaigns', {
     method: 'POST',
     body: input,
   });
@@ -80,7 +80,7 @@ export async function upsertTwitchRaidPolicy(input: {
   maxPerDayUsdc?: number;
   enabled?: boolean;
 }): Promise<TwitchRaidPolicy> {
-  const data = await creatorPaywallClient<{ policy: TwitchRaidPolicy }>('/twitch/payout-policy', {
+  const data = await leptonApiClient<{ policy: TwitchRaidPolicy }>('/twitch/payout-policy', {
     method: 'POST',
     body: input,
   });

@@ -82,13 +82,6 @@ export function LeptonCatalogView({ embedded = false }: LeptonCatalogViewProps) 
         </p>
       </div>
 
-      {catalog.example && (
-        <div className="rounded-md border border-dashed p-3 text-sm">
-          <p className="font-medium mb-1">Example paywall</p>
-          <p className="text-muted-foreground text-xs mb-1">{catalog.example.description}</p>
-          <code className="text-xs break-all">{catalog.example.url}</code>
-        </div>
-      )}
 
       <div className="space-y-3">
         <p className="text-sm font-medium">Resources ({catalog.resources.length})</p>

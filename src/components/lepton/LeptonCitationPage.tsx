@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   fetchCitationSources,
   runCitationDemo,
-  seedCitationFromPaywalls,
+  seedCitationSources,
   type CitationRunResult,
   type CitationSource,
 } from '@/lib/paywall/citationAPI';
@@ -37,9 +37,8 @@ export function LeptonCitationPage() {
   const onSeed = async () => {
     setSeeding(true);
     try {
-      const n = await seedCitationFromPaywalls();
-      toast.success(`Seeded ${n} source(s) from paywalls`);
-      await loadSources();
+      const n = await seedCitationSources();
+      toast.success(`Seeded ${n} source(s) from registered sources`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Seed failed');
     } finally {
@@ -67,7 +66,7 @@ export function LeptonCitationPage() {
         <div>
           <h1 className="text-2xl font-semibold">Citation Demo Agent</h1>
           <p className="text-sm text-muted-foreground">
-            Real ZkSend payments for registered paywall slugs - not scripted self-payment.
+            Real ZkSend payments for registered research sources - not scripted self-payment.
           </p>
         </div>
         <Button variant="outline" size="sm" asChild>
@@ -82,14 +81,14 @@ export function LeptonCitationPage() {
         <CardContent className="space-y-3">
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={() => void onSeed()} disabled={seeding}>
-              Seed from paywalls
+              Seed from registered sources
             </Button>
             <Button variant="outline" size="sm" onClick={() => void loadSources()}>
               Refresh
             </Button>
           </div>
           {sources.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No sources - seed from LEPTON_DEMO_SLUG paywall.</p>
+            <p className="text-sm text-muted-foreground">No sources - seed the registered Lepton sources.</p>
           ) : (
             <ul className="text-sm space-y-1">
               {sources.map((s) => (

@@ -4,7 +4,16 @@ Sendly is a USDC-first payment product for sending money to a social username in
 
 The product goal is to hide wallet addresses, chain choice, gas tokens, and bridge complexity from end users while still keeping payments auditable on-chain.
 
-For autonomous agent settlement (GitHub repo treasury, Twitch raid-to-pay), see [Agent Treasury](./Agent-Treasury.md). For OpenSpec requirement → code mapping, see [OpenSpec Traceability](./OpenSpec-Traceability.md).
+For canonical wallet, identity, claim, and settlement terminology, see [Domain Context](../CONTEXT.md). For autonomous agent settlement (GitHub repo treasury, Twitch raid-to-pay), see [Agent Treasury](./Agent-Treasury.md). For OpenSpec requirement → code mapping, see [OpenSpec Traceability](./OpenSpec-Traceability.md).
+
+## Terminology boundaries
+
+The canonical domain terms live in [Domain Context](../CONTEXT.md). Keep these implementation boundaries explicit:
+
+- Circle Agent Wallet is a separate user-controlled 2-of-2 MPC product. The Sponsor Pool in `creator-paywall` uses a Circle Developer-Controlled Wallet.
+- Gateway Nanopayments use Circle's x402 flow. The current buyer path requires an EOA EIP-3009 signature and does not accept ERC-1271 smart-account signatures.
+- `creator-paywall` uses the Sendly Settlement API with `X-Sendly-*` headers. This is not Circle Gateway Nanopayments.
+- `zkSEND Claim` uses `ZkSend.claimPayment` or `ZkSend.claimPayments` after zkTLS proof. `DirectSend Claim` uses `DirectSendV2.claim` for an address recipient.
 
 ## Implemented Now
 
@@ -20,10 +29,10 @@ For autonomous agent settlement (GitHub repo treasury, Twitch raid-to-pay), see 
 
 | Area | Status | Notes |
 |---|---|---|
-| Circle Agentic Stack: Gateway | Frontend and backend implemented, testing in progress | Gateway UI, direct frontend flow, Supabase backend with Unified Balance Kit |
-| Circle Agentic Stack: Agent Wallet | Partially implemented | Sponsor-pool autonomous payouts in `creator-paywall` (GitHub/Twitch webhooks); full agent-wallet product still planned |
+| Circle Agentic Stack: Gateway | Partial, verification in progress | Gateway UI, direct browser flow, Supabase backend with Unified Balance Kit; browser and backend paths are separate |
+| Circle Agentic Stack: Agent Wallet | Not integrated as Circle Agent Wallet | Current sponsor-pool payouts use a Circle Developer-Controlled Wallet. The official Agent Wallet product is a separate user-controlled wallet decision |
 | Circle Agentic Stack: x402 Nanopayments | Planned | HTTP 402 paid-action flow for agent and API payments |
-| Modular Wallet | Testing in progress | Passcode/passkey-based self-custody UX |
+| Modular Wallet | Not integrated in current source | A recipient-only passkey and MSCA pilot is planned. The recipient cache migration is not a wallet implementation |
 
 ## High-Level System
 

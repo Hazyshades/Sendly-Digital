@@ -3,6 +3,7 @@
 Autonomous USDC settlement for **GitHub repo treasury** and **Twitch raid-to-pay**, built on Arc Testnet via `ZkSend.createPayment` to a **social identity** (not a wallet address). Sponsors fund a pool; the backend pays contributors when eligible events fire; recipients claim later with zkTLS proof.
 
 For the full Sendly product (gift cards, zkTLS direct payments, bridge, gateway), see [Architecture](./Architecture.md).
+For canonical wallet, identity, claim, and settlement terminology, see [Domain Context](../CONTEXT.md).
 
 ## Scope
 
@@ -16,7 +17,6 @@ For the full Sendly product (gift cards, zkTLS direct payments, bridge, gateway)
 
 **Explicitly out of scope:**
 
-- Creator paywall (HTTP 402 article unlock) - separate product surface
 - Citation demo - not product-documented here
 - In-file OpenSpec requirement → code traceability tables - see [OpenSpec Traceability](./OpenSpec-Traceability.md)
 
@@ -50,7 +50,7 @@ Base API URL: `https://eiiprokgcuksmunmszxf.supabase.co/functions/v1/creator-pay
 
 ## GitHub Agent Workflow
 
-Maintainers configure a **repo payout policy**. Eligible GitHub events trigger autonomous USDC payouts to `github:{author_login}` from a **sponsor pool** (Circle developer wallet). The contributor does not need a wallet upfront.
+Maintainers configure a **repo payout policy**. Eligible GitHub events trigger autonomous USDC payouts to `github:{author_login}` from a **Circle Developer-Controlled Wallet used as the Sponsor Pool**. The contributor does not need a wallet upfront.
 
 **Payout kinds** (same settlement rail): merge, issue bounty, release dividend, review-to-earn.
 

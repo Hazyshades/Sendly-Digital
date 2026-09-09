@@ -11,8 +11,6 @@ import {
   normalizeSocialUsername,
   twitchIdentityHashes,
 } from '@/lib/reclaim/identity';
-import { fetchReclaimProofRequestConfig } from '@/lib/reclaim/api';
-import type { ReclaimProof } from '@/lib/reclaim/types';
 import {
   getExplorerAddressUrl,
   getContractsForChain,
@@ -20,7 +18,6 @@ import {
   isDirectSendEscrowActiveForChain,
 } from '@/lib/web3/constants';
 import { tokenSymbolForAddress } from '@/lib/web3/chains';
-import { ReclaimProofRequest } from '@reclaimprotocol/js-sdk';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
 import { isZkLocalhost } from '@/lib/runtime/zkHost';
 import { type DeveloperWallet } from '@/lib/circle/developerWalletService';
@@ -42,7 +39,6 @@ import {
 import {
   claimDirectDeposit as claimDirectDepositService,
   claimPayments,
-  type ClaimOAuthTokens,
 } from '@/lib/zksend/claimService';
 
 import { Button } from '@/components/ui/button';
@@ -186,26 +182,6 @@ export function PendingPayments({
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
   const { authenticated, getAccessToken, user: privyUser } = usePrivySafe();
-  const reclaimApiBaseUrl = (() => {
-    const envUrl =
-      (import.meta.env.VITE_ZKTLS_SERVICE_URL as string | undefined) ||
-      (import.meta.env.VITE_ZKTLS_API_URL as string | undefined);
-    if (envUrl) return envUrl.replace(/\/$/, '');
-    if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
-    return 'http://localhost:3001';
-  })();
-
-  /** API URL for reclaim/zkfetch: same-origin uses relative path so Vite proxy is used. */
-  const getReclaimApiUrl = useCallback((path: string) => {
-    if (typeof window !== 'undefined' && reclaimApiBaseUrl === window.location.origin) return path;
-    return `${reclaimApiBaseUrl}${path.startsWith('/') ? path : `/${path}`}`;
-  }, [reclaimApiBaseUrl]);
-
-  const reclaimMinSignaturesRaw = Number(import.meta.env.VITE_RECLAIM_MIN_SIGNATURES ?? 2);
-  const reclaimMinSignatures =
-    Number.isFinite(reclaimMinSignaturesRaw) && reclaimMinSignaturesRaw > 0
-      ? Math.floor(reclaimMinSignaturesRaw)
-      : 2;
 
   const [accessToken, setAccessToken] = useState('');
   const [oauth1Token, setOauth1Token] = useState('');
@@ -218,9 +194,6 @@ export function PendingPayments({
   const [gmailAccessToken, setGmailAccessToken] = useState('');
   const [linkedinAccessToken, setLinkedinAccessToken] = useState('');
   const [privyAccessToken, setPrivyAccessToken] = useState<string | null>(null);
-  const [reclaimProofs, setReclaimProofs] = useState<ReclaimProof[] | null>(null);
-  const [proofLoading, setProofLoading] = useState(false);
-  const [proofError, setProofError] = useState<string | null>(null);
 
   useEffect(() => {
     if (walletSource !== 'circle') return;
@@ -228,7 +201,6 @@ export function PendingPayments({
   }, [walletSource, hasDeveloperWallet, onWalletSourceChange]);
 
   const useCircle = walletSource === 'circle' && hasDeveloperWallet && !!developerWallet;
-  const effectiveRecipientAddress = useCircle ? developerWallet!.wallet_address : address;
   const canClaimPayments = useCircle
     ? Boolean(developerWallet?.wallet_address)
     : Boolean(isConnected && address);
@@ -376,32 +348,6 @@ export function PendingPayments({
     if (rows.length > 0 || directRows.length > 0) setLastClaimedTxHash(null);
   }, [rows.length, directRows.length]);
 
-  const oauthTokens = useMemo((): ClaimOAuthTokens => {
-    return {
-      twitterAccessToken: accessToken || null,
-      oauth1Token: oauth1Token || null,
-      oauth1TokenSecret: oauth1TokenSecret || null,
-      twitchAccessToken: twitchAccessToken || null,
-      githubAccessToken: githubAccessToken || null,
-      telegramAccessToken: telegramAccessToken || null,
-      instagramAccessToken: instagramAccessToken || null,
-      linkedinAccessToken: linkedinAccessToken || null,
-      gmailAccessToken: gmailAccessToken || null,
-      privyAccessToken,
-    };
-  }, [
-    accessToken,
-    oauth1Token,
-    oauth1TokenSecret,
-    twitchAccessToken,
-    githubAccessToken,
-    telegramAccessToken,
-    instagramAccessToken,
-    linkedinAccessToken,
-    gmailAccessToken,
-    privyAccessToken,
-  ]);
-
   const buildExecutorContext = useCallback(
     (loginUsername: string) => {
       const recipientAddress = (useCircle ? developerWallet!.wallet_address : address) ?? '';
@@ -412,11 +358,11 @@ export function PendingPayments({
         recipientAddress,
         loginUsername,
         platform,
-        tokens: oauthTokens,
         primaryIdentityHash,
-        reclaimProofs,
-        reclaimMinSignatures,
-        getReclaimApiUrl,
+        readPrivyAccessToken:
+          isZkLocalhost() || !authenticated
+            ? undefined
+            : async () => getAccessToken(),
         resolveCurrency: (tokenAddressOrSymbol: string) =>
           tokenSymbolForAddress(activeChainId, tokenAddressOrSymbol),
         developerWallet,
@@ -444,68 +390,13 @@ export function PendingPayments({
       activeChainId,
       contracts.zksend,
       platform,
-      oauthTokens,
       primaryIdentityHash,
-      reclaimProofs,
-      reclaimMinSignatures,
-      getReclaimApiUrl,
+      authenticated,
+      getAccessToken,
       privyUser?.id,
       walletClient,
     ],
   );
-
-  const normalizeProofs = (proof: unknown): ReclaimProof[] => {
-    if (typeof proof === 'string') {
-      const parsed = JSON.parse(proof) as any;
-      const raw = parsed?.proofs ?? parsed?.proof ?? parsed;
-      return Array.isArray(raw) ? (raw as ReclaimProof[]) : ([raw] as ReclaimProof[]);
-    }
-    if (Array.isArray(proof)) {
-      return proof as ReclaimProof[];
-    }
-    return [proof as ReclaimProof];
-  };
-
-  const startReclaimFlow = async () => {
-    if (platform === 'address') throw new Error('Select a social platform to generate a proof');
-    const u = resolveRecipientUsername(platform, username);
-    if (!u) throw new Error('Enter username');
-    if (!effectiveRecipientAddress) throw new Error('Select a wallet to generate proof');
-
-    setProofLoading(true);
-    setProofError(null);
-    try {
-      const config = await fetchReclaimProofRequestConfig({
-        platform,
-        username: u,
-        recipient: effectiveRecipientAddress,
-        paymentId: undefined,
-        redirectUrl: window.location.href,
-      });
-      const request = await ReclaimProofRequest.fromJsonString(config);
-      await request.triggerReclaimFlow();
-
-      await request.startSession({
-        onSuccess: (proof) => {
-          const proofsArray = normalizeProofs(proof || []);
-          if (!proofsArray[0]) {
-            setProofError('Proof was not returned');
-            setReclaimProofs(null);
-            return;
-          }
-          setReclaimProofs(proofsArray);
-          setProofError(null);
-          toast.success('Reclaim proof received');
-        },
-        onError: (error) => {
-          setProofError(error.message || 'Failed to generate proof');
-          setReclaimProofs(null);
-        },
-      });
-    } finally {
-      setProofLoading(false);
-    }
-  };
 
   const loadPending = async () => {
     try {
@@ -697,7 +588,6 @@ export function PendingPayments({
         },
       });
 
-                  data-tour="pending-payment-row"
       setLastClaimedTxHash(txHash);
       toast.success(ZKSEND_SUCCESS_COPY.depositClaimed, {
         description: (
@@ -759,29 +649,18 @@ export function PendingPayments({
         ) : platform === 'instagram' ? (
           <ReceiveOAuthStatus connected={Boolean(instagramAccessToken)} platformLabel="Instagram" platform={platform} username={username} hasUsername={isIdentityValid} />
         ) : platform === 'gmail' ? (
-          <ReceiveOAuthStatus connected={Boolean(gmailAccessToken)} platformLabel="Gmail" platform={platform} username={username} hasUsername={isIdentityValid} />
+          <div className="space-y-2">
+            <ReceiveOAuthStatus connected={Boolean(gmailAccessToken)} platformLabel="Gmail" platform={platform} username={username} hasUsername={isIdentityValid} />
+            <p className="text-xs text-muted-foreground">
+              Claim opens a proof window to verify this Gmail account. Connecting Gmail is not itself a zkTLS proof.
+            </p>
+          </div>
         ) : platform === 'linkedin' ? (
           <ReceiveOAuthStatus connected={Boolean(linkedinAccessToken)} platformLabel="LinkedIn" platform={platform} username={username} hasUsername={isIdentityValid} />
         ) : (
-          <div className="space-y-2 rounded-xl border bg-background p-3">
-            <div className="text-sm font-medium">Reclaim proof</div>
-            <div className="text-xs text-muted-foreground">
-              For this platform you’ll generate a Reclaim proof (no OAuth needed).
-            </div>
-                  data-tour="pending-payment-row"
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={startReclaimFlow}
-                disabled={proofLoading || !isIdentityValid}
-              >
-                {proofLoading ? 'Generating...' : reclaimProofs?.length ? 'Regenerate proof' : 'Generate proof'}
-              </Button>
-              {reclaimProofs?.length ? <div className="text-xs text-muted-foreground self-center">Proof ready</div> : null}
-            </div>
-            {proofError ? <div className="text-xs text-red-500">{proofError}</div> : null}
-          </div>
+          <p className="text-sm text-muted-foreground">
+            Claim opens a proof window for this platform. You do not need to generate a proof first.
+          </p>
         )}
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -818,6 +697,7 @@ export function PendingPayments({
               {directRows.map((d) => (
                 <div
                   key={d.depositId}
+                  data-tour="pending-payment-row"
                   className="flex flex-col gap-2 rounded-lg border p-3 md:flex-row md:items-center md:justify-between"
                 >
                   <div className="space-y-1">
@@ -888,6 +768,7 @@ export function PendingPayments({
               {rows.map((p) => (
                 <div
                   key={p.paymentId}
+                  data-tour="pending-payment-row"
                   className={`flex flex-col gap-2 rounded-lg border p-3 md:flex-row md:items-center md:justify-between ${
                     highlightPaymentId === p.paymentId ? 'border-emerald-400 bg-emerald-50/70 dark:bg-emerald-950/20' : ''
                   }`}

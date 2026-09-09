@@ -1,4 +1,4 @@
-import { creatorPaywallClient } from '@/lib/paywall/paywallClient';
+import { leptonApiClient } from '@/lib/lepton/leptonApiClient';
 
 export type LeptonCatalogResource = {
   type: string;
@@ -36,5 +36,5 @@ export type LeptonCatalogResponse = {
 };
 
 export async function fetchLeptonCatalog(): Promise<LeptonCatalogResponse> {
-  return creatorPaywallClient<LeptonCatalogResponse>('/lepton-hackathon');
+  return leptonApiClient<LeptonCatalogResponse>('/lepton-hackathon');
 }

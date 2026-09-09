@@ -6,10 +6,17 @@ import { TwitterIcon } from '@/components/blog/giftCardPreviewIcons';
 
 type PaymentsRecipientPreviewProps = {
   compact?: boolean;
+  /** Twitter/Supabase avatar URL — same source as Send tab preview. */
+  profileImageUrl?: string | null;
 };
 
 /** Recipient "To" field with platform picker + suggestion, from zk Payments Send. */
-export function PaymentsRecipientPreview({ compact }: PaymentsRecipientPreviewProps) {
+export function PaymentsRecipientPreview({
+  compact,
+  profileImageUrl,
+}: PaymentsRecipientPreviewProps) {
+  const avatarSrc = profileImageUrl || '/circle-avatar.svg';
+
   return (
     <div className={`pointer-events-none select-none space-y-2 ${compact ? 'p-3' : 'p-5'}`}>
       <Label className={compact ? 'text-xs text-gray-700' : 'text-sm text-gray-700'}>To</Label>
@@ -18,7 +25,7 @@ export function PaymentsRecipientPreview({ compact }: PaymentsRecipientPreviewPr
         <div className="relative flex-1">
           <Input
             readOnly
-            value="Arc"
+            value="Circle"
             tabIndex={-1}
             className="pr-8"
             aria-label="Recipient"
@@ -45,18 +52,18 @@ export function PaymentsRecipientPreview({ compact }: PaymentsRecipientPreviewPr
           compact ? 'px-2.5 py-2' : 'px-3 py-2.5'
         }`}
       >
-        <div
-          className={`flex shrink-0 items-center justify-center rounded-full bg-[#0A2540] text-white font-semibold ${
-            compact ? 'h-7 w-7 text-[10px]' : 'h-8 w-8 text-xs'
+        <img
+          src={avatarSrc}
+          alt=""
+          className={`shrink-0 rounded-full object-cover bg-gray-100 ${
+            compact ? 'h-7 w-7' : 'h-8 w-8'
           }`}
-        >
-          A
-        </div>
+        />
         <div className={`min-w-0 flex-1 ${compact ? 'text-xs' : 'text-sm'}`}>
           <span className="font-medium text-gray-900 underline decoration-muted-foreground/50 underline-offset-2">
-            Arc
+            Circle
           </span>{' '}
-          <span className="text-gray-500">@arc</span>
+          <span className="text-gray-500">@circle</span>
         </div>
         <CheckCircle2 className={`shrink-0 text-sky-500 ${compact ? 'h-4 w-4' : 'h-5 w-5'}`} />
       </div>

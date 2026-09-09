@@ -1,5 +1,5 @@
 import type { ZkOAuthIdentity } from './types';
-import { fetchGithubSessionUser, getStoredGithubAccessToken } from '@/lib/paywall/githubSession';
+import { fetchGithubSessionUser, getStoredGithubAccessToken } from './githubSession';
 
 const PLATFORM_LABEL = 'GitHub';
 

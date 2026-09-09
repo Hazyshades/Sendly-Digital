@@ -1,4 +1,4 @@
-import { fetchGithubSessionUser, getStoredGithubAccessToken } from '@/lib/paywall/githubSession';
+import { fetchGithubSessionUser, getStoredGithubAccessToken } from './githubSession';
 
 export async function resolveGithubDisplayName(): Promise<string | null> {
   const token = getStoredGithubAccessToken();

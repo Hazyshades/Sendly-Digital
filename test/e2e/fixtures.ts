@@ -531,12 +531,6 @@ async function handleFunctions(route: Route, state: MutableState, pathname: stri
     await fulfillJson(route, { success: true, card: card ?? null });
     return;
   }
-  // Paywall is outside this P0 suite; a deterministic 404 lets the zk route
-  // render its ordinary not-found state without a live creator API.
-  if (pathname.includes('/creator-paywall/paywall/')) {
-    await fulfillJson(route, { error: 'Not found' }, 404);
-    return;
-  }
   if (pathname.includes('/gift-cards')) {
     await fulfillJson(route, { success: true, card: state.giftCards[0] ?? null });
     return;
@@ -685,6 +679,12 @@ async function installBrowserFixture(context: BrowserContext, scenario: E2EScena
           },
         ],
         [defaultIdentity.platform]: { subject: defaultIdentity.socialUserId, username: defaultIdentity.username },
+      }
+    : null);
+
+  await context.addInitScript(
+    ({ configuredWallet, configuredIdentities, configuredPrivyUser, paymentsOnboarding }) => {
+      const byPlatform = Object.fromEntries(configuredIdentities.map((identity) => [identity.platform, identity]));
       if (paymentsOnboarding === 'first-run') {
         if (localStorage.getItem('sendly:e2e:payments-onboarding-initialized') !== 'true') {
           localStorage.removeItem('sendly:onboarding:payments:v1');
@@ -693,12 +693,6 @@ async function installBrowserFixture(context: BrowserContext, scenario: E2EScena
       } else {
         localStorage.setItem('sendly:onboarding:payments:v1', 'dismissed');
       }
-      }
-    : null);
-
-  await context.addInitScript(
-    ({ configuredWallet, configuredIdentities, configuredPrivyUser, paymentsOnboarding }) => {
-      const byPlatform = Object.fromEntries(configuredIdentities.map((identity) => [identity.platform, identity]));
       const twitter = byPlatform.twitter;
       if (twitter) {
         localStorage.setItem('twitter_oauth1_token', 'e2e-twitter-token');

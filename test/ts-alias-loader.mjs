@@ -17,10 +17,12 @@ const STUB_BY_SRC_REL = {
   `,
   'lib/supabase/client.tsx': `
     export async function apiCall() { return {}; }
+    export async function edgeFetch() { return { ok: false, status: 500, data: {} }; }
     export default {};
   `,
   'lib/supabase/client.ts': `
     export async function apiCall() { return {}; }
+    export async function edgeFetch() { return { ok: false, status: 500, data: {} }; }
     export default {};
   `,
   'lib/web3/web3Service.ts': `

@@ -3,11 +3,9 @@ import { Link } from 'react-router-dom';
 import {
   ArrowRight,
   Bot,
-  CreditCard,
   Eye,
   Film,
   GitPullRequest,
-  PenLine,
   Plug,
   Receipt,
   Rocket,
@@ -42,7 +40,6 @@ import {
   type TwitchRaidPolicy,
 } from '@/lib/paywall/twitchPayoutAPI';
 
-const DEMO_ARTICLE_PATH = '/pay/leonissx/lepton-agents-hackathon';
 
 type PayoutKindCardConfig = {
   kind: PayoutKind;
@@ -329,28 +326,11 @@ const SETTINGS_MODULES: SecondaryModule[] = [
   },
 ];
 
-const PAYWALL_MODULES: SecondaryModule[] = [
-  {
-    id: 'creator',
-    title: 'Creator Studio',
-    description: 'Write paid articles and manage your creator storefront.',
-    actor: 'human',
-    icon: PenLine,
-    to: '/creator',
-  },
-  {
-    id: 'human-paywall',
-    title: 'Paywall',
-    description: 'A reader pays the creator for the content.',
-    actor: 'human',
-    icon: CreditCard,
-    to: '/creator',
-    footnote: { label: 'Open demo article', to: DEMO_ARTICLE_PATH },
-  },
+const LEPTON_MODULES: SecondaryModule[] = [
   {
     id: 'citation',
     title: 'Citation Agent',
-    description: 'An AI agent pays for paywall slugs, then returns a cited answer - real Arc txs.',
+    description: 'An AI agent pays for registered research sources, then returns a cited answer - real Arc txs.',
     actor: 'agent',
     icon: Bot,
     to: '/agent/citation',
@@ -361,7 +341,8 @@ const PAYWALL_MODULES: SecondaryModule[] = [
   },
 ];
 
-const ALL_SECONDARY_MODULES = [...SETTINGS_MODULES, ...PAYWALL_MODULES];
+const ALL_SECONDARY_MODULES = [...SETTINGS_MODULES, ...LEPTON_MODULES];
+
 
 function ActorTag({ actor }: { actor: ModuleActor }) {
   const meta = ACTOR_META[actor];
@@ -724,17 +705,14 @@ export function LeptonHubPage() {
         </div>
       </section>
 
-      {/* Others → Paywall */}
+      {/* Agent tools */}
       <section className="space-y-3">
         <div className="flex items-center gap-3">
-          <h2 className="text-sm font-medium text-foreground">Others</h2>
+          <h2 className="text-sm font-medium text-foreground">Agent tools</h2>
           <div className="h-px flex-1 bg-border" />
         </div>
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-muted-foreground">Paywall</p>
-        </div>
         <div className="space-y-3">
-          {PAYWALL_MODULES.map((mod, i) => (
+          {LEPTON_MODULES.map((mod, i) => (
             <SecondaryRow
               key={mod.id}
               module={mod}

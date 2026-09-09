@@ -20,6 +20,15 @@ import {
 } from '@/lib/circle/developerWalletService';
 import { isZkLocalhost } from '@/lib/runtime/zkHost';
 import web3Service from '@/lib/web3/web3Service';
+import {
+  defaultBrowserTokenSource,
+  type ClaimOAuthTokens,
+  type TokenSource,
+} from '@/lib/zksend/tokenSource';
+import { createBrowserProofSession, type ProofSession } from '@/lib/zksend/proofSession';
+
+export type { ClaimOAuthTokens, TokenSource } from '@/lib/zksend/tokenSource';
+export type { ProofSession } from '@/lib/zksend/proofSession';
 
 /** Platforms that acquire proof via zkFetch (OAuth-backed). */
 export const ZKFETCH_PLATFORMS = [
@@ -32,19 +41,6 @@ export const ZKFETCH_PLATFORMS = [
 ] as const;
 
 export type ZkFetchPlatform = (typeof ZKFETCH_PLATFORMS)[number];
-
-export type ClaimOAuthTokens = {
-  twitterAccessToken?: string | null;
-  oauth1Token?: string | null;
-  oauth1TokenSecret?: string | null;
-  twitchAccessToken?: string | null;
-  githubAccessToken?: string | null;
-  telegramAccessToken?: string | null;
-  instagramAccessToken?: string | null;
-  linkedinAccessToken?: string | null;
-  gmailAccessToken?: string | null;
-  privyAccessToken?: string | null;
-};
 
 export type ZkFetchDescriptor = {
   requestUrl: string;
@@ -89,11 +85,15 @@ export type ClaimExecutorContext = {
   recipientAddress: string;
   loginUsername: string;
   platform: string;
-  tokens: ClaimOAuthTokens;
+  /** Optional override; omitted → TokenSource (browser storage by default). */
+  tokens?: ClaimOAuthTokens;
+  tokenSource?: TokenSource;
+  /** Optional Privy bearer for Twitter zkFetch on non-zk.localhost. */
+  readPrivyAccessToken?: () => Promise<string | null>;
   primaryIdentityHash?: `0x${string}` | null;
-  reclaimProofs?: ReclaimProof[] | null;
-  reclaimMinSignatures: number;
-  getReclaimApiUrl: (path: string) => string;
+  proofSession?: ProofSession;
+  reclaimMinSignatures?: number;
+  getReclaimApiUrl?: (path: string) => string;
   resolveCurrency: (tokenAddressOrSymbol: string) => string;
   developerWallet?: DeveloperWallet | null;
   attribution?: ClaimAttribution;
@@ -131,6 +131,36 @@ function readViteEnv(name: string): string | undefined {
   }
   if (typeof process !== 'undefined' && process.env?.[name]) return process.env[name];
   return undefined;
+}
+
+function defaultGetReclaimApiUrl(path: string): string {
+  const envUrl = readViteEnv('VITE_ZKTLS_SERVICE_URL') || readViteEnv('VITE_ZKTLS_API_URL');
+  const base = (
+    envUrl ||
+    (typeof window !== 'undefined' && window.location?.origin) ||
+    'http://localhost:3001'
+  ).replace(/\/$/, '');
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  if (typeof window !== 'undefined' && window.location?.origin && base === window.location.origin) {
+    return normalizedPath;
+  }
+  return `${base}${normalizedPath}`;
+}
+
+function defaultMinSignatures(): number {
+  const raw = Number(readViteEnv('VITE_RECLAIM_MIN_SIGNATURES') ?? 2);
+  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 2;
+}
+
+async function resolveClaimTokens(ctx: ClaimExecutorContext): Promise<ClaimOAuthTokens> {
+  if (ctx.tokens) {
+    if (ctx.tokens.privyAccessToken || !ctx.readPrivyAccessToken) return ctx.tokens;
+    return { ...ctx.tokens, privyAccessToken: await ctx.readPrivyAccessToken() };
+  }
+  const source = ctx.tokenSource ?? defaultBrowserTokenSource;
+  const fromSource = await source.read();
+  if (fromSource.privyAccessToken || !ctx.readPrivyAccessToken) return fromSource;
+  return { ...fromSource, privyAccessToken: await ctx.readPrivyAccessToken() };
 }
 
 export function resolveClaimIdentityHash(
@@ -382,12 +412,20 @@ async function acquireZkFetchProofs(input: {
 async function acquireReclaimProofs(input: {
   platform: SocialPlatform;
   loginUsername: string;
-  reclaimProofs?: ReclaimProof[] | null;
+  recipient: string;
+  paymentId?: string;
+  proofSession?: ProofSession;
 }): Promise<ReclaimProof[]> {
-  if (!input.reclaimProofs || input.reclaimProofs.length === 0) {
-    throw new Error('Generate Reclaim proof first');
+  const session = input.proofSession ?? createBrowserProofSession();
+  const proofsArray = await session.run({
+    platform: input.platform,
+    username: input.loginUsername,
+    recipient: input.recipient,
+    paymentId: input.paymentId,
+  });
+  if (!proofsArray || proofsArray.length === 0 || !proofsArray[0]) {
+    throw new Error('Proof session cancelled');
   }
-  const proofsArray = input.reclaimProofs;
   const extractedUsername = normalizeSocialUsername(
     String(proofsArray[0]?.extractedParameterValues?.username || ''),
   );
@@ -485,7 +523,11 @@ export async function claimPayments(input: {
     throw new Error('Connect wallet to claim payment');
   }
 
-  const prerequisites = await ensureProofPrerequisites(ctx.platform, ctx.tokens);
+  const tokens = await resolveClaimTokens(ctx);
+  const getReclaimApiUrl = ctx.getReclaimApiUrl ?? defaultGetReclaimApiUrl;
+  const reclaimMinSignatures = ctx.reclaimMinSignatures ?? defaultMinSignatures();
+
+  const prerequisites = await ensureProofPrerequisites(ctx.platform, tokens);
   const { platform: normalizedPlatform, twitchUserId } = prerequisites;
 
   const identityHashValue =
@@ -501,20 +543,22 @@ export async function claimPayments(input: {
         twitchUserId,
         paymentId: payments[0].paymentId,
         recipient: ctx.recipientAddress,
-        tokens: ctx.tokens,
-        getReclaimApiUrl: ctx.getReclaimApiUrl,
+        tokens,
+        getReclaimApiUrl,
         identityHash: identityHashValue,
       })
     : await acquireReclaimProofs({
         platform: normalizedPlatform,
         loginUsername: ctx.loginUsername,
-        reclaimProofs: ctx.reclaimProofs,
+        recipient: ctx.recipientAddress,
+        paymentId: payments[0].paymentId,
+        proofSession: ctx.proofSession,
       });
 
   callbacks?.onProofAcquired?.(proofsArray);
 
   if (isZkFetchPlatform(normalizedPlatform)) {
-    assertSignatureCount(proofsArray, ctx.reclaimMinSignatures);
+    assertSignatureCount(proofsArray, reclaimMinSignatures);
   }
 
   const verify = await verifyReclaimProofs(proofsArray);

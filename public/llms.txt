@@ -22,9 +22,9 @@ Primary treasury platforms:
 
 `github`, `twitch`
 
-HTTP `402 Payment Required` is the agent payment protocol when an endpoint requires on-chain settlement before access.
+HTTP `402 Payment Required` is the agent payment protocol for endpoints that require on-chain settlement.
 
-Always read `platform` and `identityHash` from the `402` response body. Wrong platform produces a payment that does not match the expected identity hash.
+Always read `platform` and `identityHash` from the response body or treasury receipt. Wrong platform produces a payment that does not match the expected identity hash.
 
 ---
 
@@ -68,67 +68,6 @@ Examples:
 
 ---
 
-# HTTP 402 Agent Payment
-
-When a protected endpoint returns HTTP `402`, read payment instructions from the JSON body.
-
-Typical fields:
-
-`priceUsdc`
-`recipient.platform`
-`recipient.handle`
-`identityHash`
-`chainId`
-`usdcAddress`
-`contractAddress`
-
-Example recipient:
-
-```json
-{
-  "platform": "github",
-  "handle": "hazyshades"
-}
-```
-
-Do not assume the platform. Use the exact value from the `402` response.
-
----
-
-## Execute payment on Arc
-
-Approve:
-
-`USDC.approve(contractAddress, amountAtomic)`
-
-Then call:
-
-`ZkSend.createPayment(identityHash, platform, amountAtomic, usdcAddress)`
-
-Where:
-
-`identityHash` and `platform` come from the `402` response
-`amountAtomic = priceUsdc * 1_000_000`
-`usdcAddress` from the `402` response
-
-Agent execution may use Circle Wallet execution if available.
-
----
-
-## Retry with payment proof
-
-After the Arc transaction is submitted, retry the original request with:
-
-`X-Sendly-Payment-Id: <paymentId>`
-`X-Sendly-Tx-Hash: <txHash>`
-`X-Sendly-Source: agent`
-
-Allowed source values:
-
-`agent`
-`human`
-
----
 
 # PR Payout Agent
 
@@ -529,17 +468,3 @@ Always read `platform` and `identityHash` from the `402` response or treasury re
 Always pay in USDC atomic units.
 
 Do not use ETH wei for USDC amounts.
-
-For HTTP 402 flows, retry with:
-
-`X-Sendly-Payment-Id`
-`X-Sendly-Tx-Hash`
-`X-Sendly-Source`
-
-If payment succeeds but access fails, check:
-
-wrong platform
-wrong identityHash
-wrong amount decimals
-wrong chain
-missing retry headers
