@@ -107,12 +107,12 @@ export function PaymentsOnboarding({
   if (preview || claimFlow) return null;
 
   return (
-    <div className="flex justify-end">
+    <div className="fixed right-2 bottom-[4.5rem] z-40 md:right-4 md:bottom-[5.5rem]">
       <Button
         type="button"
         variant="ghost"
         size="sm"
-        className="min-h-11"
+        className="min-h-[44px]"
         onClick={() => startTour('replay')}
       >
         Show Payments guide
