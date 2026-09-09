@@ -445,6 +445,17 @@ test.describe('Payments onboarding tour', () => {
     await expectPaymentsOnboardingState(app.page, 'dismissed');
   });
 
+  test('keeps Payments controls usable while the tour is active', async ({ app }, testInfo) => {
+    await openFirstRunPayments(app, testInfo);
+
+    const recipient = app.page.getByLabel('Recipient');
+    await recipient.fill('alice');
+    await app.page.getByRole('button', { name: 'Clear', exact: true }).click();
+
+    await expect(recipient).toHaveValue('');
+    await expect(app.page.locator('.sendly-driver-popover')).toHaveCount(0);
+  });
+
   test('persists dismissed state when the visitor clicks Skip tour', async ({ app }, testInfo) => {
     await openFirstRunPayments(app, testInfo);
 

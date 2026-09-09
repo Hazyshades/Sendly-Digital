@@ -5,15 +5,12 @@ import { writePaymentsOnboardingState } from './paymentsOnboardingStorage';
 const SENDLY_POPOVER_CLASS = 'sendly-driver-popover';
 const STEP_PROGRESS_TEXT = 'Step {{current}} of {{total}}';
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
-const PAYMENTS_INTERACTION_SELECTOR = [
-  '[data-tour="payments-tabs"]',
-  '#to-input',
-  '[aria-label="Choose platform"]',
-  '[data-tour="amount-field"]',
-  '[data-tour="wallet-source"]',
-  '[data-tour="identities-trigger-desktop"]',
-  '[data-tour="identities-trigger-mobile"]',
-  '[data-tour="payments-receive-tab"]',
+const NON_PAYMENTS_INTERACTION_SELECTOR = [
+  'header > a[href="/"]',
+  'nav a',
+  'button[aria-label="Hide panel"]',
+  'button[aria-label="Show panel"]',
+  '[aria-label="Open feedback form"]',
 ].join(', ');
 
 export type PaymentsTourMode = 'auto' | 'replay';
@@ -116,7 +113,7 @@ export function createPaymentsTour({ mode = 'auto' }: CreatePaymentsTourOptions 
 
       if (outsideClickScheduled) return;
       outsideClickScheduled = true;
-      if (!target.closest(PAYMENTS_INTERACTION_SELECTOR)) {
+      if (target.closest(NON_PAYMENTS_INTERACTION_SELECTOR)) {
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
