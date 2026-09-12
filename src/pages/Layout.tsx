@@ -135,6 +135,7 @@ export function Layout({ children }: LayoutProps) {
               <button
                 type="button"
                 onClick={() => setZkAccountsSheetOpen(true)}
+                data-tour="identities-trigger-mobile"
                 className="lg:hidden bg-white border border-gray-200 text-gray-900 hover:bg-gray-50 px-4 py-2 rounded-2xl transition-[transform,background-color] duration-200 ease-[var(--ease-out)] active:scale-[0.97] font-medium motion-reduce:transition-none motion-reduce:active:scale-100"
               >
                 Social

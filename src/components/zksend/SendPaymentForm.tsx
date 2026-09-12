@@ -2,22 +2,14 @@ import { useMemo, useState, useEffect } from 'react';
 import { useAccount, useWalletClient, useBalance, useChainId } from 'wagmi';
 import { toast } from 'sonner';
 import { Wallet } from 'lucide-react';
-import { createPublicClient, http, parseEventLogs } from 'viem';
+import { createPublicClient, http } from 'viem';
 
 import web3Service from '@/lib/web3/web3Service';
-import {
-  generateSocialIdentityHash,
-  normalizeGmailAddress,
-  normalizeSocialPlatform,
-  normalizeSocialUsername,
-} from '@/lib/reclaim/identity';
-import { createZkSendPaymentRecord } from '@/lib/zksend/zksendPaymentsAPI';
 import {
   getExplorerTxUrl,
   getContractsForChain,
   ARC_CHAIN_ID,
   ERC20ABI,
-  ZkSendABI,
   isDirectSendEscrowActiveForChain,
 } from '@/lib/web3/constants';
 import { createDirectDepositRecord } from '@/lib/directsend/directSendPaymentsAPI';
@@ -177,12 +169,6 @@ export function SendPaymentForm({
     };
   }, [walletSource, developerWallet?.wallet_address, tokenConfig.address, preview, contracts.rpcUrls]);
 
-  const normalizedUsername = useMemo(() => {
-    if (platform === 'gmail') return normalizeGmailAddress(username);
-    return normalizeSocialUsername(username.replace(/^@/, ''));
-  }, [platform, username]);
-  const normalizedPlatform = useMemo(() => (platform === 'address' ? null : normalizeSocialPlatform(platform)), [platform]);
-
   const balanceFormatted =
     preview && previewValues?.balance != null
       ? previewValues.balance
@@ -198,7 +184,6 @@ export function SendPaymentForm({
     try {
       setLastCreatedTxHash(null);
 
-      // Direct address sends remain on their existing path below.
       if (platform !== 'address') {
         setLoading(true);
         const outcome = await submitSocialZkSendPayment({
@@ -260,63 +245,26 @@ export function SendPaymentForm({
           throw new Error('Failed to check balance');
         }
 
-        if (platform === 'address') {
-          const recipientTrimmed = username.trim();
-          if (!/^0x[a-fA-F0-9]{40}$/.test(recipientTrimmed)) throw new Error('Enter a valid recipient address (0x...)');
-          const useEscrow = isDirectSendEscrowActiveForChain(activeChainId);
-          const directContract = useEscrow ? contracts.directSendV2 : contracts.directSend;
-          if (!directContract) {
-            throw new Error(
-              useEscrow
-                ? 'DirectSend V2 not configured (set VITE_*_DIRECT_SEND_V2_CONTRACT_ADDRESS)'
-                : 'DirectSend contract not configured'
-            );
-          }
-          const sendRes = await DeveloperWalletService.executeContractCall({
-            walletId: developerWallet.circle_wallet_id,
-            walletAddress: developerWallet.wallet_address,
-            contractAddress: directContract,
-            abiFunctionSignature: useEscrow ? 'depositFor' : 'sendToAddress',
-            abiParameters: [recipientTrimmed, amountWei, tokenAddress],
-            ensureAllowance: {
-              tokenAddress,
-              spenderAddress: directContract,
-              amountMicro: totalWei,
-            },
-            attribution: {
-              privyUserId: privyUserIdForTx,
-              socialPlatform: developerWallet.social_platform ?? undefined,
-              socialUserId: developerWallet.social_user_id ?? undefined,
-            },
-          });
-          let txHash = sendRes.txHash ?? '';
-          toast.success('Payment sent successfully!');
-          if (txHash) {
-            toast.success(
-              <span>
-                Payment sent successfully!{' '}
-                <a href={getExplorerTxUrl(activeChainId, txHash)} target="_blank" rel="noopener noreferrer" className="font-medium">
-                  TX: <span className="underline">{txHash.slice(0, 10)}...{txHash.slice(-8)}</span>
-                </a>
-              </span>
-            );
-          }
-          return;
+        const recipientTrimmed = username.trim();
+        if (!/^0x[a-fA-F0-9]{40}$/.test(recipientTrimmed)) throw new Error('Enter a valid recipient address (0x...)');
+        const useEscrow = isDirectSendEscrowActiveForChain(activeChainId);
+        const directContract = useEscrow ? contracts.directSendV2 : contracts.directSend;
+        if (!directContract) {
+          throw new Error(
+            useEscrow
+              ? 'DirectSend V2 not configured (set VITE_*_DIRECT_SEND_V2_CONTRACT_ADDRESS)'
+              : 'DirectSend contract not configured'
+          );
         }
-
-        if (!normalizedUsername) throw new Error('Enter recipient');
-        if (!normalizedPlatform) throw new Error('Unsupported platform');
-        const socialIdentityHash = generateSocialIdentityHash(normalizedPlatform, normalizedUsername);
-        if (!socialIdentityHash) throw new Error('Invalid social identity');
-        const createRes = await DeveloperWalletService.executeContractCall({
+        const sendRes = await DeveloperWalletService.executeContractCall({
           walletId: developerWallet.circle_wallet_id,
           walletAddress: developerWallet.wallet_address,
-          contractAddress: contracts.zksend,
-          abiFunctionSignature: 'createPayment',
-          abiParameters: [socialIdentityHash, normalizedPlatform, amountWei, tokenAddress],
+          contractAddress: directContract,
+          abiFunctionSignature: useEscrow ? 'depositFor' : 'sendToAddress',
+          abiParameters: [recipientTrimmed, amountWei, tokenAddress],
           ensureAllowance: {
             tokenAddress,
-            spenderAddress: contracts.zksend,
+            spenderAddress: directContract,
             amountMicro: totalWei,
           },
           attribution: {
@@ -325,68 +273,17 @@ export function SendPaymentForm({
             socialUserId: developerWallet.social_user_id ?? undefined,
           },
         });
-        let txHash = createRes.txHash ?? '';
-        let paymentId: string | null = null;
+        let txHash = sendRes.txHash ?? '';
+        toast.success('Payment sent successfully!');
         if (txHash) {
-          try {
-            const publicClient = createPublicClient({
-              chain: arcTestnet,
-              transport: http(),
-            });
-            const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
-            if (receipt?.logs) {
-              const parsed = parseEventLogs({
-                abi: ZkSendABI,
-                logs: receipt.logs,
-                eventName: 'PaymentCreated',
-              });
-              const ev = parsed?.[0] as { args?: { paymentId?: bigint } } | undefined;
-              if (ev?.args?.paymentId != null) paymentId = ev.args.paymentId.toString();
-            }
-          } catch (_) {
-            // ignore
-          }
-        }
-        if (paymentId) {
-          try {
-            await createZkSendPaymentRecord({
-              paymentId,
-              senderAddress: developerWallet.wallet_address,
-              recipientIdentityHash: socialIdentityHash,
-              platform: normalizedPlatform,
-              recipientUsername: username,
-              amount,
-              currency: tokenType,
-              txHash: txHash || undefined,
-              chainId: activeChainId,
-              contractAddress: contracts.zksend,
-            });
-          } catch (dbError) {
-            console.warn('[zkSEND] Failed to store payment in DB:', dbError);
-          }
-        }
-        if (paymentId && txHash) {
-          setLastCreatedTxHash(txHash);
-          toast.success(ZKSEND_SUCCESS_COPY.paymentCreated, {
-            description: (
-              <span className="text-sm">
-                TX: {renderTransactionLink(activeChainId, txHash)}
-              </span>
-            ),
-          });
-        } else if (paymentId) {
-          toast.success(ZKSEND_SUCCESS_COPY.paymentCreated);
-        } else if (txHash) {
-          setLastCreatedTxHash(txHash);
-          toast.success(ZKSEND_SUCCESS_COPY.paymentCreated, {
-            description: (
-              <span className="text-sm">
-                TX: {renderTransactionLink(activeChainId, txHash)}
-              </span>
-            ),
-          });
-        } else {
-          toast.success(ZKSEND_SUCCESS_COPY.paymentCreated);
+          toast.success(
+            <span>
+              Payment sent successfully!{' '}
+              <a href={getExplorerTxUrl(activeChainId, txHash)} target="_blank" rel="noopener noreferrer" className="font-medium">
+                TX: <span className="underline">{txHash.slice(0, 10)}...{txHash.slice(-8)}</span>
+              </a>
+            </span>
+          );
         }
         return;
       }
@@ -399,62 +296,37 @@ export function SendPaymentForm({
       setLoading(true);
       await web3Service.initialize(walletClient, address, activeChainId);
 
-      if (platform === 'address') {
-        const recipientTrimmed = username.trim();
-        if (!/^0x[a-fA-F0-9]{40}$/.test(recipientTrimmed)) throw new Error('Enter a valid recipient address (0x...)');
-        const useEscrow = isDirectSendEscrowActiveForChain(activeChainId);
+      const recipientTrimmed = username.trim();
+      if (!/^0x[a-fA-F0-9]{40}$/.test(recipientTrimmed)) throw new Error('Enter a valid recipient address (0x...)');
+      const useEscrow = isDirectSendEscrowActiveForChain(activeChainId);
 
-        if (useEscrow) {
-          const { txHash, depositId } = await web3Service.depositDirectToAddress({
-            recipient: recipientTrimmed as `0x${string}`,
-            amount,
-            tokenType,
-          });
-          if (depositId && txHash) {
-            try {
-              await createDirectDepositRecord({
-                depositId,
-                senderAddress: address,
-                recipientWallet: recipientTrimmed,
-                amount,
-                currency: tokenType,
-                txHash,
-                chainId: activeChainId,
-                contractAddress: contracts.directSendV2!,
-              });
-            } catch (dbError) {
-              console.warn('[DirectSend] Failed to store deposit in DB:', dbError);
-            }
-          }
-          toast.success('Deposit sent. Recipient can claim from the Receive tab.');
-          if (txHash) {
-            toast.success(
-              <span>
-                {depositId ? `Deposit #${depositId}. ` : ''}
-                <a
-                  href={getExplorerTxUrl(activeChainId, txHash)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium"
-                >
-                  TX: <span className="underline">{txHash.slice(0, 10)}...{txHash.slice(-8)}</span>
-                </a>
-              </span>
-            );
-          }
-          return;
-        }
-
-        const { txHash } = await web3Service.sendDirectToAddress({
+      if (useEscrow) {
+        const { txHash, depositId } = await web3Service.depositDirectToAddress({
           recipient: recipientTrimmed as `0x${string}`,
           amount,
           tokenType,
         });
-        toast.success('Payment sent successfully!');
+        if (depositId && txHash) {
+          try {
+            await createDirectDepositRecord({
+              depositId,
+              senderAddress: address,
+              recipientWallet: recipientTrimmed,
+              amount,
+              currency: tokenType,
+              txHash,
+              chainId: activeChainId,
+              contractAddress: contracts.directSendV2!,
+            });
+          } catch (dbError) {
+            console.warn('[DirectSend] Failed to store deposit in DB:', dbError);
+          }
+        }
+        toast.success('Deposit sent. Recipient can claim from the Receive tab.');
         if (txHash) {
           toast.success(
             <span>
-              Payment sent successfully!{' '}
+              {depositId ? `Deposit #${depositId}. ` : ''}
               <a
                 href={getExplorerTxUrl(activeChainId, txHash)}
                 target="_blank"
@@ -469,60 +341,26 @@ export function SendPaymentForm({
         return;
       }
 
-      if (!normalizedUsername) throw new Error('Enter recipient');
-      if (!normalizedPlatform) throw new Error('Unsupported platform');
-      const socialIdentityHash = generateSocialIdentityHash(normalizedPlatform, normalizedUsername);
-      if (!socialIdentityHash) throw new Error('Invalid social identity');
-      const { paymentId, txHash } = await web3Service.createZkSendPayment({
-        socialIdentityHash,
-        platform: normalizedPlatform,
+      const { txHash } = await web3Service.sendDirectToAddress({
+        recipient: recipientTrimmed as `0x${string}`,
         amount,
         tokenType,
       });
-
-      if (paymentId) {
-        try {
-          await createZkSendPaymentRecord({
-            paymentId,
-            senderAddress: address,
-            recipientIdentityHash: socialIdentityHash,
-            platform: normalizedPlatform,
-            recipientUsername: username,
-            amount,
-            currency: tokenType,
-            txHash,
-            chainId: activeChainId,
-            contractAddress: contracts.zksend,
-          });
-        } catch (dbError) {
-          console.warn('[zkSEND] Failed to store payment in DB:', dbError);
-        }
-      } else {
-        console.warn('[zkSEND] Payment created without paymentId; DB record was not stored.');
-      }
-
-      if (paymentId && txHash) {
-        setLastCreatedTxHash(txHash);
-        toast.success(ZKSEND_SUCCESS_COPY.paymentCreated, {
-          description: (
-            <span className="text-sm">
-              TX: {renderTransactionLink(activeChainId, txHash)}
-            </span>
-          ),
-        });
-      } else if (paymentId) {
-        toast.success(ZKSEND_SUCCESS_COPY.paymentCreated);
-      } else if (txHash) {
-        setLastCreatedTxHash(txHash);
-        toast.success(ZKSEND_SUCCESS_COPY.paymentCreated, {
-          description: (
-            <span className="text-sm">
-              TX: {renderTransactionLink(activeChainId, txHash)}
-            </span>
-          ),
-        });
-      } else {
-        toast.success(ZKSEND_SUCCESS_COPY.paymentCreated);
+      toast.success('Payment sent successfully!');
+      if (txHash) {
+        toast.success(
+          <span>
+            Payment sent successfully!{' '}
+            <a
+              href={getExplorerTxUrl(activeChainId, txHash)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium"
+            >
+              TX: <span className="underline">{txHash.slice(0, 10)}...{txHash.slice(-8)}</span>
+            </a>
+          </span>
+        );
       }
     } catch (e) {
       let msg = 'Failed to send payment';
@@ -585,7 +423,7 @@ export function SendPaymentForm({
     <Card>
       <CardContent className="pt-6 space-y-6">
         {/* Amount */}
-        <div className="space-y-2">
+        <div data-tour="amount-field" className="space-y-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="amount-input">Amount</Label>
             <div className="flex items-center gap-2">
@@ -595,6 +433,7 @@ export function SendPaymentForm({
                   onChange={onWalletSourceChange}
                   hasCircleWallet={hasDeveloperWallet}
                   compact
+                  dataTour="wallet-source"
                 />
               ) : null}
               <div className="flex items-center gap-1.5 text-sm text-muted-foreground">

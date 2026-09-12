@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { MessageSquare, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import MessageCircleIcon from '@/components/itshover-icons/message-circle-icon';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -25,6 +26,7 @@ const feedbackTypes = [
 
 export function FeedbackPanel() {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isFeedbackFocused, setIsFeedbackFocused] = useState(false);
   const [selectedType, setSelectedType] = useState<string>('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,6 +34,7 @@ export function FeedbackPanel() {
   const { address } = useAccount();
 
   const toggleExpand = () => {
+    setIsFeedbackFocused(false);
     setIsExpanded(!isExpanded);
     if (isExpanded) {
       // Reset form when closing
@@ -83,22 +86,31 @@ export function FeedbackPanel() {
     <div
       className={cn(
         'fixed right-2 bottom-2 md:right-4 md:bottom-4 z-50 transition-all duration-300 ease-in-out',
-        isExpanded ? 'w-[calc(100vw-1rem)] md:w-96 max-w-md' : 'w-14 md:w-16'
+        isExpanded ? 'w-[calc(100vw-1rem)] md:w-96 max-w-md' : 'w-[44px]'
       )}
     >
       <Card
         className={cn(
-          'bg-white/95 backdrop-blur-sm shadow-circle-card border-gray-200 overflow-hidden transition-all duration-300',
-          isExpanded ? 'h-[500px] md:h-[600px] max-h-[calc(100vh-2rem)]' : 'h-14 md:h-16'
+          'overflow-hidden transition-all duration-300',
+          isExpanded
+            ? 'h-[500px] md:h-[600px] max-h-[calc(100vh-2rem)] rounded-2xl bg-white/95 border-gray-200'
+            : 'h-[44px] w-[44px] rounded-full border-indigo-100/70 bg-white/75 hover:bg-white/95'
         )}
       >
         {!isExpanded ? (
           <button
+            type="button"
             onClick={toggleExpand}
-            className="w-full h-full flex items-center justify-center hover:bg-gray-50 transition-colors"
+            onFocus={() => setIsFeedbackFocused(true)}
+            onBlur={() => setIsFeedbackFocused(false)}
+            className="flex h-full w-full items-center justify-center text-indigo-600 transition-colors hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:ring-offset-2 motion-reduce:transition-none"
             aria-label="Open feedback form"
+            aria-expanded={isExpanded}
           >
-            <MessageSquare className="w-6 h-6 text-orange-500" />
+            <MessageCircleIcon
+              size={24}
+              active={isFeedbackFocused}
+            />
           </button>
         ) : (
           <>

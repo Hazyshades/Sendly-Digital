@@ -1,30 +1,27 @@
 import { edgeFetch, getApiUrl, type EdgeFetchInit, type EdgeFetchRawResult } from '@/lib/supabase/client';
 
-/** Resolved creator-paywall function base (env override or `/creator-paywall` under getApiUrl). */
-export function getCreatorPaywallBase(): string {
+/** Resolved API base for retained Lepton endpoints. */
+export function getLeptonApiBase(): string {
   return (
     (import.meta.env.VITE_CREATOR_PAYWALL_URL as string | undefined)?.trim().replace(/\/$/, '') ||
     `${getApiUrl()}/creator-paywall`
   );
 }
 
-type PaywallInit = Omit<EdgeFetchInit, 'baseUrl'>;
+type LeptonApiInit = Omit<EdgeFetchInit, 'baseUrl'>;
 
-/**
- * Thin edgeFetch wrapper for the creator-paywall Edge Function.
- * Defaults to anon Bearer auth (same as the previous per-file helpers).
- */
-export async function creatorPaywallClient<T = unknown>(
+/** Thin edgeFetch wrapper for retained Lepton endpoints. */
+export async function leptonApiClient<T = unknown>(
   path: string,
-  init: PaywallInit & { rawResponse: true },
+  init: LeptonApiInit & { rawResponse: true },
 ): Promise<EdgeFetchRawResult<T>>;
-export async function creatorPaywallClient<T = unknown>(
+export async function leptonApiClient<T = unknown>(
   path: string,
-  init?: PaywallInit & { rawResponse?: false },
+  init?: LeptonApiInit & { rawResponse?: false },
 ): Promise<T>;
-export async function creatorPaywallClient<T = unknown>(
+export async function leptonApiClient<T = unknown>(
   path: string,
-  init?: PaywallInit,
+  init?: LeptonApiInit,
 ): Promise<T | EdgeFetchRawResult<T>> {
   const { rawResponse, ...rest } = init ?? {};
   if (rawResponse) {
@@ -33,10 +30,7 @@ export async function creatorPaywallClient<T = unknown>(
   return edgeFetch<T>('creator-paywall', path, { auth: 'anon', ...rest, rawResponse: false });
 }
 
-/**
- * Normalize list payloads: many paywall routes return `{ items }` or a domain key
- * (`receipts` / `policies` / `campaigns` / `bounties`).
- */
+/** Normalize list payloads returned by retained Lepton endpoints. */
 export function unwrapItems<T>(data: Record<string, unknown>, altKey: string): T[] {
   if (Array.isArray(data.items)) return data.items as T[];
   const alt = data[altKey];

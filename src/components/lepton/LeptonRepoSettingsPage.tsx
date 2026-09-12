@@ -284,7 +284,7 @@ export function LeptonRepoSettingsPage() {
         <Card>
           <CardContent className="pt-6 text-sm text-muted-foreground">
             No repository payout policy configured yet. A maintainer can set one via{' '}
-            <code className="text-xs">POST /pr-payout-policy</code> on the creator-paywall API.
+            <code className="text-xs">POST /pr-payout-policy</code> on the retained Lepton API.
           </CardContent>
         </Card>
       ) : (

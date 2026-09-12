@@ -6,6 +6,8 @@
 import { edgeFetch } from '@/lib/supabase/client';
 
 export interface TwitchUserPreview {
+  /** Helix user id when zk-sender returns it. Optional so avatar preview still works. */
+  id?: string;
   login: string;
   display_name: string;
   profile_image_url: string | null;
@@ -46,6 +48,9 @@ export function formatTwitchFollowers(total: number): string {
 }
 
 type TwitchEdgeBody = {
+  id?: string | number;
+  user_id?: string | number;
+  userId?: string | number;
   login?: string;
   display_name?: string;
   profile_image_url?: string | null;
@@ -53,6 +58,17 @@ type TwitchEdgeBody = {
   error?: string;
   code?: string;
 };
+
+/** Read Helix numeric id from zk-sender / Helix-shaped JSON. */
+export function readTwitchHelixId(body: {
+  id?: unknown;
+  user_id?: unknown;
+  userId?: unknown;
+}): string | undefined {
+  const raw = body.id ?? body.user_id ?? body.userId;
+  const id = String(raw ?? '').trim();
+  return id || undefined;
+}
 
 /**
  * Fetch Twitch user profile by login for preview.
@@ -75,6 +91,7 @@ export async function fetchTwitchUserPreview(login: string): Promise<TwitchUserL
       return {
         success: true,
         data: {
+          id: readTwitchHelixId(body),
           login: body.login,
           display_name: body.display_name ?? body.login,
           profile_image_url: body.profile_image_url ?? null,

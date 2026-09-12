@@ -1,7 +1,7 @@
 import { toMicro, fromMicro } from '@/lib/tokenAmount';
-import { creatorPaywallClient, getCreatorPaywallBase, unwrapItems } from '@/lib/paywall/paywallClient';
+import { leptonApiClient, getLeptonApiBase, unwrapItems } from '@/lib/lepton/leptonApiClient';
 
-export { getCreatorPaywallBase };
+export { getLeptonApiBase };
 
 export type PayoutKind = 'merge' | 'bounty' | 'release' | 'review';
 
@@ -92,16 +92,16 @@ export function formatUsdcAmount(value: string | number | undefined | null): str
 }
 
 export async function fetchPrPayoutReceipts(): Promise<PrPayoutReceipt[]> {
-  const data = await creatorPaywallClient<Record<string, unknown>>('/pr-payouts');
+  const data = await leptonApiClient<Record<string, unknown>>('/pr-payouts');
   return unwrapItems<PrPayoutReceipt>(data, 'receipts');
 }
 
 export async function fetchPrPayoutPolicies(): Promise<PrPayoutPolicy[]> {
-  const data = await creatorPaywallClient<Record<string, unknown>>('/pr-payout-policy');
+  const data = await leptonApiClient<Record<string, unknown>>('/pr-payout-policy');
   return unwrapItems<PrPayoutPolicy>(data, 'policies');
 }
 
 export async function fetchActiveIssueBounties(): Promise<IssueBounty[]> {
-  const data = await creatorPaywallClient<Record<string, unknown>>('/repo-bounties');
+  const data = await leptonApiClient<Record<string, unknown>>('/repo-bounties');
   return unwrapItems<IssueBounty>(data, 'bounties');
 }

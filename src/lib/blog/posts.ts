@@ -36,7 +36,7 @@ export const BLOG_POSTS: BlogPostMeta[] = [
     slug: 'zktls-payments-guide',
     title: 'zkTLS in Sendly Payments: prove ownership and unlock USDC',
     description:
-      'We use platform:username as the recipient identifier (e.g. twitter:alice). zkTLS proves ownership, then the contract unlocks USDC to the recipient wallet.',
+      'We use platform:username as the recipient identifier (e.g. twitter:circle). zkTLS proves ownership, then the contract unlocks USDC to the recipient wallet.',
     date: '2026-08-01',
     category: 'Tutorial',
     tags: ['zkTLS', 'zkSend', 'Payments'],

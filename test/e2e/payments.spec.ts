@@ -8,6 +8,7 @@ import {
   test,
   type E2EApp,
 } from './fixtures';
+import { PAYMENTS_ONBOARDING_STORAGE_KEY } from '../../src/lib/onboarding/paymentsOnboardingStorage';
 
 const ARC_CHAIN_ID = 5_042_002;
 const directSendClaimMode = process.env.E2E_DIRECT_SEND_CLAIM_MODE === 'escrow_v2' ? 'escrow_v2' : 'legacy';
@@ -323,4 +324,197 @@ test.describe('Receive payment UI', () => {
     });
   });
 
+});
+
+function requireZkTourProject(testInfo: TestInfo) {
+  test.skip(
+    testInfo.project.name !== 'zk-desktop' && testInfo.project.name !== 'zk-mobile',
+    'Payments onboarding coverage runs on the zk-host projects.',
+  );
+}
+
+async function openFirstRunPayments(app: E2EApp, testInfo: TestInfo) {
+  requireZkTourProject(testInfo);
+  await app.gotoZk('/payments');
+  await expect(app.page.locator('.sendly-driver-popover')).toBeVisible();
+}
+
+async function advancePaymentsTour(page: Page) {
+  await page
+    .locator('.sendly-driver-popover')
+    .getByRole('button', { name: 'Next', exact: true })
+    .click();
+}
+
+async function expectActiveTourTarget(page: Page, selector: string) {
+  await expect(page.locator(`${selector}.driver-active-element`)).toBeVisible();
+}
+
+async function readPaymentsOnboardingState(page: Page) {
+  return page.evaluate((key) => localStorage.getItem(key), PAYMENTS_ONBOARDING_STORAGE_KEY);
+}
+async function expectPaymentsOnboardingState(
+  page: Page,
+  state: 'completed' | 'dismissed',
+) {
+  await expect.poll(() => readPaymentsOnboardingState(page)).toBe(state);
+}
+
+test.describe('Payments onboarding tour', () => {
+  test.use({ scenario: { paymentsOnboarding: 'first-run' } });
+
+  test('starts on normal zk Payments and explains each available control without side effects', async ({ app }, testInfo) => {
+    requireZkTourProject(testInfo);
+    const sideEffects: string[] = [];
+    app.page.on('request', (request) => {
+      if (request.method() !== 'POST' && request.method() !== 'PATCH') return;
+      if (/\/wallets\/send-transaction|\/zk-sender\/payments|\/oauth|\/claim/.test(request.url())) {
+        sideEffects.push(request.url());
+      }
+    });
+
+    await app.gotoZk('/payments');
+
+    const popover = app.page.locator('.sendly-driver-popover');
+    await expect(popover).toContainText('A quick tour of Payments');
+    await expect(app.page.getByRole('button', { name: 'Skip Payments guide', exact: true })).toBeVisible();
+    await expect(
+      app.page.locator('[data-tour="wallet-source"][data-tour-state="available"]'),
+    ).toHaveCount(0);
+    await expect(app.page.getByLabel('Recipient')).toHaveValue('');
+    await expect(app.page.getByLabel('Amount', { exact: true })).toHaveValue('');
+
+    await advancePaymentsTour(app.page);
+    await expectActiveTourTarget(app.page, '[data-tour="payments-tabs"]');
+
+    await advancePaymentsTour(app.page);
+    await expectActiveTourTarget(app.page, '#to-input');
+
+    await advancePaymentsTour(app.page);
+    await expectActiveTourTarget(app.page, '#amount-input');
+
+    const identitiesSelector =
+      testInfo.project.name === 'zk-mobile'
+        ? '[data-tour="identities-trigger-mobile"]'
+        : '[data-tour="identities-trigger-desktop"]';
+    await advancePaymentsTour(app.page);
+    await expectActiveTourTarget(app.page, identitiesSelector);
+
+    await advancePaymentsTour(app.page);
+    await expectActiveTourTarget(app.page, '[data-tour="payments-receive-tab"]');
+    await expect(popover).toContainText('Find incoming payments');
+
+    await popover.getByRole('button', { name: 'Done', exact: true }).click();
+    await expect(popover).toHaveCount(0);
+    await expectPaymentsOnboardingState(app.page, 'completed');
+    expect(sideEffects).toEqual([]);
+  });
+
+  test('persists dismissed state when the visitor presses Escape', async ({ app }, testInfo) => {
+    await openFirstRunPayments(app, testInfo);
+
+    await app.page.keyboard.press('Escape');
+    await expect(app.page.locator('.sendly-driver-popover')).toHaveCount(0);
+    await expectPaymentsOnboardingState(app.page, 'dismissed');
+
+    await app.page.reload({ waitUntil: 'commit' });
+    await expect(app.page.getByRole('tab', { name: 'Send', exact: true })).toBeVisible();
+    await expect(app.page.locator('.sendly-driver-popover')).toHaveCount(0);
+  });
+
+  test('persists dismissed state when the visitor clicks the backdrop', async ({ app }, testInfo) => {
+    await openFirstRunPayments(app, testInfo);
+
+    const overlay = app.page.locator('.driver-overlay');
+    await expect(overlay).toBeVisible();
+    const overlayBox = await overlay.boundingBox();
+    if (!overlayBox) throw new Error('Payments tour overlay has no layout box');
+    await app.page.mouse.click(overlayBox.x + 4, overlayBox.y + 4);
+
+    await expect(app.page.locator('.sendly-driver-popover')).toHaveCount(0);
+    await expectPaymentsOnboardingState(app.page, 'dismissed');
+  });
+
+  test('dismisses without activating unrelated shell controls', async ({ app }, testInfo) => {
+    await openFirstRunPayments(app, testInfo);
+
+    await app.page.getByRole('link', { name: 'Dashboard', exact: true }).click();
+
+    await expect(app.page).toHaveURL(/\/payments$/);
+    await expect(app.page.locator('.sendly-driver-popover')).toHaveCount(0);
+    await expectPaymentsOnboardingState(app.page, 'dismissed');
+  });
+
+  test('keeps Payments controls usable while the tour is active', async ({ app }, testInfo) => {
+    await openFirstRunPayments(app, testInfo);
+
+    const recipient = app.page.getByLabel('Recipient');
+    await recipient.fill('alice');
+    await app.page.getByRole('button', { name: 'Clear', exact: true }).click();
+
+    await expect(recipient).toHaveValue('');
+    await expect(app.page.locator('.sendly-driver-popover')).toHaveCount(0);
+  });
+
+  test('persists dismissed state when the visitor clicks Skip tour', async ({ app }, testInfo) => {
+    await openFirstRunPayments(app, testInfo);
+
+    await app.page.getByRole('button', { name: 'Skip Payments guide', exact: true }).click();
+    await expect(app.page.locator('.sendly-driver-popover')).toHaveCount(0);
+    await expectPaymentsOnboardingState(app.page, 'dismissed');
+  });
+
+  test('keeps completed state after reload and replay', async ({ app }, testInfo) => {
+    await openFirstRunPayments(app, testInfo);
+
+    for (let step = 0; step < 5; step += 1) {
+      await advancePaymentsTour(app.page);
+    }
+    await app.page.locator('.sendly-driver-popover').getByRole('button', { name: 'Done', exact: true }).click();
+    await expectPaymentsOnboardingState(app.page, 'completed');
+
+    await app.page.reload({ waitUntil: 'commit' });
+    await expect(app.page.getByRole('button', { name: 'Show Payments guide', exact: true })).toBeVisible();
+    await expect(app.page.locator('.sendly-driver-popover')).toHaveCount(0);
+
+    await app.page.getByRole('button', { name: 'Show Payments guide', exact: true }).click();
+    await expect(app.page.locator('.sendly-driver-popover')).toContainText('A quick tour of Payments');
+    await expectPaymentsOnboardingState(app.page, 'completed');
+
+    await app.page.getByRole('button', { name: 'Skip Payments guide', exact: true }).click();
+    await expectPaymentsOnboardingState(app.page, 'completed');
+  });
+
+  test('replays from the introduction without downgrading dismissed state', async ({ app }, testInfo) => {
+    await openFirstRunPayments(app, testInfo);
+
+    await app.page.getByRole('button', { name: 'Skip Payments guide', exact: true }).click();
+    await expectPaymentsOnboardingState(app.page, 'dismissed');
+
+    await app.page.getByRole('button', { name: 'Show Payments guide', exact: true }).click();
+    await expect(app.page.locator('.sendly-driver-popover')).toContainText('A quick tour of Payments');
+    await expectPaymentsOnboardingState(app.page, 'dismissed');
+    await app.page.getByRole('button', { name: 'Skip Payments guide', exact: true }).click();
+    await expectPaymentsOnboardingState(app.page, 'dismissed');
+  });
+
+  test('does not auto-start in a Payments preview', async ({ app }, testInfo) => {
+    test.skip(testInfo.project.name !== 'main-desktop', 'Preview coverage runs on the main host.');
+
+    await app.gotoMain('/blog/zktls-payments-guide');
+    await expect(
+      app.page.getByText('zkTLS in Sendly Payments: prove ownership and unlock USDC', { exact: true }),
+    ).toBeVisible();
+    await expect(app.page.locator('.sendly-driver-popover')).toHaveCount(0);
+    await expect(app.page.getByRole('button', { name: 'Show Payments guide', exact: true })).toHaveCount(0);
+  });
+
+  test('does not auto-start for a claim deep link', async ({ app }, testInfo) => {
+    requireZkTourProject(testInfo);
+
+    await app.gotoZk('/payments?platform=twitter&username=alice&paymentId=123&tab=receive');
+    await expect(app.page.getByRole('tab', { name: 'Receive', exact: true })).toBeVisible();
+    await expect(app.page.locator('.sendly-driver-popover')).toHaveCount(0);
+    await expect(app.page.getByRole('button', { name: 'Show Payments guide', exact: true })).toHaveCount(0);
+  });
 });

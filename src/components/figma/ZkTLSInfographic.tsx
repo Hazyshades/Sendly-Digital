@@ -6,7 +6,7 @@ interface CardData {
 
 const topCards: CardData[] = [
   { step: 1, title: 'Connect account', description: 'User connects social media account (Twitter, Twitch, GitHub)' },
-  { step: 2, title: 'TLS encryption', description: 'End-to-end encrypted communication via attestor proxy' },
+  { step: 2, title: 'TLS encryption', description: 'End-to-end encrypted communication with Attestor Proxy' },
   { step: 3, title: 'Create claim', description: 'Structured record of interaction with platform' },
 ];
 

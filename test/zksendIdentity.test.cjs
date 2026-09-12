@@ -17,6 +17,14 @@ async function loadClaimService() {
   return import('../src/lib/zksend/claimService.ts');
 }
 
+async function loadSocialRecipient() {
+  return import('../src/lib/zksend/socialRecipient.ts');
+}
+
+async function loadUserLookup() {
+  return import('../src/lib/twitch/userLookup.ts');
+}
+
 test('generateSocialIdentityHash is stable keccak for platform:username', async () => {
   const { generateSocialIdentityHash, buildSocialIdentity } = await loadIdentity();
   const { keccak256, toUtf8Bytes } = await import('ethers');
@@ -98,7 +106,7 @@ test('buildZkFetchDescriptor returns required fields for every platform', async 
 
   const expected = {
     twitter: {
-      requestUrl: 'https://api.x.com/1.1/account/verify_credentials.json?include_email=false&skip_status=true',
+      requestUrl: 'https://api.x.com/1.1/account/verify_credentials.json?skip_status=true',
       regexPattern: '"screen_name":"(?<username>[^"]+)"',
     },
     twitch: {
@@ -152,7 +160,320 @@ test('buildZkFetchDescriptor returns required fields for every platform', async 
     { twitterAccessToken: 'oauth2-only-token-xx' },
     { getReclaimApiUrl: (p) => p },
   );
-  assert.equal(oauth2.requestUrl, 'https://api.x.com/2/users/me?user.fields=username');
+  assert.equal(oauth2.requestUrl, 'https://api.x.com/2/users/me');
   assert.equal(oauth2.regexPattern, '"username":"(?<username>[^"]+)"');
   assert.equal(oauth2.accessToken, 'oauth2-only-token-xx');
+});
+
+function fakeZkFetchProof(username) {
+  return {
+    signatures: ['0xsig1', '0xsig2'],
+    extractedParameterValues: { username },
+  };
+}
+
+function baseExecutor(overrides = {}) {
+  return {
+    walletSource: 'external',
+    chainId: 5042002,
+    zksendAddress: '0x3',
+    recipientAddress: '0x1111111111111111111111111111111111111111',
+    loginUsername: 'alice',
+    platform: 'twitter',
+    resolveCurrency: () => 'USDC',
+    proofSession: {
+      async run() {
+        throw new Error('ProofSession should not run for zkFetch platforms');
+      },
+    },
+    ...overrides,
+  };
+}
+
+async function withFakeProve(fn) {
+  const orig = globalThis.fetch;
+  let proveCalls = 0;
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    if (href.includes('/api/reclaim/zkfetch/prove')) {
+      proveCalls += 1;
+      return {
+        ok: true,
+        json: async () => ({ proof: fakeZkFetchProof('alice') }),
+        text: async () => '',
+      };
+    }
+    throw new Error(`unexpected fetch ${href}`);
+  };
+  try {
+    return await fn({ proveCalls: () => proveCalls });
+  } finally {
+    globalThis.fetch = orig;
+  }
+}
+
+test('claimPayments zkFetch twitter uses token source without UI bag', async () => {
+  const { claimPayments } = await loadClaimService();
+  await withFakeProve(async ({ proveCalls }) => {
+    const result = await claimPayments({
+      payments: [
+        {
+          paymentId: '42',
+          sender: '0xabc',
+          platform: 'twitter',
+          amount: '1',
+          token: '0x1',
+        },
+      ],
+      executorContext: baseExecutor({
+        tokenSource: {
+          read: () => ({ twitterAccessToken: 'tw-oauth2-token-value' }),
+        },
+      }),
+    });
+    assert.equal(proveCalls(), 1);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].paymentId, '42');
+    assert.ok(result[0].txHash);
+  });
+});
+
+test('claimPayments zkFetch fails before chain when token is missing', async () => {
+  const { claimPayments } = await loadClaimService();
+  let chainTouched = false;
+  const orig = globalThis.fetch;
+  globalThis.fetch = async () => {
+    chainTouched = true;
+    throw new Error('fetch should not run without a token');
+  };
+  try {
+    await assert.rejects(
+      () =>
+        claimPayments({
+          payments: [
+            {
+              paymentId: '42',
+              sender: '0xabc',
+              platform: 'twitter',
+              amount: '1',
+              token: '0x1',
+            },
+          ],
+          executorContext: baseExecutor({
+            tokenSource: { read: () => ({}) },
+          }),
+        }),
+      /Connect Twitter or login with Privy/,
+    );
+    assert.equal(chainTouched, false);
+  } finally {
+    globalThis.fetch = orig;
+  }
+});
+
+test('claimPayments gmail uses ProofSession then pays', async () => {
+  const { claimPayments } = await loadClaimService();
+  let sessionRuns = 0;
+  let proveCalls = 0;
+  const orig = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    proveCalls += 1;
+    throw new Error(`zkFetch should not run for gmail: ${url}`);
+  };
+  try {
+    const result = await claimPayments({
+      payments: [
+        {
+          paymentId: '7',
+          sender: '0xabc',
+          platform: 'gmail',
+          amount: '1',
+          token: '0x1',
+        },
+      ],
+      executorContext: baseExecutor({
+        platform: 'gmail',
+        loginUsername: 'alice@gmail.com',
+        tokenSource: { read: () => ({ gmailAccessToken: 'gmail-oauth-not-a-proof' }) },
+        proofSession: {
+          async run(input) {
+            sessionRuns += 1;
+            assert.equal(input.platform, 'gmail');
+            return [
+              {
+                signatures: ['0xsig1', '0xsig2'],
+                extractedParameterValues: { username: 'alice@gmail.com' },
+              },
+            ];
+          },
+        },
+      }),
+    });
+    assert.equal(sessionRuns, 1);
+    assert.equal(proveCalls, 0);
+    assert.equal(result[0].paymentId, '7');
+    assert.ok(result[0].txHash);
+  } finally {
+    globalThis.fetch = orig;
+  }
+});
+
+async function withTwitchClaimFetch(fn) {
+  const orig = globalThis.fetch;
+  const proveBodies = [];
+  globalThis.fetch = async (url, init) => {
+    const href = String(url);
+    if (href.includes('api.twitch.tv/helix/users')) {
+      return {
+        ok: true,
+        json: async () => ({ data: [{ id: '126247254', login: 'kurdypel' }] }),
+        text: async () => '',
+      };
+    }
+    if (href.includes('/api/reclaim/zkfetch/prove')) {
+      proveBodies.push(JSON.parse(String(init?.body ?? '{}')));
+      return {
+        ok: true,
+        json: async () => ({
+          proof: {
+            signatures: ['0xsig1', '0xsig2'],
+            extractedParameterValues: { userId: '126247254' },
+          },
+        }),
+        text: async () => '',
+      };
+    }
+    throw new Error(`unexpected fetch ${href}`);
+  };
+  try {
+    return await fn({ proveBodies });
+  } finally {
+    globalThis.fetch = orig;
+  }
+}
+
+test('claimPayments Twitch login-hash row posts prove username as login', async () => {
+  const { claimPayments } = await loadClaimService();
+  const { generateSocialIdentityHash, generateTwitchUidIdentityHash } = await loadIdentity();
+  const loginHash = generateSocialIdentityHash('twitch', 'kurdypel');
+  const uidHash = generateTwitchUidIdentityHash('126247254');
+
+  await withTwitchClaimFetch(async ({ proveBodies }) => {
+    const result = await claimPayments({
+      payments: [
+        {
+          paymentId: '396',
+          sender: '0xabc',
+          platform: 'twitch',
+          amount: '1',
+          token: '0x1',
+          socialIdentityHash: loginHash,
+        },
+      ],
+      executorContext: baseExecutor({
+        platform: 'twitch',
+        loginUsername: 'kurdypel',
+        primaryIdentityHash: uidHash,
+        tokenSource: { read: () => ({ twitchAccessToken: 'twitch-token-value' }) },
+      }),
+    });
+    assert.equal(result[0].paymentId, '396');
+    assert.equal(proveBodies.length, 1);
+    assert.equal(proveBodies[0].username, 'kurdypel');
+  });
+});
+
+test('claimPayments Twitch uid-hash row posts prove username as uid:{id}', async () => {
+  const { claimPayments } = await loadClaimService();
+  const { generateTwitchUidIdentityHash } = await loadIdentity();
+  const uidHash = generateTwitchUidIdentityHash('126247254');
+
+  await withTwitchClaimFetch(async ({ proveBodies }) => {
+    await claimPayments({
+      payments: [
+        {
+          paymentId: '12',
+          sender: '0xabc',
+          platform: 'twitch',
+          amount: '1',
+          token: '0x1',
+          socialIdentityHash: uidHash,
+        },
+      ],
+      executorContext: baseExecutor({
+        platform: 'twitch',
+        loginUsername: 'kurdypel',
+        tokenSource: { read: () => ({ twitchAccessToken: 'twitch-token-value' }) },
+      }),
+    });
+    assert.equal(proveBodies[0].username, 'uid:126247254');
+  });
+});
+
+test('readTwitchHelixId maps id without breaking preview fields', async () => {
+  const { readTwitchHelixId } = await loadUserLookup();
+  assert.equal(readTwitchHelixId({ id: '126247254' }), '126247254');
+  assert.equal(readTwitchHelixId({ user_id: 99 }), '99');
+  assert.equal(readTwitchHelixId({ userId: '7' }), '7');
+  assert.equal(readTwitchHelixId({ login: 'kurdypel' }), undefined);
+});
+
+test('Twitch human send writes uid hash after successful resolve', async () => {
+  const { resolveSocialRecipient } = await loadSocialRecipient();
+  const { generateTwitchUidIdentityHash, generateSocialIdentityHash } = await loadIdentity();
+  const { keccak256, toUtf8Bytes } = await import('ethers');
+
+  const resolved = await resolveSocialRecipient('twitch', '@Kurdypel', async () => ({
+    userId: '126247254',
+    login: 'kurdypel',
+  }));
+
+  assert.equal(resolved.normalizedUsername, 'kurdypel');
+  assert.equal(resolved.recipientIdentityHash, generateTwitchUidIdentityHash('126247254'));
+  assert.equal(resolved.recipientIdentityHash, keccak256(toUtf8Bytes('twitch:uid:126247254')));
+  assert.notEqual(resolved.recipientIdentityHash, generateSocialIdentityHash('twitch', 'kurdypel'));
+});
+
+test('Twitch human send fails closed when lookup has no id', async () => {
+  const { resolveSocialRecipient } = await loadSocialRecipient();
+  const { generateSocialIdentityHash } = await loadIdentity();
+  const loginHash = generateSocialIdentityHash('twitch', 'kurdypel');
+  let producedHash = null;
+
+  await assert.rejects(async () => {
+    const resolved = await resolveSocialRecipient('twitch', 'kurdypel', async () => null);
+    producedHash = resolved.recipientIdentityHash;
+  }, /Could not resolve Twitch user/);
+
+  assert.equal(producedHash, null);
+  assert.ok(loginHash);
+});
+
+test('claimPayments gmail cancelled ProofSession does not send a chain tx', async () => {
+  const { claimPayments } = await loadClaimService();
+  await assert.rejects(
+    () =>
+      claimPayments({
+        payments: [
+          {
+            paymentId: '7',
+            sender: '0xabc',
+            platform: 'gmail',
+            amount: '1',
+            token: '0x1',
+          },
+        ],
+        executorContext: baseExecutor({
+          platform: 'gmail',
+          loginUsername: 'alice@gmail.com',
+          tokenSource: { read: () => ({ gmailAccessToken: 'gmail-oauth-not-a-proof' }) },
+          proofSession: {
+            async run() {
+              return [];
+            },
+          },
+        }),
+      }),
+    /Proof session cancelled/,
+  );
 });

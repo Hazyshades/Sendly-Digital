@@ -1,13 +1,8 @@
 import { createPublicClient, http, parseEventLogs } from 'viem';
 
 import web3Service from '@/lib/web3/web3Service';
-import {
-  generateSocialIdentityHash,
-  normalizeGmailAddress,
-  normalizeSocialPlatform,
-  normalizeSocialUsername,
-} from '@/lib/reclaim/identity';
 import { createZkSendPaymentRecord } from '@/lib/zksend/zksendPaymentsAPI';
+import { resolveSocialRecipient } from '@/lib/zksend/socialRecipient';
 import { ARC_CHAIN_ID, ERC20ABI, getContractsForChain, ZkSendABI } from '@/lib/web3/constants';
 import { arcTestnet } from '@/lib/web3/wagmiConfig';
 import { DeveloperWalletService, type DeveloperWallet } from '@/lib/circle/developerWalletService';
@@ -81,22 +76,13 @@ export function getZkSendFeeBreakdown(amount: string): ZkSendFeeBreakdown {
   };
 }
 
-function normalizeRecipient(platform: string, username: string) {
-  const normalizedPlatform = normalizeSocialPlatform(platform);
-  const normalizedUsername = normalizedPlatform === 'gmail'
-    ? normalizeGmailAddress(username)
-    : normalizeSocialUsername(username.replace(/^@/, ''));
-  if (!normalizedPlatform) throw new Error('Unsupported platform');
-  if (!normalizedUsername) throw new Error('Enter recipient');
-  const recipientIdentityHash = generateSocialIdentityHash(normalizedPlatform, normalizedUsername);
-  if (!recipientIdentityHash) throw new Error('Invalid social identity');
-  return { normalizedPlatform, normalizedUsername, recipientIdentityHash };
-}
-
 export async function submitSocialZkSendPayment(input: SubmitSocialPaymentInput): Promise<SocialPaymentOutcome> {
   if (!input.amount || Number(input.amount) <= 0) throw new Error('Enter amount > 0');
 
-  const { normalizedPlatform, normalizedUsername, recipientIdentityHash } = normalizeRecipient(input.platform, input.username);
+  const { normalizedPlatform, normalizedUsername, recipientIdentityHash } = await resolveSocialRecipient(
+    input.platform,
+    input.username,
+  );
   const fees = getZkSendFeeBreakdown(input.amount);
   const contracts = getContractsForChain(input.chainId);
   const useCircle = input.walletSource === 'circle' && input.hasDeveloperWallet && input.developerWallet;

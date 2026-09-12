@@ -1,8 +1,5 @@
 import { useState } from 'react';
-import { useAccount } from 'wagmi';
-import { toast } from 'sonner';
 import { Twitter, Twitch, Github, MessageCircle, Instagram, Linkedin, Mail, Settings } from 'lucide-react';
-import { ReclaimProofRequest } from '@reclaimprotocol/js-sdk';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,12 +7,9 @@ import { useZkSendContext } from '@/contexts/ZkSendContext';
 import { useTwitterConnection } from '@/hooks/useTwitterConnection';
 import { useTwitchConnection } from '@/hooks/useTwitchConnection';
 import { useGmailConnection } from '@/hooks/useGmailConnection';
-import { fetchReclaimProofRequestConfig } from '@/lib/reclaim/api';
-import { normalizeSocialUsername } from '@/lib/reclaim/identity';
 import { PlatformSelectModal } from './PlatformSelectModal';
 
 import type { ZkSendPlatform } from './ZkSendPanel';
-import type { ReclaimProof } from '@/lib/reclaim/types';
 
 const platformIcons: Record<ZkSendPlatform, typeof Twitter> = {
   twitter: Twitter,
@@ -39,31 +33,17 @@ const platformLabels: Record<ZkSendPlatform, string> = {
 
 const platformsRequiringOAuth: ZkSendPlatform[] = ['twitter', 'twitch', 'gmail'];
 
-function normalizeProofs(proof: unknown): ReclaimProof[] {
-  if (typeof proof === 'string') {
-    const parsed = JSON.parse(proof) as { proofs?: ReclaimProof[]; proof?: ReclaimProof | ReclaimProof[] };
-    const raw = parsed?.proofs ?? parsed?.proof ?? parsed;
-    return Array.isArray(raw) ? (raw as ReclaimProof[]) : [raw as ReclaimProof];
-  }
-  if (Array.isArray(proof)) {
-    return proof as ReclaimProof[];
-  }
-  return [proof as ReclaimProof];
-}
-
 type Props = {
   username: string;
   isIdentityValid: boolean;
 };
 
-export function ConnectionsTab({ username, isIdentityValid }: Props) {
-  const { platform, setPlatform, reclaimProofs, setReclaimProofs, proofError, setProofError } = useZkSendContext();
-  const { address } = useAccount();
+export function ConnectionsTab({ username: _username, isIdentityValid: _isIdentityValid }: Props) {
+  const { platform, setPlatform } = useZkSendContext();
   const { isConnected: isTwitterConnected, connecting: connectingTwitter, clearing: clearingTwitter, connect: connectTwitter, disconnect: disconnectTwitter } = useTwitterConnection();
   const { isConnected: isTwitchConnected, connecting: connectingTwitch, clearing: clearingTwitch, connect: connectTwitch, disconnect: disconnectTwitch } = useTwitchConnection();
   const { isConnected: isGmailConnected, connecting: connectingGmail, clearing: clearingGmail, connect: connectGmail, disconnect: disconnectGmail } = useGmailConnection();
   const [showPlatformModal, setShowPlatformModal] = useState(false);
-  const [proofLoading, setProofLoading] = useState(false);
 
   const isConnected = platform === 'twitter' ? isTwitterConnected : platform === 'twitch' ? isTwitchConnected : platform === 'gmail' ? isGmailConnected : true;
   const needsOAuth = platformsRequiringOAuth.includes(platform);
@@ -106,56 +86,6 @@ export function ConnectionsTab({ username, isIdentityValid }: Props) {
   const handlePlatformChange = (p: ZkSendPlatform) => {
     setPlatform(p);
     setShowPlatformModal(false);
-  };
-
-  const startReclaimFlow = async () => {
-    const u = normalizeSocialUsername(username.replace(/^@/, ''));
-    if (!u) {
-      toast.error('Enter username above to generate proof');
-      return;
-    }
-    if (!address) {
-      toast.error('Connect wallet to generate proof');
-      return;
-    }
-
-    setProofLoading(true);
-    setProofError(null);
-    try {
-      const config = await fetchReclaimProofRequestConfig({
-        platform,
-        username: u,
-        recipient: address,
-        paymentId: undefined,
-        redirectUrl: window.location.href,
-      });
-      const request = await ReclaimProofRequest.fromJsonString(config);
-      await request.triggerReclaimFlow();
-
-      await request.startSession({
-        onSuccess: (proof) => {
-          const proofsArray = normalizeProofs(proof ?? []);
-          if (!proofsArray[0]) {
-            setProofError('Proof was not returned');
-            setReclaimProofs(null);
-            return;
-          }
-          setReclaimProofs(proofsArray);
-          setProofError(null);
-          toast.success('Reclaim proof received');
-        },
-        onError: (error) => {
-          setProofError(error.message ?? 'Failed to generate proof');
-          setReclaimProofs(null);
-        },
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to generate proof';
-      setProofError(msg);
-      toast.error(msg);
-    } finally {
-      setProofLoading(false);
-    }
   };
 
   return (
@@ -203,27 +133,9 @@ export function ConnectionsTab({ username, isIdentityValid }: Props) {
               )}
             </div>
           ) : (
-            <div className="space-y-2 rounded-xl border bg-background p-4">
-              <div className="text-sm font-medium">Reclaim proof</div>
-              <div className="text-xs text-muted-foreground">
-                Generate a proof for your username. Required to claim payments on this platform.
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={startReclaimFlow}
-                  disabled={proofLoading || !isIdentityValid}
-                  className="w-full sm:w-auto"
-                >
-                  {proofLoading ? 'Generating...' : reclaimProofs?.length ? 'Regenerate proof' : 'Generate proof'}
-                </Button>
-                {reclaimProofs?.length ? (
-                  <span className="text-xs text-emerald-600 font-medium">Proof ready</span>
-                ) : null}
-              </div>
-              {proofError ? <div className="text-xs text-red-500">{proofError}</div> : null}
-            </div>
+            <p className="text-sm text-muted-foreground">
+              Claim opens a proof window for this platform. You do not need to generate a proof first.
+            </p>
           )}
         </CardContent>
       </Card>

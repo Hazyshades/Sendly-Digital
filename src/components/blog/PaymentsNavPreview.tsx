@@ -1,11 +1,14 @@
 type PaymentsNavPreviewProps = {
   compact?: boolean;
   activeTab?: 'send' | 'receive';
+  /** Small “zk.sendly.digital → Payments” caption under the tabs. */
+  showHint?: boolean;
 };
 
 export function PaymentsNavPreview({
   compact,
   activeTab = 'send',
+  showHint = true,
 }: PaymentsNavPreviewProps) {
   const tabs = [
     { id: 'send' as const, label: 'Send' },
@@ -30,17 +33,19 @@ export function PaymentsNavPreview({
           </div>
         ))}
       </div>
-      <div className={`mt-3 text-gray-500 ${compact ? 'text-[10px]' : 'text-xs'}`}>
-        zk.sendly.digital → Payments
-      </div>
+      {showHint ? (
+        <div className={`mt-3 text-gray-500 ${compact ? 'text-[10px]' : 'text-xs'}`}>
+          zk.sendly.digital → Payments
+        </div>
+      ) : null}
     </div>
   );
 }
 
 export function PaymentsSendNavPreview({ compact }: { compact?: boolean }) {
-  return <PaymentsNavPreview compact={compact} activeTab="send" />;
+  return <PaymentsNavPreview compact={compact} activeTab="send" showHint />;
 }
 
 export function PaymentsReceiveNavPreview({ compact }: { compact?: boolean }) {
-  return <PaymentsNavPreview compact={compact} activeTab="receive" />;
+  return <PaymentsNavPreview compact={compact} activeTab="receive" showHint={false} />;
 }

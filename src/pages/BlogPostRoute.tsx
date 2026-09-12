@@ -237,7 +237,7 @@ const blogPosts: Record<string, BlogPost> = {
     slug: 'zktls-payments-guide',
     title: 'zkTLS in Sendly Payments: prove ownership and unlock USDC',
     description:
-      'We use platform:username as the recipient identifier (e.g. twitter:alice). zkTLS proves ownership, then the contract unlocks USDC to the recipient wallet.',
+      'We use platform:username as the recipient identifier (e.g. twitter:circle). zkTLS proves ownership, then the contract unlocks USDC to the recipient wallet.',
     date: '2026-08-01',
     category: 'Tutorial',
     tags: ['zkTLS', 'zkSend', 'Payments'],
@@ -312,7 +312,7 @@ const blogPosts: Record<string, BlogPost> = {
       {
         id: 'payments-connect',
         componentId: 'payments-identities-embed',
-        alt: 'Connect social account via Payment identities',
+        alt: 'Connect social account with Payment Identities',
         caption: '',
       },
       {
@@ -334,13 +334,12 @@ const blogPosts: Record<string, BlogPost> = {
         title: 'What is zkTLS',
         paragraphs: [
           'TLS encrypts traffic to websites (the "s" in HTTPS). It does not by itself let anyone else verify what happened in that session. zkTLS adds a zero-knowledge layer: you can prove something about your Web2 session (for example that you control a social account) without handing over credentials, session keys, or raw responses. A verifier can check that proof on-chain.',
-          'Sendly uses a proxy (witness) model. An attestor sits between your device and the social site, relays encrypted TLS traffic, and signs that a real session happened. It does not terminate TLS or hold your client keys. Your device keeps the TLS session; the attestor sees metadata and signs a claim. It cannot read your traffic. We use Reclaim Protocol for this in production.',
-          'In Payments, we use platform:username as the recipient identifier (e.g. twitter:alice). zkTLS proofs back that handle identifier. A claim includes claimId, the recipient identifier, timestamp, requestUrl, and the attestor signature. The contract checks the signature before it pays out.'
+          'Sendly uses Reclaim Protocol in a proxy (witness) model: an attestor relays encrypted TLS traffic and signs that a real session happened, without terminating TLS or holding your client keys.',
         ],
         bullets: [
           'Claim fields: claimId, recipient identifier, timestamp, requestUrl, attestor signature.',
-          'The attestor does not terminate TLS; it checks that the client-server session is valid. TLS keys stay on your device.',
-          'The contract verifies the attestor signature before paying out.'
+          'The attestor does not terminate TLS; TLS keys stay on your device.',
+          'The contract verifies the attestor signature before paying out.',
         ],
         imageId: 'zktls-flow'
       },
@@ -348,7 +347,7 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'architecture',
         title: 'Architecture',
         paragraphs: [
-          'Path: your device to the attestor (relay and signer) to the social platform. The attestor validates the TLS session and signs the claim. You submit the claim on-chain; the contract checks the signature and sends funds to the recipient wallet.'
+          'Traffic goes from your device through the attestor to the social platform. The attestor signs the claim; you submit it on-chain, and the contract checks that signature and pays the recipient wallet.',
         ],
         imageId: 'zktls-architecture'
       },
@@ -356,16 +355,16 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'how-it-works',
         title: 'How it works',
         paragraphs: [
-          'The sender sets a platform + handle pair (e.g. twitter:alice), not a wallet address. Funds sit in the contract until the recipient claims.',
+          'The sender sets a platform + handle pair (e.g. twitter:circle), not a wallet address. Funds sit in the contract until the recipient claims.',
           'The recipient opens Payments, proves they own the account (zkTLS proof), and clicks Claim. The contract pays based on that identifier, not a pre-shared wallet address.',
           'The sender never needs the recipient\'s address; the social handle is enough.'
         ],
       },
       {
         id: 'platform-username',
-        title: 'platform:username rules',
+        title: 'How we format usernames',
         paragraphs: [
-          'We normalize platform:username (lowercase, trim, strip @). Map x to twitter. Example: X (Twitter) + @Alice becomes twitter:alice; x + Bob becomes twitter:bob.',
+          'We normalize platform:username (lowercase, trim, strip @). Map x to twitter. Example: X and @AlicE becomes twitter:alice; Twitch + Boby2026 becomes twitch:boby2026.',
           'Your recipient\'s social handle (normalized) is max 64 characters; letters, digits, underscores, hyphens. The UI and contract reject invalid or too-long values.'
         ]
       },
@@ -373,12 +372,12 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'sending',
         title: 'Sending a payment (Send tab)',
         paragraphs: [
-          'Follow the steps below to send USDC or EURC to a social username on zk Payments.',
+          'Send USDC or EURC to a social username on zk Payments.',
           'Funds stay in the contract until the recipient proves they own that handle and claims.',
         ],
         bullets: [
-          'Send stays gray until wallet is connected, amount is above zero, and the username is valid.',
-          'Double-check platform + spelling before you confirm — on-chain sends cannot be undone.',
+          'Send stays disabled until the wallet is connected, the amount is above zero, and the username is valid.',
+          'Double-check platform + spelling before you confirm. On-chain sends cannot be undone.',
         ],
         imageId: 'send-tab'
       },
@@ -408,7 +407,7 @@ const blogPosts: Record<string, BlogPost> = {
         imageId: 'payments-identities',
         paragraphs: [
           'Open the Identities tab and connect the social account you use for payments (X / Twitter, Twitch, GitHub, Telegram, Gmail, or LinkedIn).',
-          'Linked identities let you send and later receive by username or email without sharing a wallet address upfront.',
+          'Connect once; you can send and receive by that username or email without sharing a wallet address first.',
         ],
       },
       {
@@ -422,11 +421,11 @@ const blogPosts: Record<string, BlogPost> = {
       },
       {
         id: 'send-step-source',
-        title: 'Step 4 · Choose source of sending',
+        title: 'Step 4 · Choose funding wallet',
         variant: 'step',
         paragraphs: [
-          'If both an external browser wallet and an Internal Wallet are connected, you can choose the source of funds for the send.',
-          'Use the Rabby Wallet / Internal Wallet toggle next to the balance, then confirm the amount still looks right for that source.',
+          'If both a browser wallet and an Internal Wallet are connected, pick which one pays next to the balance.',
+          'Confirm the amount still looks right for that source.',
         ],
       },
       {
@@ -436,7 +435,7 @@ const blogPosts: Record<string, BlogPost> = {
         imageId: 'payments-recipient',
         paragraphs: [
           'In the To field, pick a platform and enter the recipient username.',
-          'Sendly shows a profile suggestion when the handle is found — for example Arc @arc on X.',
+          'Sendly shows a profile suggestion when the handle is found, for example Circle @circle on X.',
         ],
       },
       {
@@ -452,11 +451,11 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'receiving',
         title: 'Receiving a payment (Receive tab)',
         paragraphs: [
-          'After someone sends to your social handle, open Receive, prove ownership, and claim into the wallet you connect.',
+          'After someone sends to your social handle, open Receive, connect that account, and claim into the wallet you connect.',
         ],
         bullets: [
           'Use the same platform + username the sender used.',
-          'No wallet address needed upfront — zkTLS proves the handle, then the contract pays your connected wallet.',
+          'No wallet address needed upfront. zkTLS proves the handle, then the contract pays your connected wallet.',
         ],
         imageId: 'receive-tab'
       },
@@ -470,23 +469,23 @@ const blogPosts: Record<string, BlogPost> = {
         ],
       },
       {
-        id: 'receive-step-identity',
-        title: 'Step 2 · Enter your identity',
-        variant: 'step',
-        imageId: 'payments-identity',
-        paragraphs: [
-          'Select the platform and enter the username that should receive payments.',
-          'This must match the platform:username pair the sender used.',
-        ],
-      },
-      {
         id: 'receive-step-connect',
-        title: 'Step 3 · Connect social account',
+        title: 'Step 2 · Connect social account',
         variant: 'step',
         imageId: 'payments-connect',
         paragraphs: [
-          'Open Identities and connect X (Twitter), Twitch, GitHub, Telegram, or LinkedIn; finish OAuth and come back.',
+          'Open Identities and connect X (Twitter), Twitch, GitHub, Telegram, or LinkedIn.',
           'This step proves you own that account so pending payments for that identity can unlock.',
+        ],
+      },
+      {
+        id: 'receive-step-identity',
+        title: 'Step 3 · Check your identity',
+        variant: 'step',
+        imageId: 'payments-identity',
+        paragraphs: [
+          'Your social login and platform are filled in automatically.',
+          'Click the suggested profile (for example Circle @circle) to confirm it is the right account.',
         ],
       },
       {
@@ -495,7 +494,7 @@ const blogPosts: Record<string, BlogPost> = {
         variant: 'step',
         imageId: 'payments-pending',
         paragraphs: [
-          'Hit Refresh to load pending items for that platform + username.',
+          'When the platform is connected, pending payments load automatically. Hit Refresh if you need to reload the list.',
           'Each row shows paymentId, sender, amount, and token.',
         ],
       },
@@ -503,35 +502,10 @@ const blogPosts: Record<string, BlogPost> = {
         id: 'claim',
         title: 'Claim: how to collect your funds',
         paragraphs: [
-          'One payment: Claim, then confirm in your wallet. Several: Claim all, one confirmation.',
-          'The contract pays based on that identifier, not a pre-shared wallet address — payout goes to the wallet you connected.',
+          'Click Claim (or Claim all). Confirm in your wallet. Funds go to the wallet you connected, not to a pre-shared address.',
         ],
         imageId: 'payments-claim',
       },
-      {
-        id: 'troubleshooting',
-        title: 'Troubleshooting',
-        paragraphs: [
-          'Quick fixes:'
-        ],
-        bullets: [
-          'Wrong platform: pick another one from the list.',
-          'Need a proof: on Receive, set platform and username, Connect, finish OAuth, Refresh.',
-          'Handle identifier on the proof does not match: fix platform or spelling, reconnect if needed.',
-          'Incomplete Reclaim signatures: build the proof again; if it happens twice, wait a few minutes and retry.',
-          'Proof failed or zkFetch failed: Refresh, reconnect the account, try a new proof.',
-          'Nothing pending: same platform + handle pair as the sender, Refresh, and use the zk payments URL.'
-        ]
-      },
-      {
-        id: 'security',
-        title: 'Security considerations',
-        paragraphs: [
-          'Connection tokens live in your browser (localStorage) so zkTLS proofs can run. We do not store them on our servers. XSS can read localStorage; use a clean browser, skip sketchy extensions, and avoid shared machines when you can.',
-          'Tokens are session-scoped. Disconnect or refresh when you are done. On a shared device, use Disconnect if the UI offers it, or clear site data after.',
-          'Do not share wallet access or sign transactions you do not understand. Proofs only show you control the recipient\'s social handle; credentials do not go on-chain.'
-        ]
-      }
     ],
     content: ''
   },
@@ -906,7 +880,7 @@ const blogPosts: Record<string, BlogPost> = {
           'Our testnet writeup put total volume around $310k. The percentage is internal-wallet mint face value divided by that $310k number. Treat it as a rough comparison (EURC is not exactly USD).'
         ],
         bullets: [
-          'Users who minted cards via Internal Wallet: 220',
+          'Users who minted cards with Internal Wallet: 220',
           'Combined face value of those mints: 6,634',
           'USDC portion: 4,499',
           'EURC portion: 2,134',
@@ -1140,6 +1114,25 @@ export function BlogPostRoute() {
       </button>
     );
 
+    const circleAvatarUrl =
+      paymentsPreviewValues?.profileImageUrl ?? PAYMENTS_SEND_PREVIEW_FALLBACK.profileImageUrl ?? null;
+
+    const renderPaymentsAvatarStepEmbed = (
+      img: BlogImage,
+      Preview: ComponentType<{ compact?: boolean; profileImageUrl?: string | null }>
+    ) => (
+      <button
+        type="button"
+        onClick={() => setActiveImage(img)}
+        className="group w-full text-left"
+        aria-label={`Open: ${img.alt}`}
+      >
+        <BlogStepFrame compact>
+          <Preview compact profileImageUrl={circleAvatarUrl} />
+        </BlogStepFrame>
+      </button>
+    );
+
     const renderImage = (img: BlogImage) => {
       if (img.componentId === 'verification-infographic') {
         return (<button type="button" onClick={() => setActiveImage(img)} className="w-full text-left rounded-xl overflow-hidden bg-[#FAFAFA]" aria-label={`Open: ${img.caption}`}><VerificationInfographic compact />{img.caption && <div className="mt-3 text-sm text-gray-600">{img.caption}</div>}</button>);
@@ -1182,6 +1175,15 @@ export function BlogPostRoute() {
       }
       if (img.componentId === 'gift-card-received-embed') {
         return renderGiftCardStepEmbed(img, GiftCardReceivedPreview);
+      }
+      if (img.componentId === 'payments-identities-embed') {
+        return renderPaymentsAvatarStepEmbed(img, PaymentsIdentitiesPreview);
+      }
+      if (img.componentId === 'payments-recipient-embed') {
+        return renderPaymentsAvatarStepEmbed(img, PaymentsRecipientPreview);
+      }
+      if (img.componentId === 'payments-identity-embed') {
+        return renderPaymentsAvatarStepEmbed(img, PaymentsIdentityPreview);
       }
       if (img.componentId && PAYMENTS_STEP_LIGHTBOX[img.componentId]) {
         return renderGiftCardStepEmbed(img, PAYMENTS_STEP_LIGHTBOX[img.componentId]!);
@@ -1543,6 +1545,42 @@ export function BlogPostRoute() {
                     </BlogStepFrame>
                   );
                 })()}
+              </div>
+            ) : activeImage.componentId === 'payments-identities-embed' ? (
+              <div className="max-h-[85vh] overflow-y-auto p-2">
+                <BlogStepFrame>
+                  <PaymentsIdentitiesPreview
+                    profileImageUrl={
+                      paymentsPreviewValues?.profileImageUrl ??
+                      PAYMENTS_SEND_PREVIEW_FALLBACK.profileImageUrl ??
+                      null
+                    }
+                  />
+                </BlogStepFrame>
+              </div>
+            ) : activeImage.componentId === 'payments-recipient-embed' ? (
+              <div className="max-h-[85vh] overflow-y-auto p-2">
+                <BlogStepFrame>
+                  <PaymentsRecipientPreview
+                    profileImageUrl={
+                      paymentsPreviewValues?.profileImageUrl ??
+                      PAYMENTS_SEND_PREVIEW_FALLBACK.profileImageUrl ??
+                      null
+                    }
+                  />
+                </BlogStepFrame>
+              </div>
+            ) : activeImage.componentId === 'payments-identity-embed' ? (
+              <div className="max-h-[85vh] overflow-y-auto p-2">
+                <BlogStepFrame>
+                  <PaymentsIdentityPreview
+                    profileImageUrl={
+                      paymentsPreviewValues?.profileImageUrl ??
+                      PAYMENTS_SEND_PREVIEW_FALLBACK.profileImageUrl ??
+                      null
+                    }
+                  />
+                </BlogStepFrame>
               </div>
             ) : activeImage.componentId && PAYMENTS_STEP_LIGHTBOX[activeImage.componentId] ? (
               <div className="max-h-[85vh] overflow-y-auto p-2">
