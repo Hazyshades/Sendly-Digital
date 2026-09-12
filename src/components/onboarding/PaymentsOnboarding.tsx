@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Driver } from 'driver.js';
 
 import { Button } from '@/components/ui/button';
+import QuestionMark from '@/components/itshover-icons/question-mark';
 import { createPaymentsTour, type PaymentsTourMode } from '@/lib/onboarding/paymentsTour';
 import { readPaymentsOnboardingState } from '@/lib/onboarding/paymentsOnboardingStorage';
 
@@ -61,6 +62,7 @@ export function PaymentsOnboarding({
   preview,
   claimFlow,
 }: PaymentsOnboardingProps) {
+  const [isGuideFocused, setIsGuideFocused] = useState(false);
   const automaticStartRef = useRef(false);
   const tourRef = useRef<Driver | null>(null);
 
@@ -111,11 +113,19 @@ export function PaymentsOnboarding({
       <Button
         type="button"
         variant="ghost"
-        size="sm"
-        className="min-h-[44px]"
+        size="icon"
+        aria-label="Show Payments guide"
+        title="Show Payments guide"
+        onFocus={() => setIsGuideFocused(true)}
+        onBlur={() => setIsGuideFocused(false)}
         onClick={() => startTour('replay')}
+        className="min-h-[44px] min-w-[44px] rounded-full border border-indigo-100/70 bg-white/75 p-2 text-indigo-600 hover:bg-white/95 hover:text-indigo-700"
       >
-        Show Payments guide
+        <QuestionMark
+          size={24}
+          active={isGuideFocused}
+          className="size-6"
+        />
       </Button>
     </div>
   );
