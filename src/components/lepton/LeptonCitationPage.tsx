@@ -39,6 +39,7 @@ export function LeptonCitationPage() {
     try {
       const n = await seedCitationSources();
       toast.success(`Seeded ${n} source(s) from registered sources`);
+      await loadSources();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Seed failed');
     } finally {
