@@ -62,7 +62,12 @@ export async function fetchTelegramUserPreview(username: string): Promise<Telegr
         data: {
           username: body.username,
           name: body.name ?? body.username,
-          profile_image_url: body.profile_image_url ?? null,
+          profile_image_url:
+            typeof body.profile_image_url === 'string' &&
+            body.profile_image_url &&
+            !body.profile_image_url.includes('api.telegram.org/file/bot')
+              ? body.profile_image_url
+              : null,
         },
       };
     }
