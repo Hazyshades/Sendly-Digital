@@ -373,6 +373,15 @@ export function PlatformUsernameInput({
     });
   };
 
+  const handleTelegramAvatarError = () => {
+    setTelegramPreviewData((current) => {
+      if (!current) return current;
+      const fallback = { ...current, profile_image_url: null };
+      telegramPreviewCache.set(normalizeTelegramUsername(current.username), fallback);
+      return fallback;
+    });
+  };
+
   useEffect(() => {
     if (!showTwitchPreview || !normalizedTwitchLogin) {
       setTwitchPreviewStatus('idle');
@@ -874,6 +883,8 @@ export function PlatformUsernameInput({
                   className="h-8 w-8 shrink-0 rounded-full object-cover"
                   width={32}
                   height={32}
+                  referrerPolicy="no-referrer"
+                  onError={handleTelegramAvatarError}
                 />
               ) : (
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
