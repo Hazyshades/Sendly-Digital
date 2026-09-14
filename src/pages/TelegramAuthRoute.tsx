@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { persistTelegramIdentityFromToken } from '@/lib/zk-oauth/telegramSession';
 
 const getZkTlsApiUrl = (): string => {
   const envUrl =
@@ -77,6 +78,7 @@ export function TelegramAuthRoute() {
           if (!hasOpener) {
             localStorage.setItem('telegram_oauth_token', data.accessToken);
             localStorage.setItem('telegram_oauth', data.accessToken);
+            persistTelegramIdentityFromToken(data.accessToken);
           }
 
           if (hasOpener) {

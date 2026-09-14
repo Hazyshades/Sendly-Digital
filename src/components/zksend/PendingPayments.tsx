@@ -36,6 +36,7 @@ import {
   readLinkedInAccessToken,
   ZK_OAUTH_IDENTITY_UPDATED_EVENT,
 } from '@/lib/zk-oauth/tokenStorage';
+import { readLiveTelegramIdentity } from '@/lib/zk-oauth/telegramSession';
 import {
   claimDirectDeposit as claimDirectDepositService,
   claimPayments,
@@ -114,6 +115,12 @@ function shortenAddress(addr: string): string {
 function resolveRecipientUsername(platform: SendRecipientType, raw: string): string | null {
   if (platform === 'gmail') return normalizeGmailIdentity(raw);
   return normalizeSocialUsername(raw.replace(/^@/, ''));
+}
+
+function telegramClaimGuard(platform: SendRecipientType): string | null {
+  if (platform !== 'telegram') return null;
+  if (readLiveTelegramIdentity()) return null;
+  return 'Reconnect Telegram to claim this payment';
 }
 
 function toUserFacingErrorMessage(error: unknown, fallback: string): string {
@@ -478,8 +485,14 @@ export function PendingPayments({
 
   const claim = async (paymentId: string) => {
     try {
+      const telegramGuard = telegramClaimGuard(platform);
+      if (telegramGuard) throw new Error(telegramGuard);
       if (!useCircle && (!isConnected || !address || !walletClient)) {
-        throw new Error('Connect wallet to claim payment');
+        throw new Error(
+          platform === 'telegram'
+            ? 'Create an Internal Wallet on Dashboard to claim this payment'
+            : 'Connect wallet to claim payment',
+        );
       }
       if (useCircle && !developerWallet) throw new Error('Internal Wallet not available');
       const u = resolveRecipientUsername(platform, username);
@@ -517,8 +530,14 @@ export function PendingPayments({
   const claimAll = async () => {
     if (rows.length === 0) return;
     try {
+      const telegramGuard = telegramClaimGuard(platform);
+      if (telegramGuard) throw new Error(telegramGuard);
       if (!useCircle && (!isConnected || !address || !walletClient)) {
-        throw new Error('Connect wallet to claim payment');
+        throw new Error(
+          platform === 'telegram'
+            ? 'Create an Internal Wallet on Dashboard to claim this payment'
+            : 'Connect wallet to claim payment',
+        );
       }
       if (useCircle && !developerWallet) throw new Error('Internal Wallet not available');
       const u = resolveRecipientUsername(platform, username);
@@ -795,7 +814,11 @@ export function PendingPayments({
                   <Button
                     variant="secondary"
                     onClick={() => claim(p.paymentId)}
-                    disabled={claimingId === p.paymentId || claimingAll}
+                    disabled={
+                      claimingId === p.paymentId ||
+                      claimingAll ||
+                      !canClaimPayments
+                    }
                   >
                     {claimingId === p.paymentId ? 'Claiming...' : 'Claim'}
                   </Button>

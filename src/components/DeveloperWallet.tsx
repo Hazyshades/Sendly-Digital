@@ -22,6 +22,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
 import { isZkHost } from '@/lib/runtime/zkHost';
 import { useZkOAuthIdentity, buildZkOAuthPrivyUserId, readZkOAuthAccessTokenForPlatform, readTwitterOAuth1Secret } from '@/lib/zk-oauth';
+import { readPersistedTelegramIdentity } from '@/lib/zk-oauth/telegramSession';
+import { notifyInternalWalletUpdated } from '@/lib/circle/walletEvents';
 
 interface DeveloperWalletProps {
   blockchain?: string;
@@ -121,7 +123,9 @@ export function DeveloperWalletComponent({ blockchain = DEFAULT_BLOCKCHAIN, onWa
     const zkIdentityKey = zkOAuthIdentity
       ? `${zkOAuthIdentity.platform}:${zkOAuthIdentity.socialUserId}`
       : '';
-    const checkKey = `${isConnected}-${address || ''}-${blockchain}-${authenticated}-${privyUserId}-${zkIdentityKey}-${zkOAuthLoading}`;
+    const persistedTelegram = readPersistedTelegramIdentity();
+    const persistedKey = persistedTelegram ? `telegram:${persistedTelegram.socialUserId}` : '';
+    const checkKey = `${isConnected}-${address || ''}-${blockchain}-${authenticated}-${privyUserId}-${zkIdentityKey}-${persistedKey}-${zkOAuthLoading}`;
     
     // If check is already in progress or parameters haven't changed, skip
     if (isCheckingRef.current) {
@@ -139,7 +143,7 @@ export function DeveloperWalletComponent({ blockchain = DEFAULT_BLOCKCHAIN, onWa
 
     // If there are no conditions for checking, just set checking to false
     // But only if we're sure the data is loaded (not undefined)
-    const hasZkSocial = zk && !!zkOAuthIdentity;
+    const hasZkSocial = zk && (!!zkOAuthIdentity || !!readPersistedTelegramIdentity());
     const hasNoConditions =
       !isConnected &&
       !hasZkSocial &&
@@ -163,7 +167,9 @@ export function DeveloperWalletComponent({ blockchain = DEFAULT_BLOCKCHAIN, onWa
       const currentZkKey = zkOAuthIdentity
         ? `${zkOAuthIdentity.platform}:${zkOAuthIdentity.socialUserId}`
         : '';
-      const currentCheckKey = `${isConnected}-${address || ''}-${blockchain}-${authenticated}-${privyUser?.id || ''}-${currentZkKey}-${zkOAuthLoading}`;
+      const currentPersisted = readPersistedTelegramIdentity();
+      const currentPersistedKey = currentPersisted ? `telegram:${currentPersisted.socialUserId}` : '';
+      const currentCheckKey = `${isConnected}-${address || ''}-${blockchain}-${authenticated}-${privyUser?.id || ''}-${currentZkKey}-${currentPersistedKey}-${zkOAuthLoading}`;
       if (lastCheckParamsRef.current === currentCheckKey || isCheckingRef.current) {
         // If parameters haven't changed or check is already in progress, reset checking
         if (!isCheckingRef.current) {
@@ -176,7 +182,7 @@ export function DeveloperWalletComponent({ blockchain = DEFAULT_BLOCKCHAIN, onWa
       isCheckingRef.current = true;
       lastCheckParamsRef.current = currentCheckKey;
 
-      const currentHasZkSocial = zk && !!zkOAuthIdentity;
+      const currentHasZkSocial = zk && (!!zkOAuthIdentity || !!readPersistedTelegramIdentity());
 
       if (isConnected && address) {
         // Prefer EOA-linked wallet, then fall back to zk OAuth / Privy social wallets.
@@ -234,6 +240,20 @@ export function DeveloperWalletComponent({ blockchain = DEFAULT_BLOCKCHAIN, onWa
       }
     }
 
+    const persistedTelegram = zk ? readPersistedTelegramIdentity() : null;
+    if (persistedTelegram) {
+      try {
+        const persistedWallet = await DeveloperWalletService.getWalletBySocial(
+          'telegram',
+          persistedTelegram.socialUserId,
+          blockchain,
+        );
+        if (persistedWallet) return persistedWallet;
+      } catch (error) {
+        console.error('[DeveloperWallet] Error checking persisted Telegram wallet:', error);
+      }
+    }
+
     if (!authenticated || !privyUser) return null;
 
     const socialPlatforms = ['twitter', 'twitch', 'telegram', 'tiktok', 'instagram'] as const;
@@ -282,7 +302,7 @@ export function DeveloperWalletComponent({ blockchain = DEFAULT_BLOCKCHAIN, onWa
   };
 
   const checkZkOAuthWallet = async () => {
-    if (!zkOAuthIdentity) {
+    if (!zkOAuthIdentity && !readPersistedTelegramIdentity()) {
       setChecking(false);
       return;
     }
@@ -328,6 +348,7 @@ export function DeveloperWalletComponent({ blockchain = DEFAULT_BLOCKCHAIN, onWa
 
         if (response.success && response.wallet) {
           setWallet(response.wallet);
+          notifyInternalWalletUpdated(response.wallet);
           toast.success('Wallet created successfully!');
           if (onWalletCreated) {
             onWalletCreated(response.wallet);
@@ -367,6 +388,7 @@ export function DeveloperWalletComponent({ blockchain = DEFAULT_BLOCKCHAIN, onWa
 
         if (response.success && response.wallet) {
           setWallet(response.wallet);
+          notifyInternalWalletUpdated(response.wallet);
           toast.success('Internal Wallet created successfully!');
           if (onWalletCreated) {
             onWalletCreated(response.wallet);
@@ -420,6 +442,7 @@ export function DeveloperWalletComponent({ blockchain = DEFAULT_BLOCKCHAIN, onWa
 
       if (response.success && response.wallet) {
         setWallet(response.wallet);
+        notifyInternalWalletUpdated(response.wallet);
         toast.success('Internal Wallet created successfully!');
         if (onWalletCreated) {
           onWalletCreated(response.wallet);
@@ -1089,7 +1112,7 @@ export function DeveloperWalletComponent({ blockchain = DEFAULT_BLOCKCHAIN, onWa
   }
 
   const hasSocialIdentity =
-    (zk && !!zkOAuthIdentity) || (authenticated && !!privyUser);
+    (zk && (!!zkOAuthIdentity || !!readPersistedTelegramIdentity())) || (authenticated && !!privyUser);
   const shouldShowConnectMessage = !isConnected && !hasSocialIdentity && !(zk && zkOAuthLoading);
   const showCreateWalletUi =
     !shouldShowConnectMessage &&
@@ -1130,7 +1153,9 @@ export function DeveloperWalletComponent({ blockchain = DEFAULT_BLOCKCHAIN, onWa
       <CardDescription className="text-left text-sm/relaxed text-muted-foreground font-normal -mt-1">
         {zkOAuthIdentity
           ? `Connected as ${zkOAuthIdentity.displayLabel}. Create an Internal Wallet to use the platform seamlessly.`
-          : 'Create an Internal Wallet to use the platform seamlessly.'}
+          : readPersistedTelegramIdentity()
+            ? 'Reconnect Telegram to create an Internal Wallet.'
+            : 'Create an Internal Wallet to use the platform seamlessly.'}
       </CardDescription>
     </div>
   </CardHeader>

@@ -1,4 +1,5 @@
 import { toast } from 'sonner';
+import { clearPersistedTelegramIdentity, persistTelegramIdentityFromToken } from '@/lib/zk-oauth/telegramSession';
 import { createPopupWindow } from './utils';
 
 /**
@@ -38,6 +39,7 @@ export const requestTelegramLoginFlow = async (): Promise<string | null> => {
         const token = event.data.accessToken as string;
         localStorage.setItem('telegram_oauth', token);
         localStorage.setItem('telegram_oauth_token', token);
+        persistTelegramIdentityFromToken(token);
 
         window.removeEventListener('message', messageHandler);
         if (popup) popup.close();
@@ -60,6 +62,7 @@ export const requestTelegramLoginFlow = async (): Promise<string | null> => {
     const checkStorage = setInterval(() => {
       const token = localStorage.getItem('telegram_oauth_token') || localStorage.getItem('telegram_oauth');
       if (token && token.length > 10) {
+        persistTelegramIdentityFromToken(token);
         clearInterval(checkStorage);
         window.removeEventListener('message', messageHandler);
         if (popup) popup.close();
@@ -104,6 +107,7 @@ export const clearTelegramToken = (): void => {
     localStorage.removeItem('telegram_oauth');
     localStorage.removeItem('telegram_oauth_token');
     localStorage.removeItem('telegram_oauth_redirect');
+    clearPersistedTelegramIdentity();
     toast.success('Telegram account disconnected');
   } catch (error) {
     console.error('[zkSEND] Failed to clear Telegram token:', error);

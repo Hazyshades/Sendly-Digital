@@ -1,4 +1,5 @@
 import type { ZkOAuthPlatform } from './types';
+import { readLiveTelegramAccessToken } from './telegramSession';
 
 export type TwitterOAuthTokens =
   | { kind: 'oauth2'; accessToken: string }
@@ -51,9 +52,7 @@ export function readTwitchAccessToken(): string | null {
 }
 
 export function readTelegramAccessToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  const stored = localStorage.getItem('telegram_oauth_token') || localStorage.getItem('telegram_oauth');
-  return stored && stored.length > 10 ? stored : null;
+  return readLiveTelegramAccessToken();
 }
 
 export function readGithubAccessToken(): string | null {

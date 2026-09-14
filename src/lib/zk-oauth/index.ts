@@ -14,6 +14,11 @@ export {
   readTwitterOAuth1Secret,
 } from './tokenStorage';
 export { notifyZkOAuthIdentityUpdated } from './notifyIdentityUpdated';
+export {
+  clearPersistedTelegramIdentity,
+  readLiveTelegramIdentity,
+  readPersistedTelegramIdentity,
+} from './telegramSession';
 export { resolveGithubDisplayName } from './resolveGithubDisplayName';
 export { resolveGmailDisplayName } from './resolveGmailDisplayName';
 export { resolveLinkedInDisplayName } from './resolveLinkedInDisplayName';
