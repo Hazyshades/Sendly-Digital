@@ -9,7 +9,10 @@ import {
 import { useAccount } from 'wagmi';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
 import { type DeveloperWallet } from '@/lib/circle/developerWalletService';
+import { INTERNAL_WALLET_UPDATED_EVENT } from '@/lib/circle/walletEvents';
 import { useZkOAuthIdentity } from '@/lib/zk-oauth';
+import { ZK_OAUTH_IDENTITY_UPDATED_EVENT } from '@/lib/zk-oauth/tokenStorage';
+import { readPersistedTelegramIdentity } from '@/lib/zk-oauth/telegramSession';
 import {
   resolveInternalWallet,
   resolvePrivyUserIdForTx,
@@ -36,6 +39,12 @@ export type UseCircleWalletResult = {
 
 const CircleWalletContext = createContext<UseCircleWalletResult | null>(null);
 
+function telegramZkIdentityFromPersist(): { platform: string; socialUserId: string } | null {
+  const persisted = readPersistedTelegramIdentity();
+  if (!persisted) return null;
+  return { platform: 'telegram', socialUserId: persisted.socialUserId };
+}
+
 /**
  * Session-scoped Circle (Internal) wallet lookup for the app shell.
  * Mount once under Wagmi/Privy so tab switches do not remount the check.
@@ -46,6 +55,26 @@ export function CircleWalletProvider({ children }: { children: ReactNode }) {
   const { identity: zkOAuthIdentity, loading: zkOAuthLoading, isZkHost: zk } = useZkOAuthIdentity();
   const [developerWallet, setDeveloperWallet] = useState<DeveloperWallet | null>(null);
   const [checkingWallet, setCheckingWallet] = useState(true);
+  const [lookupEpoch, setLookupEpoch] = useState(0);
+
+  useEffect(() => {
+    const onIdentityUpdated = () => setLookupEpoch((n) => n + 1);
+    const onWalletUpdated = (event: Event) => {
+      const wallet = (event as CustomEvent<{ wallet?: DeveloperWallet | null }>).detail?.wallet;
+      if (wallet) {
+        setDeveloperWallet(wallet);
+        setCheckingWallet(false);
+        return;
+      }
+      setLookupEpoch((n) => n + 1);
+    };
+    window.addEventListener(ZK_OAUTH_IDENTITY_UPDATED_EVENT, onIdentityUpdated);
+    window.addEventListener(INTERNAL_WALLET_UPDATED_EVENT, onWalletUpdated);
+    return () => {
+      window.removeEventListener(ZK_OAUTH_IDENTITY_UPDATED_EVENT, onIdentityUpdated);
+      window.removeEventListener(INTERNAL_WALLET_UPDATED_EVENT, onWalletUpdated);
+    };
+  }, []);
 
   useEffect(() => {
     const check = async () => {
@@ -53,7 +82,9 @@ export function CircleWalletProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const hasZkSocial = zk && !!zkOAuthIdentity;
+      const persistedTelegram = zk ? telegramZkIdentityFromPersist() : null;
+      const zkIdentity = zkOAuthIdentity ?? persistedTelegram;
+      const hasZkSocial = zk && !!zkIdentity;
       const hasPrivySocial = authenticated && !!privyUser;
 
       if (!isConnected && !hasZkSocial && !hasPrivySocial) {
@@ -66,7 +97,7 @@ export function CircleWalletProvider({ children }: { children: ReactNode }) {
         setCheckingWallet(true);
         const found = await resolveInternalWallet({
           address: isConnected && address ? address : undefined,
-          zkIdentity: zkOAuthIdentity,
+          zkIdentity,
           privyUser: hasPrivySocial ? privyUser : undefined,
           privyUserId: hasPrivySocial ? privyUser?.id : undefined,
         });
@@ -80,7 +111,7 @@ export function CircleWalletProvider({ children }: { children: ReactNode }) {
     };
 
     void check();
-  }, [isConnected, address, authenticated, privyUser, zk, zkOAuthIdentity, zkOAuthLoading]);
+  }, [isConnected, address, authenticated, privyUser, zk, zkOAuthIdentity, zkOAuthLoading, lookupEpoch]);
 
   const value = useMemo<UseCircleWalletResult>(
     () => ({

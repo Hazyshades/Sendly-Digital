@@ -6,6 +6,7 @@ import { useCircleWallet } from '@/hooks/useCircleWallet';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
 import { isZkHost } from '@/lib/runtime/zkHost';
 import { useZkOAuthIdentity } from '@/lib/zk-oauth/useZkOAuthIdentity';
+import { readPersistedTelegramIdentity } from '@/lib/zk-oauth/telegramSession';
 
 export type { WalletSource };
 
@@ -29,7 +30,7 @@ export function useWalletSourcePreference() {
   const hasInternalWallet = Boolean(hasDeveloperWallet && developerWallet?.wallet_address);
   const externalAddress = address ?? null;
   const internalAddress = developerWallet?.wallet_address ?? null;
-  const hasSocialIdentity = (zk && !!zkOAuthIdentity) || authenticated;
+  const hasSocialIdentity = (zk && (!!zkOAuthIdentity || !!readPersistedTelegramIdentity())) || authenticated;
 
   const [walletSource, setWalletSourceState] = useState<WalletSource>(readStoredWalletSource);
 

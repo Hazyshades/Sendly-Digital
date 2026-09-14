@@ -32,7 +32,7 @@
     "backfill:zksend": "node scripts/backfill-zksend-from-subgraph.mjs",
     "test:directsend": "hardhat test test/DirectSendV2.test.cjs",
     "compile:hardhat": "hardhat compile",
-    "test:unit": "node --test test/transactionHistoryAmounts.test.cjs test/zksendIdentity.test.cjs"
+    "test:unit": "node --test test/transactionHistoryAmounts.test.cjs test/zksendIdentity.test.cjs test/telegramSession.test.cjs"
   },
   "engines": {
     "node": "22.22.0",

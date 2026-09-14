@@ -701,10 +701,29 @@ async function installBrowserFixture(context: BrowserContext, scenario: E2EScena
         localStorage.setItem('twitter_oauth1_screen_name', twitter.username);
         localStorage.setItem('sendly-primary-identity', 'twitter');
       }
-      const tokenPlatforms = ['twitch', 'github', 'telegram', 'gmail', 'linkedin'];
+      const tokenPlatforms = ['twitch', 'github', 'gmail', 'linkedin'];
       for (const platform of tokenPlatforms) {
         const identity = byPlatform[platform];
         if (identity) localStorage.setItem(`${platform}_oauth_token`, `e2e-${platform}-token`);
+      }
+      const telegram = byPlatform.telegram;
+      if (telegram) {
+        const encode = (obj) =>
+          btoa(unescape(encodeURIComponent(JSON.stringify(obj))))
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/, '');
+        const token = `${encode({ alg: 'none', typ: 'JWT' })}.${encode({
+          telegram_user_id: telegram.socialUserId,
+          username: telegram.username,
+          exp: Math.floor(Date.now() / 1000) + 3600,
+        })}.e2e`;
+        localStorage.setItem('telegram_oauth_token', token);
+        localStorage.setItem('telegram_oauth', token);
+        localStorage.setItem(
+          'sendly:telegram-identity',
+          JSON.stringify({ socialUserId: telegram.socialUserId, username: telegram.username }),
+        );
       }
 
       window.__SENDLY_E2E_PRIVY__ = {
