@@ -41,6 +41,12 @@ import {
 } from '@/hooks/useZkPlatformConnections';
 import { useMotionSafe } from '@/hooks/useMotionSafe';
 import { cn } from '@/components/ui/utils';
+import {
+  readStoredPrimaryIdentity,
+  writeStoredPrimaryIdentity,
+} from '@/lib/zk-oauth/primaryIdentity';
+import { notifyZkOAuthIdentityUpdated } from '@/lib/zk-oauth/notifyIdentityUpdated';
+import { ZK_OAUTH_WALLET_PLATFORMS, type ZkOAuthPlatform } from '@/lib/zk-oauth/types';
 import BrandTelegramIcon from '@/components/itshover-icons/brand-telegram-icon';
 import BrandTwitchIcon from '@/components/itshover-icons/brand-twitch-icon';
 import GithubIcon from '@/components/itshover-icons/github-icon';
@@ -83,8 +89,6 @@ const PLATFORM_HINTS: Record<ZkPanelPlatformId, string> = {
   instagram: 'Coming soon',
 };
 
-const PRIMARY_IDENTITY_KEY = 'sendly-primary-identity';
-
 const PANEL_COPY = {
   title: 'Payment identities',
   description: 'Link accounts to receive USDC by username or email.',
@@ -102,38 +106,14 @@ export const NAV_PILL_BASE =
 export const NAV_PILL_ACTIVE = 'bg-white text-blue-600 shadow-circle-card';
 export const NAV_PILL_INACTIVE = 'bg-white/70 text-gray-700 hover:bg-white/90 backdrop-blur-sm';
 
-function isZkPanelPlatformId(value: string): value is ZkPanelPlatformId {
-  return value in PLATFORM_STATIC_ICONS;
-}
-
-function readPrimaryIdentity(): ZkPanelPlatformId | null {
-  try {
-    const stored = localStorage.getItem(PRIMARY_IDENTITY_KEY);
-    if (stored && isZkPanelPlatformId(stored)) return stored;
-  } catch {
-    // ignore
-  }
-  return null;
-}
-
-function writePrimaryIdentity(id: ZkPanelPlatformId) {
-  try {
-    localStorage.setItem(PRIMARY_IDENTITY_KEY, id);
-  } catch {
-    // ignore
-  }
-}
-
-function clearPrimaryIdentity() {
-  try {
-    localStorage.removeItem(PRIMARY_IDENTITY_KEY);
-  } catch {
-    // ignore
-  }
+function isWalletPrimaryPlatform(id: ZkPanelPlatformId): id is ZkOAuthPlatform {
+  return (ZK_OAUTH_WALLET_PLATFORMS as readonly string[]).includes(id);
 }
 
 function usePrimaryIdentity(connectedPlatforms: ZkPlatformConnectionState[]) {
-  const [primaryId, setPrimaryId] = useState<ZkPanelPlatformId | null>(readPrimaryIdentity);
+  const [primaryId, setPrimaryId] = useState<ZkPanelPlatformId | null>(
+    () => readStoredPrimaryIdentity(),
+  );
 
   const connectedIds = useMemo(
     () => connectedPlatforms.map((platform) => platform.id),
@@ -146,22 +126,26 @@ function usePrimaryIdentity(connectedPlatforms: ZkPlatformConnectionState[]) {
   }, [primaryId, connectedIds]);
 
   useEffect(() => {
-    if (connectedIds.length === 0) {
-      if (primaryId !== null) setPrimaryId(null);
-      clearPrimaryIdentity();
+    // Empty list is hydration or full disconnect — never wipe stored Primary.
+    if (connectedIds.length === 0) return;
+
+    const stored = primaryId ?? readStoredPrimaryIdentity();
+    if (stored && connectedIds.includes(stored)) {
+      if (primaryId !== stored) setPrimaryId(stored);
       return;
     }
 
-    if (primaryId && connectedIds.includes(primaryId)) return;
-
     const fallback = connectedIds[0];
+    if (!fallback || !isWalletPrimaryPlatform(fallback)) return;
     setPrimaryId(fallback);
-    writePrimaryIdentity(fallback);
+    writeStoredPrimaryIdentity(fallback);
   }, [connectedIds, primaryId]);
 
   const setPrimary = (id: ZkPanelPlatformId) => {
+    if (!isWalletPrimaryPlatform(id)) return;
     setPrimaryId(id);
-    writePrimaryIdentity(id);
+    writeStoredPrimaryIdentity(id);
+    notifyZkOAuthIdentityUpdated();
   };
 
   return { primaryId: effectivePrimaryId, setPrimary };

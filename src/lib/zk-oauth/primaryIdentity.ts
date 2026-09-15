@@ -13,3 +13,11 @@ export function readStoredPrimaryIdentity(): ZkOAuthPlatform | null {
   }
   return null;
 }
+
+export function writeStoredPrimaryIdentity(platform: ZkOAuthPlatform): void {
+  try {
+    localStorage.setItem(PRIMARY_IDENTITY_KEY, platform);
+  } catch {
+    // ignore
+  }
+}

@@ -220,26 +220,21 @@ export function PendingPayments({
         setOauth1TokenSecret(twitter.oauthTokenSecret);
         setAccessToken('');
       } else if (twitter?.kind === 'oauth2') {
+        setOauth1Token('');
+        setOauth1TokenSecret('');
         setAccessToken(twitter.accessToken);
+      } else {
+        setOauth1Token('');
+        setOauth1TokenSecret('');
+        setAccessToken('');
       }
 
-      const twitch = readTwitchAccessToken();
-      if (twitch) setTwitchAccessToken(twitch);
-
-      const github = readGithubAccessToken();
-      if (github) setGithubAccessToken(github);
-
-      const telegram = readTelegramAccessToken();
-      if (telegram) setTelegramAccessToken(telegram);
-
-      const gmail = readGmailAccessToken();
-      if (gmail) setGmailAccessToken(gmail);
-
-      const linkedin = readLinkedInAccessToken();
-      if (linkedin) setLinkedinAccessToken(linkedin);
-
-      const instagram = readInstagramAccessToken();
-      if (instagram) setInstagramAccessToken(instagram);
+      setTwitchAccessToken(readTwitchAccessToken() ?? '');
+      setGithubAccessToken(readGithubAccessToken() ?? '');
+      setTelegramAccessToken(readTelegramAccessToken() ?? '');
+      setGmailAccessToken(readGmailAccessToken() ?? '');
+      setLinkedinAccessToken(readLinkedInAccessToken() ?? '');
+      setInstagramAccessToken(readInstagramAccessToken() ?? '');
     } catch (error) {
       console.warn('[zkSEND] Failed to sync OAuth tokens:', error);
     }
@@ -466,14 +461,22 @@ export function PendingPayments({
   useEffect(() => {
     if (!isActive) return;
     if (platform === 'address') {
-      if (!directEscrowEnabled || !addressModeRecipient) return;
+      if (!directEscrowEnabled || !addressModeRecipient) {
+        setRows([]);
+        lastAutoLoadKeyRef.current = null;
+        return;
+      }
       const key = `address:${addressModeRecipient}`;
       if (lastAutoLoadKeyRef.current === key) return;
       lastAutoLoadKeyRef.current = key;
       void loadPending();
       return;
     }
-    if (!identityHashes || identityHashes.length === 0) return;
+    if (!identityHashes || identityHashes.length === 0) {
+      setRows([]);
+      lastAutoLoadKeyRef.current = null;
+      return;
+    }
 
     const key = `${platform}:${identityHashes.join(',')}`;
     if (lastAutoLoadKeyRef.current === key) return;
