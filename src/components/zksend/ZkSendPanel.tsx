@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PaymentsOnboarding } from '@/components/onboarding/PaymentsOnboarding';
 import { isSocialRecipientValid } from '@/lib/reclaim/identity';
 import { useCircleWallet } from '@/hooks/useCircleWallet';
+import { useZkPlatformConnections } from '@/hooks/useZkPlatformConnections';
 import { useZkOAuthIdentity } from '@/lib/zk-oauth/useZkOAuthIdentity';
 import { useWalletSourcePreference } from '@/hooks/useWalletSourcePreference';
 import { ARC_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID, TEMPO_CHAIN_ID } from '@/lib/web3/constants';
@@ -38,20 +39,20 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
   const claimFlow = Boolean(claimPaymentId || (claimPlatform && claimUsername));
   const [activeTab, setActiveTab] = useState<'send' | 'receive'>(claimTab ?? initialTab);
 
-  // Send tab: always manual, never seeded from the connected identity.
+  // Send tab: recipient is always manual. Platform switch clears To; never autofill own handle.
   const [sendPlatform, setSendPlatform] = useState<SendRecipientType>(preview && previewValues ? previewValues.platform : 'twitter');
   const [sendUsername, setSendUsername] = useState(preview && previewValues ? previewValues.username : '');
 
-  // Receive tab: auto-filled from the primary identity unless manually edited.
+  // Receive tab: follows Primary identity; claim deep-links keep URL values.
   const [receivePlatform, setReceivePlatform] = useState<SendRecipientType>(
     preview && previewValues ? previewValues.platform : claimPlatform ?? 'twitter'
   );
   const [receiveUsername, setReceiveUsername] = useState(
     preview && previewValues ? previewValues.username : claimUsername
   );
-  const receiveEditedRef = useRef(false);
 
-  const { identity } = useZkOAuthIdentity();
+  const { identity, loading: identityLoading } = useZkOAuthIdentity();
+  const { platforms } = useZkPlatformConnections();
   const { developerWallet, hasDeveloperWallet } = useCircleWallet();
   const { walletSource, setWalletSource } = useWalletSourcePreference();
   const connectedChainId = useChainId();
@@ -61,39 +62,72 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
   const internalWalletUnavailableNetwork =
     activeChainId === BASE_SEPOLIA_CHAIN_ID ? 'Base Sepolia' : 'Tempo Testnet';
   const canUseInternalWallet = hasDeveloperWallet && !isInternalWalletDisabled;
+  const lastSeededIdentityKeyRef = useRef<string | null>(
+    claimPlatform && claimUsername ? `claim:${claimPlatform}:${claimUsername}` : null,
+  );
+
+  const ownHandleForPlatform = (platform: SendRecipientType): string | null => {
+    if (platform === 'address' || platform === 'instagram') return null;
+    const row = platforms.find((p) => p.id === platform);
+    if (!row?.isConnected || !row.displayName) return null;
+    return seedUsernameFromIdentity(row.displayName);
+  };
 
   useEffect(() => {
     if (preview || !claimTab || !claimPlatform || !claimUsername) return;
-    receiveEditedRef.current = true;
+    lastSeededIdentityKeyRef.current = `claim:${claimPlatform}:${claimUsername}`;
     setActiveTab('receive');
     setReceivePlatform(claimPlatform);
     setReceiveUsername(claimUsername);
   }, [claimPlatform, claimTab, claimUsername, preview]);
 
   useEffect(() => {
-    if (preview || !identity || receiveEditedRef.current) return;
+    if (preview || identityLoading) return;
+
+    if (!identity) {
+      if (claimTab) return;
+      lastSeededIdentityKeyRef.current = null;
+      setReceivePlatform('twitter');
+      setReceiveUsername('');
+      setSendUsername('');
+      return;
+    }
+
+    if (claimTab) return;
+
+    const key = `${identity.platform}:${identity.username}`;
+    if (lastSeededIdentityKeyRef.current === key) return;
+    lastSeededIdentityKeyRef.current = key;
     setReceivePlatform(identity.platform);
     setReceiveUsername(seedUsernameFromIdentity(identity.username));
-  }, [identity, preview]);
+  }, [identity, identityLoading, preview, claimTab]);
+
+  const handleSendPlatformChange = (next: SendRecipientType) => {
+    setSendPlatform(next);
+    setSendUsername('');
+  };
 
   const handleReceivePlatformChange = (next: SendRecipientType) => {
-    receiveEditedRef.current = true;
     setReceivePlatform(next);
+    setReceiveUsername(ownHandleForPlatform(next) ?? '');
   };
 
   const handleReceiveUsernameChange = (value: string) => {
-    if (value.trim() === '') {
-      receiveEditedRef.current = false;
-      if (identity && !preview) {
-        setReceivePlatform(identity.platform);
-        setReceiveUsername(seedUsernameFromIdentity(identity.username));
-        return;
-      }
-    } else {
-      receiveEditedRef.current = true;
+    if (value.trim() === '' && identity && !preview && !claimTab) {
+      setReceivePlatform(identity.platform);
+      setReceiveUsername(seedUsernameFromIdentity(identity.username));
+      return;
     }
     setReceiveUsername(value);
   };
+
+  // Receive only: fill own handle when display name arrives after a platform switch left the field empty.
+  useEffect(() => {
+    if (preview || claimTab || !identity || receiveUsername.trim() !== '') return;
+    const handle = ownHandleForPlatform(receivePlatform);
+    if (handle) setReceiveUsername(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to platform row display names
+  }, [platforms, preview, claimTab, identity, receivePlatform, receiveUsername]);
 
   const isSendIdentityValid = useMemo(
     () => isSocialRecipientValid(sendPlatform, sendUsername),
@@ -129,7 +163,7 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
         <TabsContent value="send" className="mt-4 space-y-6">
           <SendPaymentForm
             platform={sendPlatform}
-            onPlatformChange={setSendPlatform}
+            onPlatformChange={handleSendPlatformChange}
             username={sendUsername}
             onUsernameChange={setSendUsername}
             isIdentityValid={isSendIdentityValid}
