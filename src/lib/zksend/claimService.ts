@@ -309,7 +309,8 @@ export function buildZkFetchDescriptor(
       return {
         requestUrl: 'https://www.googleapis.com/oauth2/v3/userinfo',
         accessToken: tokens.gmailAccessToken || undefined,
-        regexPattern: '"email":"(?<username>[^"]+)"',
+        // Google userinfo often inserts spaces after `:`; require optional whitespace.
+        regexPattern: '"email"\\s*:\\s*"(?<username>[^"]+)"',
       };
     default:
       throw new Error('Unsupported platform for zkFetch');
