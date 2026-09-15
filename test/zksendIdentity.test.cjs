@@ -132,7 +132,7 @@ test('buildZkFetchDescriptor returns required fields for every platform', async 
     },
     gmail: {
       requestUrl: 'https://www.googleapis.com/oauth2/v3/userinfo',
-      regexPattern: '"email":"(?<username>[^"]+)"',
+      regexPattern: '"email"\\s*:\\s*"(?<username>[^"]+)"',
     },
   };
 
