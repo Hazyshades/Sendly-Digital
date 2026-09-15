@@ -38,6 +38,7 @@ export const ZKFETCH_PLATFORMS = [
   'telegram',
   'instagram',
   'linkedin',
+  'gmail',
 ] as const;
 
 export type ZkFetchPlatform = (typeof ZKFETCH_PLATFORMS)[number];
@@ -304,6 +305,12 @@ export function buildZkFetchDescriptor(
         accessToken: tokens.linkedinAccessToken || undefined,
         regexPattern: '"name":"(?<username>[^"]+)"',
       };
+    case 'gmail':
+      return {
+        requestUrl: 'https://www.googleapis.com/oauth2/v3/userinfo',
+        accessToken: tokens.gmailAccessToken || undefined,
+        regexPattern: '"email":"(?<username>[^"]+)"',
+      };
     default:
       throw new Error('Unsupported platform for zkFetch');
   }
@@ -350,6 +357,9 @@ export async function ensureProofPrerequisites(
   }
   if (normalized === 'linkedin' && !tokens.linkedinAccessToken) {
     throw new Error('Connect LinkedIn to generate proof');
+  }
+  if (normalized === 'gmail' && !tokens.gmailAccessToken) {
+    throw new Error('Connect Gmail to generate proof');
   }
 
   return { platform: normalized, twitchUserId: null };

@@ -668,12 +668,7 @@ export function PendingPayments({
         ) : platform === 'instagram' ? (
           <ReceiveOAuthStatus connected={Boolean(instagramAccessToken)} platformLabel="Instagram" platform={platform} username={username} hasUsername={isIdentityValid} />
         ) : platform === 'gmail' ? (
-          <div className="space-y-2">
-            <ReceiveOAuthStatus connected={Boolean(gmailAccessToken)} platformLabel="Gmail" platform={platform} username={username} hasUsername={isIdentityValid} />
-            <p className="text-xs text-muted-foreground">
-              Claim opens a proof window to verify this Gmail account. Connecting Gmail is not itself a zkTLS proof.
-            </p>
-          </div>
+          <ReceiveOAuthStatus connected={Boolean(gmailAccessToken)} platformLabel="Gmail" platform={platform} username={username} hasUsername={isIdentityValid} />
         ) : platform === 'linkedin' ? (
           <ReceiveOAuthStatus connected={Boolean(linkedinAccessToken)} platformLabel="LinkedIn" platform={platform} username={username} hasUsername={isIdentityValid} />
         ) : (
