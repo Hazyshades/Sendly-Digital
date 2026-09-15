@@ -102,6 +102,7 @@ test('buildZkFetchDescriptor returns required fields for every platform', async 
     telegramAccessToken: 'tg-token-value',
     instagramAccessToken: 'ig-token-value',
     linkedinAccessToken: 'li-token-value',
+    gmailAccessToken: 'gmail-token-value',
   };
 
   const expected = {
@@ -129,6 +130,10 @@ test('buildZkFetchDescriptor returns required fields for every platform', async 
       requestUrl: 'https://api.linkedin.com/v2/userinfo',
       regexPattern: '"name":"(?<username>[^"]+)"',
     },
+    gmail: {
+      requestUrl: 'https://www.googleapis.com/oauth2/v3/userinfo',
+      regexPattern: '"email":"(?<username>[^"]+)"',
+    },
   };
 
   assert.deepEqual([...ZKFETCH_PLATFORMS].sort(), Object.keys(expected).sort());
@@ -149,7 +154,7 @@ test('buildZkFetchDescriptor returns required fields for every platform', async 
       assert.ok(desc.clientId);
       assert.ok(desc.accessToken);
     }
-    if (platform === 'github' || platform === 'telegram' || platform === 'linkedin') {
+    if (platform === 'github' || platform === 'telegram' || platform === 'linkedin' || platform === 'gmail') {
       assert.ok(desc.accessToken);
     }
   }
@@ -271,16 +276,31 @@ test('claimPayments zkFetch fails before chain when token is missing', async () 
   }
 });
 
-test('claimPayments gmail uses ProofSession then pays', async () => {
-  const { claimPayments } = await loadClaimService();
-  let sessionRuns = 0;
-  let proveCalls = 0;
+async function withGmailProve(extractedEmail, fn) {
   const orig = globalThis.fetch;
-  globalThis.fetch = async (url) => {
-    proveCalls += 1;
-    throw new Error(`zkFetch should not run for gmail: ${url}`);
+  const proveBodies = [];
+  globalThis.fetch = async (url, init) => {
+    const href = String(url);
+    if (href.includes('/api/reclaim/zkfetch/prove')) {
+      proveBodies.push(JSON.parse(String(init?.body ?? '{}')));
+      return {
+        ok: true,
+        json: async () => ({ proof: fakeZkFetchProof(extractedEmail) }),
+        text: async () => '',
+      };
+    }
+    throw new Error(`unexpected fetch ${href}`);
   };
   try {
+    return await fn({ proveBodies });
+  } finally {
+    globalThis.fetch = orig;
+  }
+}
+
+test('claimPayments gmail uses zkFetch then pays', async () => {
+  const { claimPayments } = await loadClaimService();
+  await withGmailProve('alice@gmail.com', async ({ proveBodies }) => {
     const result = await claimPayments({
       payments: [
         {
@@ -294,28 +314,77 @@ test('claimPayments gmail uses ProofSession then pays', async () => {
       executorContext: baseExecutor({
         platform: 'gmail',
         loginUsername: 'alice@gmail.com',
-        tokenSource: { read: () => ({ gmailAccessToken: 'gmail-oauth-not-a-proof' }) },
-        proofSession: {
-          async run(input) {
-            sessionRuns += 1;
-            assert.equal(input.platform, 'gmail');
-            return [
-              {
-                signatures: ['0xsig1', '0xsig2'],
-                extractedParameterValues: { username: 'alice@gmail.com' },
-              },
-            ];
-          },
-        },
+        tokenSource: { read: () => ({ gmailAccessToken: 'gmail-token-value' }) },
       }),
     });
-    assert.equal(sessionRuns, 1);
-    assert.equal(proveCalls, 0);
+    assert.equal(proveBodies.length, 1);
+    assert.equal(proveBodies[0].platform, 'gmail');
+    assert.equal(proveBodies[0].accessToken, 'gmail-token-value');
+    assert.equal(proveBodies[0].requestUrl, 'https://www.googleapis.com/oauth2/v3/userinfo');
     assert.equal(result[0].paymentId, '7');
     assert.ok(result[0].txHash);
+  });
+});
+
+test('claimPayments gmail fails before chain when token is missing', async () => {
+  const { claimPayments } = await loadClaimService();
+  let chainTouched = false;
+  const orig = globalThis.fetch;
+  globalThis.fetch = async () => {
+    chainTouched = true;
+    throw new Error('fetch should not run without a token');
+  };
+  try {
+    await assert.rejects(
+      () =>
+        claimPayments({
+          payments: [
+            {
+              paymentId: '7',
+              sender: '0xabc',
+              platform: 'gmail',
+              amount: '1',
+              token: '0x1',
+            },
+          ],
+          executorContext: baseExecutor({
+            platform: 'gmail',
+            loginUsername: 'alice@gmail.com',
+            tokenSource: { read: () => ({}) },
+          }),
+        }),
+      /Connect Gmail to generate proof/,
+    );
+    assert.equal(chainTouched, false);
   } finally {
     globalThis.fetch = orig;
   }
+});
+
+test('claimPayments gmail email mismatch fails before chain', async () => {
+  const { claimPayments } = await loadClaimService();
+  await withGmailProve('bob@gmail.com', async () => {
+    await assert.rejects(
+      () =>
+        claimPayments({
+          payments: [
+            {
+              paymentId: '7',
+              sender: '0xabc',
+              platform: 'gmail',
+              amount: '1',
+              token: '0x1',
+            },
+          ],
+          executorContext: baseExecutor({
+            platform: 'gmail',
+            loginUsername: 'alice@gmail.com',
+            tokenSource: { read: () => ({ gmailAccessToken: 'gmail-token-value' }) },
+          }),
+        }),
+      /Proof username mismatch/,
+    );
+  });
 });
 
 async function withTwitchClaimFetch(fn) {
@@ -449,31 +518,3 @@ test('Twitch human send fails closed when lookup has no id', async () => {
   assert.ok(loginHash);
 });
 
-test('claimPayments gmail cancelled ProofSession does not send a chain tx', async () => {
-  const { claimPayments } = await loadClaimService();
-  await assert.rejects(
-    () =>
-      claimPayments({
-        payments: [
-          {
-            paymentId: '7',
-            sender: '0xabc',
-            platform: 'gmail',
-            amount: '1',
-            token: '0x1',
-          },
-        ],
-        executorContext: baseExecutor({
-          platform: 'gmail',
-          loginUsername: 'alice@gmail.com',
-          tokenSource: { read: () => ({ gmailAccessToken: 'gmail-oauth-not-a-proof' }) },
-          proofSession: {
-            async run() {
-              return [];
-            },
-          },
-        }),
-      }),
-    /Proof session cancelled/,
-  );
-});

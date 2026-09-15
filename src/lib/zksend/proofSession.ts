@@ -7,7 +7,7 @@ export type ProofSessionInput = {
   paymentId?: string;
 };
 
-/** Internal seam: interactive Reclaim proofs (Gmail and leftover non-zkFetch platforms). */
+/** Internal seam: interactive Reclaim proofs for leftover non-zkFetch platforms. */
 export type ProofSession = {
   run(input: ProofSessionInput): Promise<ReclaimProof[]>;
 };
