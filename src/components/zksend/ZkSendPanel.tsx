@@ -39,7 +39,7 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
   const claimFlow = Boolean(claimPaymentId || (claimPlatform && claimUsername));
   const [activeTab, setActiveTab] = useState<'send' | 'receive'>(claimTab ?? initialTab);
 
-  // Send tab: manual, except clear/autofill on platform switch and clear on full disconnect.
+  // Send tab: recipient is always manual. Platform switch clears To; never autofill own handle.
   const [sendPlatform, setSendPlatform] = useState<SendRecipientType>(preview && previewValues ? previewValues.platform : 'twitter');
   const [sendUsername, setSendUsername] = useState(preview && previewValues ? previewValues.username : '');
 
@@ -102,21 +102,14 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
     setReceiveUsername(seedUsernameFromIdentity(identity.username));
   }, [identity, identityLoading, preview, claimTab]);
 
-  const applyPlatformChange = (
-    next: SendRecipientType,
-    setPlatform: (p: SendRecipientType) => void,
-    setUsername: (u: string) => void,
-  ) => {
-    setPlatform(next);
-    setUsername(ownHandleForPlatform(next) ?? '');
-  };
-
   const handleSendPlatformChange = (next: SendRecipientType) => {
-    applyPlatformChange(next, setSendPlatform, setSendUsername);
+    setSendPlatform(next);
+    setSendUsername('');
   };
 
   const handleReceivePlatformChange = (next: SendRecipientType) => {
-    applyPlatformChange(next, setReceivePlatform, setReceiveUsername);
+    setReceivePlatform(next);
+    setReceiveUsername(ownHandleForPlatform(next) ?? '');
   };
 
   const handleReceiveUsernameChange = (value: string) => {
@@ -128,14 +121,7 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
     setReceiveUsername(value);
   };
 
-  // Autofill own handle when display name arrives after a platform switch left the field empty.
-  useEffect(() => {
-    if (preview || sendUsername.trim() !== '') return;
-    const handle = ownHandleForPlatform(sendPlatform);
-    if (handle) setSendUsername(handle);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to platform row display names
-  }, [platforms, preview, sendPlatform, sendUsername]);
-
+  // Receive only: fill own handle when display name arrives after a platform switch left the field empty.
   useEffect(() => {
     if (preview || claimTab || !identity || receiveUsername.trim() !== '') return;
     const handle = ownHandleForPlatform(receivePlatform);
