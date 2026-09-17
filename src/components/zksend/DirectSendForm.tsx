@@ -5,7 +5,6 @@ import { Wallet } from 'lucide-react';
 
 import web3Service from '@/lib/web3/web3Service';
 import {
-  getExplorerTxUrl,
   getContractsForChain,
   ARC_CHAIN_ID,
   isDirectSendEscrowActiveForChain,
@@ -23,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ZKSEND_SUCCESS_COPY, renderTransactionLink } from './transactionFeedback';
 
 
 function isValidAddress(value: string): boolean {
@@ -89,22 +89,14 @@ export function DirectSendForm() {
             console.warn('[DirectSend] Failed to store deposit in DB:', dbError);
           }
         }
-        toast.success('Deposit created. Recipient claims later.');
-        if (txHash) {
-          toast.success(
-            <span>
+        toast.success(ZKSEND_SUCCESS_COPY.paymentCreated, {
+          description: txHash ? (
+            <span className="text-sm">
               {depositId ? `Deposit #${depositId}. ` : ''}
-              <a
-                href={getExplorerTxUrl(activeChainId, txHash)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium"
-              >
-                TX: <span className="underline">{txHash.slice(0, 10)}...</span>
-              </a>
+              TX: {renderTransactionLink(activeChainId, txHash)}
             </span>
-          );
-        }
+          ) : undefined,
+        });
         setAmount('');
         setRecipientAddress('');
         return;
@@ -116,25 +108,13 @@ export function DirectSendForm() {
         tokenType,
       });
 
-      if (txHash) {
-        toast.success(
-          <span>
-            Sent successfully.{' '}
-            <a
-              href={getExplorerTxUrl(activeChainId, txHash)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium"
-            >
-              TX: <span className="underline">{txHash.slice(0, 10)}...</span>
-            </a>
-          </span>
-        );
-        setAmount('');
-        setRecipientAddress('');
-      } else {
-        toast.success('Sent successfully.');
-      }
+      toast.success(ZKSEND_SUCCESS_COPY.paymentCreated, {
+        description: txHash ? (
+          <span className="text-sm">TX: {renderTransactionLink(activeChainId, txHash)}</span>
+        ) : undefined,
+      });
+      setAmount('');
+      setRecipientAddress('');
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to send';
       console.error('[DirectSend] sendToAddress error:', e);

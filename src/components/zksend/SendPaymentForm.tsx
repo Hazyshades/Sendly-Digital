@@ -12,6 +12,7 @@ import {
   ERC20ABI,
   isDirectSendEscrowActiveForChain,
 } from '@/lib/web3/constants';
+import { requireConfiguredContract } from '@/lib/web3/contractGuards';
 import { createDirectDepositRecord } from '@/lib/directsend/directSendPaymentsAPI';
 import { arcTestnet, tempoTestnet } from '@/lib/web3/wagmiConfig';
 import { DeveloperWalletService } from '@/lib/circle/developerWalletService';
@@ -248,14 +249,10 @@ export function SendPaymentForm({
         const recipientTrimmed = username.trim();
         if (!/^0x[a-fA-F0-9]{40}$/.test(recipientTrimmed)) throw new Error('Enter a valid recipient address (0x...)');
         const useEscrow = isDirectSendEscrowActiveForChain(activeChainId);
-        const directContract = useEscrow ? contracts.directSendV2 : contracts.directSend;
-        if (!directContract) {
-          throw new Error(
-            useEscrow
-              ? 'DirectSend V2 not configured (set VITE_*_DIRECT_SEND_V2_CONTRACT_ADDRESS)'
-              : 'DirectSend contract not configured'
-          );
-        }
+        const directContract = requireConfiguredContract(
+          useEscrow ? contracts.directSendV2 : contracts.directSend,
+          useEscrow ? 'DirectSend V2' : 'DirectSend'
+        );
         const sendRes = await DeveloperWalletService.executeContractCall({
           walletId: developerWallet.circle_wallet_id,
           walletAddress: developerWallet.wallet_address,
@@ -273,18 +270,13 @@ export function SendPaymentForm({
             socialUserId: developerWallet.social_user_id ?? undefined,
           },
         });
-        let txHash = sendRes.txHash ?? '';
-        toast.success('Payment sent successfully!');
-        if (txHash) {
-          toast.success(
-            <span>
-              Payment sent successfully!{' '}
-              <a href={getExplorerTxUrl(activeChainId, txHash)} target="_blank" rel="noopener noreferrer" className="font-medium">
-                TX: <span className="underline">{txHash.slice(0, 10)}...{txHash.slice(-8)}</span>
-              </a>
-            </span>
-          );
-        }
+        const txHash = sendRes.txHash ?? '';
+        if (txHash) setLastCreatedTxHash(txHash);
+        toast.success(ZKSEND_SUCCESS_COPY.paymentCreated, {
+          description: txHash ? (
+            <span className="text-sm">TX: {renderTransactionLink(activeChainId, txHash)}</span>
+          ) : undefined,
+        });
         return;
       }
 
@@ -322,22 +314,15 @@ export function SendPaymentForm({
             console.warn('[DirectSend] Failed to store deposit in DB:', dbError);
           }
         }
-        toast.success('Deposit sent. Recipient can claim from the Receive tab.');
-        if (txHash) {
-          toast.success(
-            <span>
+        if (txHash) setLastCreatedTxHash(txHash);
+        toast.success(ZKSEND_SUCCESS_COPY.paymentCreated, {
+          description: txHash ? (
+            <span className="text-sm">
               {depositId ? `Deposit #${depositId}. ` : ''}
-              <a
-                href={getExplorerTxUrl(activeChainId, txHash)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium"
-              >
-                TX: <span className="underline">{txHash.slice(0, 10)}...{txHash.slice(-8)}</span>
-              </a>
+              TX: {renderTransactionLink(activeChainId, txHash)}
             </span>
-          );
-        }
+          ) : undefined,
+        });
         return;
       }
 
@@ -346,22 +331,12 @@ export function SendPaymentForm({
         amount,
         tokenType,
       });
-      toast.success('Payment sent successfully!');
-      if (txHash) {
-        toast.success(
-          <span>
-            Payment sent successfully!{' '}
-            <a
-              href={getExplorerTxUrl(activeChainId, txHash)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium"
-            >
-              TX: <span className="underline">{txHash.slice(0, 10)}...{txHash.slice(-8)}</span>
-            </a>
-          </span>
-        );
-      }
+      if (txHash) setLastCreatedTxHash(txHash);
+      toast.success(ZKSEND_SUCCESS_COPY.paymentCreated, {
+        description: txHash ? (
+          <span className="text-sm">TX: {renderTransactionLink(activeChainId, txHash)}</span>
+        ) : undefined,
+      });
     } catch (e) {
       let msg = 'Failed to send payment';
       let txHash: string | null = null;
