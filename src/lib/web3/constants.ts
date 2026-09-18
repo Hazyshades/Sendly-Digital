@@ -1,5 +1,7 @@
 import {
   ARC_CHAIN_ID,
+  ARC_MAINNET_CHAIN_ID,
+  ARC_TESTNET_CHAIN_ID,
   BASE_SEPOLIA_CHAIN_ID,
   TEMPO_CHAIN_ID,
   getChain,
@@ -8,7 +10,7 @@ import {
 } from './chains';
 
 export type { ChainContracts };
-export { ARC_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID, TEMPO_CHAIN_ID };
+export { ARC_CHAIN_ID, ARC_MAINNET_CHAIN_ID, ARC_TESTNET_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID, TEMPO_CHAIN_ID };
 
 // ---------------------------------------------------------------------------
 // Address / RPC constants — single source: chains.ts registry
@@ -51,8 +53,10 @@ export function getDirectSendV2Eip712Name(chainId: number): 'DirectSendV2' | 'Di
   return chainId === TEMPO_CHAIN_ID ? 'DirectSendTempoV2' : 'DirectSendV2';
 }
 
-/** True when app should use V2 escrow (mode + non-zero V2 contract address for chain). */
+/** True when app should use V2 escrow (mode + non-zero V2 contract address for chain).
+ * Arc Mainnet cutover uses DirectSend v1 only — escrow_v2 is never active on 5042. */
 export function isDirectSendEscrowActiveForChain(chainId: number): boolean {
+  if (chainId === ARC_MAINNET_CHAIN_ID) return false;
   if (getDirectSendClaimMode() !== 'escrow_v2') return false;
   const a = getContractsForChain(chainId).directSendV2;
   return !!a && a !== '0x0000000000000000000000000000000000000000';
@@ -68,7 +72,7 @@ export function getDirectSendV2LogChunkBlocks(chainId: number): bigint {
     const n = BigInt(String(raw).trim());
     if (n > 0n) return n;
   }
-  if (chainId === 5042002) return 10_000n; // Arc testnet: 10k max range
+  if (chainId === 5042002 || chainId === 5042) return 10_000n; // Arc testnet / mainnet
   if (chainId === 42431) return 100_000n; // Tempo: 100k max range
   if (chainId === 84532) return 10_000n; // Base Sepolia (typical public RPC)
   return 10_000n;

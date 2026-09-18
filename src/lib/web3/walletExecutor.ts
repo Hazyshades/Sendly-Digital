@@ -4,6 +4,7 @@ import {
   DeveloperWalletService,
   type ExecuteContractCallParams,
 } from '@/lib/circle/developerWalletService';
+import { defaultCircleArcBlockchain } from '@/lib/circle/blockchain';
 import type { WalletSource } from '@/hooks/useWalletSourcePreference';
 import { ARC_CHAIN_ID, getChain } from '@/lib/web3/chains';
 
@@ -93,7 +94,7 @@ export function createInternalWalletExecutor(params: {
 }): WalletExecutor {
   const { wallet, attribution } = params;
   const chainId = params.chainId ?? ARC_CHAIN_ID;
-  const blockchain = params.blockchain ?? 'ARC-TESTNET';
+  const blockchain = params.blockchain ?? defaultCircleArcBlockchain();
 
   return {
     kind: 'circle',

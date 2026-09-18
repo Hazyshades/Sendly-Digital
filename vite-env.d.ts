@@ -12,6 +12,10 @@ interface ImportMetaEnv {
   readonly VITE_OPENAI_API_KEY?: string
   readonly VITE_SUPABASE_FUNCTION_URL?: string
   readonly VITE_SUPABASE_ZKSEND_FUNCTION_URL?: string
+  /** Opt-in: enable Internal Wallet / Circle DCW on Arc Mainnet (`ARC`). Default off. */
+  readonly VITE_CIRCLE_ARC_MAINNET_ENABLED?: string
+  /** Optional override for Circle Arc Mainnet blockchain code (default `ARC`). */
+  readonly VITE_CIRCLE_ARC_MAINNET_BLOCKCHAIN?: string
 }
 
 interface ImportMeta {

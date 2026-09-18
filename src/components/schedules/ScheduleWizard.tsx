@@ -277,7 +277,10 @@ export function ScheduleWizard({ onSubmit, onCancel, isSubmitting }: ScheduleWiz
                   <SelectValue placeholder="Select a network" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ARC-TESTNET">ARC Testnet</SelectItem>
+                  <SelectItem value="ARC-TESTNET">Arc Testnet</SelectItem>
+                  <SelectItem value="ARC" disabled>
+                    Arc (mainnet — pending Circle wallets)
+                  </SelectItem>
                   <SelectItem value="ETH-SEPOLIA">Ethereum Sepolia</SelectItem>
                   <SelectItem value="BASE-SEPOLIA">Base Sepolia</SelectItem>
                   <SelectItem value="MATIC-AMOY">Polygon Amoy</SelectItem>
