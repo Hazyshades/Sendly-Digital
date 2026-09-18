@@ -264,8 +264,8 @@ export default function BridgeDialog({
                   return tokens.some(t => t.symbol === selectedTokenSymbol);
                 })
                 .sort((a, b) => {
-                  const priorityA = a.chainId === 5042002 ? 0 : a.chainId === 84532 ? 1 : 2;
-                  const priorityB = b.chainId === 5042002 ? 0 : b.chainId === 84532 ? 1 : 2;
+                  const priorityA = a.chainId === 5042002 ? 0 : a.chainId === 5042 ? 1 : a.chainId === 84532 ? 2 : 3;
+                  const priorityB = b.chainId === 5042002 ? 0 : b.chainId === 5042 ? 1 : b.chainId === 84532 ? 2 : 3;
                   return priorityA - priorityB;
                 })
                 .map(chain => (
@@ -316,8 +316,8 @@ export default function BridgeDialog({
                   return isTokenSupported && isDifferentChain && isSameType;
                 })
                 .sort((a, b) => {
-                  const priorityA = a.chainId === 5042002 ? 0 : a.chainId === 84532 ? 1 : 2;
-                  const priorityB = b.chainId === 5042002 ? 0 : b.chainId === 84532 ? 1 : 2;
+                  const priorityA = a.chainId === 5042002 ? 0 : a.chainId === 5042 ? 1 : a.chainId === 84532 ? 2 : 3;
+                  const priorityB = b.chainId === 5042002 ? 0 : b.chainId === 5042 ? 1 : b.chainId === 84532 ? 2 : 3;
                   return priorityA - priorityB;
                 })
                 .map(chain => (

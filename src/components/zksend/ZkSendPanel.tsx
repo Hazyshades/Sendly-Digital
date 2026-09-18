@@ -12,7 +12,9 @@ import { useCircleWallet } from '@/hooks/useCircleWallet';
 import { useZkPlatformConnections } from '@/hooks/useZkPlatformConnections';
 import { useZkOAuthIdentity } from '@/lib/zk-oauth/useZkOAuthIdentity';
 import { useWalletSourcePreference } from '@/hooks/useWalletSourcePreference';
-import { ARC_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID, TEMPO_CHAIN_ID } from '@/lib/web3/constants';
+import { ARC_CHAIN_ID, ARC_MAINNET_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID, TEMPO_CHAIN_ID } from '@/lib/web3/constants';
+import { supportsInternalWalletForChain } from '@/lib/circle/blockchain';
+import { getChain } from '@/lib/web3/chains';
 
 export type ZkSendPlatform = 'twitter' | 'twitch' | 'github' | 'telegram' | 'instagram' /* | 'tiktok' */ | 'gmail' | 'linkedin';
 
@@ -57,10 +59,15 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
   const { walletSource, setWalletSource } = useWalletSourcePreference();
   const connectedChainId = useChainId();
   const activeChainId = connectedChainId || ARC_CHAIN_ID;
-  const isInternalWalletDisabled =
-    activeChainId === BASE_SEPOLIA_CHAIN_ID || activeChainId === TEMPO_CHAIN_ID;
+  const isInternalWalletDisabled = !supportsInternalWalletForChain(activeChainId);
   const internalWalletUnavailableNetwork =
-    activeChainId === BASE_SEPOLIA_CHAIN_ID ? 'Base Sepolia' : 'Tempo Testnet';
+    activeChainId === BASE_SEPOLIA_CHAIN_ID
+      ? 'Base Sepolia'
+      : activeChainId === TEMPO_CHAIN_ID
+        ? 'Tempo Testnet'
+        : activeChainId === ARC_MAINNET_CHAIN_ID
+          ? 'Arc'
+          : getChain(activeChainId).name;
   const canUseInternalWallet = hasDeveloperWallet && !isInternalWalletDisabled;
   const lastSeededIdentityKeyRef = useRef<string | null>(
     claimPlatform && claimUsername ? `claim:${claimPlatform}:${claimUsername}` : null,

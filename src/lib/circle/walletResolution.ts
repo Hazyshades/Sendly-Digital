@@ -1,6 +1,8 @@
 import { DeveloperWalletService, type DeveloperWallet } from '@/lib/circle/developerWalletService';
 
-export const DEFAULT_BLOCKCHAIN = 'ARC-TESTNET';
+import { defaultCircleArcBlockchain } from '@/lib/circle/blockchain';
+
+export const DEFAULT_BLOCKCHAIN = defaultCircleArcBlockchain();
 
 export type SocialPlatform = 'twitter' | 'twitch' | 'telegram' | 'tiktok' | 'instagram';
 
@@ -115,8 +117,9 @@ export type ResolveInternalWalletParams = {
   blockchain?: string;
 };
 
+/** Exact blockchain match only — never fall back to ARC-TESTNET when looking up ARC (or vice versa). */
 function pickArcWallet(wallets: DeveloperWallet[], blockchain: string): DeveloperWallet | null {
-  return wallets.find((wallet) => wallet.blockchain === blockchain) ?? wallets[0] ?? null;
+  return wallets.find((wallet) => wallet.blockchain === blockchain) ?? null;
 }
 
 /**
