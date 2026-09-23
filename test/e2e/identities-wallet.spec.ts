@@ -176,6 +176,7 @@ test.describe('Internal Wallet lifecycle on zk desktop', () => {
 for (const { name, chainId } of [
   { name: 'Base Sepolia', chainId: 84_532 },
   { name: 'Tempo Testnet', chainId: 42_431 },
+  { name: 'Arc', chainId: 5042 },
 ]) {
   test.describe(`Internal Wallet ${name} guard`, () => {
     test.use({ scenario: { wallet: { connected: true, chainId } } });

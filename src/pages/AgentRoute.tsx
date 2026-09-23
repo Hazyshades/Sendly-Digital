@@ -7,7 +7,7 @@ export function AgentRoute() {
   return (
     <Layout>
       <div className="space-y-6">
-        <DeveloperWalletComponent blockchain="ARC-TESTNET" />
+        <DeveloperWalletComponent />
         <AgentSchedulesPanel />
         <VoicePaymentAgent />
       </div>

@@ -78,7 +78,7 @@ export async function createGiftCardWithDeveloperWallet(params: {
     walletAddress: developerWallet.wallet_address,
     contractAddress: contracts.contractAddress!,
     ...getDeveloperWalletCall({ formData, amountWei, tokenAddress, metadataUri }),
-    blockchain: 'ARC-TESTNET',
+    blockchain: developerWallet.blockchain,
     privyUserId: privyUserIdForTx,
     socialPlatform: developerWallet.social_platform || undefined,
     socialUserId: developerWallet.social_user_id || undefined

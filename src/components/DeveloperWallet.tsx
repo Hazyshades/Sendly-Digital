@@ -2,12 +2,18 @@ import { useState, useEffect, useRef } from 'react';
 import { useAccount, useWalletClient, useChainId } from 'wagmi';
 import { toast } from 'sonner';
 import { createWalletClient, custom, createPublicClient, http } from 'viem';
-import { arcTestnet } from '@/lib/web3/wagmiConfig';
-import { ARC_CHAIN_ID, TEMPO_CHAIN_ID } from '@/lib/web3/constants';
+import { ARC_CHAIN_ID, ARC_MAINNET_CHAIN_ID } from '@/lib/web3/constants';
 import { DeveloperWalletService, DeveloperWallet } from '@/lib/circle/developerWalletService';
 import { DEFAULT_BLOCKCHAIN, getPrivySocialIdentity } from '@/lib/circle/walletResolution';
+import {
+  CIRCLE_BLOCKCHAIN_ARC_MAINNET,
+  circleBlockchainForChainId,
+  isCircleArcBlockchain,
+  supportsInternalWalletForChain,
+} from '@/lib/circle/blockchain';
+import { getChain, getContractsForChain } from '@/lib/web3/chains';
 import web3Service from '@/lib/web3/web3Service';
-import { USDC_ADDRESS, EURC_ADDRESS, ERC20ABI, getExplorerTxUrl, getExplorerAddressUrl, BASE_SEPOLIA_CHAIN_ID } from '@/lib/web3/constants';
+import { ERC20ABI, getExplorerTxUrl, getExplorerAddressUrl } from '@/lib/web3/constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import LinkIcon from '@/components/ui/icons/link-icon';
@@ -25,29 +31,51 @@ import { useZkOAuthIdentity, buildZkOAuthPrivyUserId, readZkOAuthAccessTokenForP
 import { readPersistedTelegramIdentity } from '@/lib/zk-oauth/telegramSession';
 import { notifyInternalWalletUpdated } from '@/lib/circle/walletEvents';
 
+function getBlockchainName(blockchain: string) {
+  const names: Record<string, string> = {
+    ARC: 'Arc',
+    [CIRCLE_BLOCKCHAIN_ARC_MAINNET]: 'Arc',
+    'ARC-TESTNET': 'Arc Testnet',
+    'ETH-SEPOLIA': 'Ethereum Sepolia',
+    'MATIC-AMOY': 'Polygon Amoy',
+    'SOL-DEVNET': 'Solana Devnet',
+  };
+  return names[blockchain] || blockchain;
+}
+
+const BLOCKCHAIN_TO_CHAIN_ID: Record<string, number> = {
+  ARC: 5042,
+  [CIRCLE_BLOCKCHAIN_ARC_MAINNET]: 5042,
+  'ARC-TESTNET': 5042002,
+  'ETH-SEPOLIA': 11155111,
+  'BASE-SEPOLIA': 84532,
+  'MATIC-AMOY': 80002,
+};
+
 interface DeveloperWalletProps {
   blockchain?: string;
   onWalletCreated?: (wallet: DeveloperWallet) => void;
 }
 
-export function DeveloperWalletComponent({ blockchain = DEFAULT_BLOCKCHAIN, onWalletCreated }: DeveloperWalletProps) {
+export function DeveloperWalletComponent({ blockchain: blockchainProp, onWalletCreated }: DeveloperWalletProps) {
   const { address, isConnected } = useAccount();
   const connectedChainId = useChainId();
   const { data: walletClient } = useWalletClient();
-  const activeChain = arcTestnet;
   const activeChainId = connectedChainId || ARC_CHAIN_ID;
+  const activeChain = getChain(activeChainId).viemChain;
+  const chainContracts = getContractsForChain(activeChainId);
+  const blockchain =
+    circleBlockchainForChainId(activeChainId) ?? blockchainProp ?? DEFAULT_BLOCKCHAIN;
   const { user: privyUser, authenticated } = usePrivySafe();
   const zk = isZkHost();
   const { identity: zkOAuthIdentity, loading: zkOAuthLoading } = useZkOAuthIdentity();
 
-  const INTERNAL_WALLET_DISABLED_CHAIN_IDS: number[] = [BASE_SEPOLIA_CHAIN_ID, TEMPO_CHAIN_ID];
-  const isInternalWalletDisabled = INTERNAL_WALLET_DISABLED_CHAIN_IDS.includes(activeChainId);
+  const isInternalWalletDisabled = !supportsInternalWalletForChain(activeChainId);
   const internalWalletUnavailableNetwork =
-    activeChainId === BASE_SEPOLIA_CHAIN_ID
-      ? 'Base Sepolia'
-      : activeChainId === TEMPO_CHAIN_ID
-        ? 'Tempo Testnet'
-        : 'this network';
+    activeChainId === ARC_MAINNET_CHAIN_ID
+      ? 'Arc'
+      : getChain(activeChainId).name;
+  const networkLabel = getBlockchainName(blockchain);
   const [wallet, setWallet] = useState<DeveloperWallet | null>(null);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -218,7 +246,7 @@ export function DeveloperWalletComponent({ blockchain = DEFAULT_BLOCKCHAIN, onWa
 
   // Load balances of the wallet
   useEffect(() => {
-    if (wallet && wallet.wallet_address && wallet.blockchain === 'ARC-TESTNET') {
+    if (wallet && wallet.wallet_address && isCircleArcBlockchain(wallet.blockchain)) {
       loadWalletBalances();
     } else {
       setBalances(null);
@@ -470,36 +498,38 @@ export function DeveloperWalletComponent({ blockchain = DEFAULT_BLOCKCHAIN, onWa
       });
 
       const walletAddress = wallet.wallet_address as `0x${string}`;
+      const usdcAddress = (chainContracts.usdc || '') as `0x${string}`;
+      const eurcAddress = (chainContracts.eurc || '') as `0x${string}`;
 
-      // Get balances for all tokens in parallel
       const balanceResults = await Promise.all([
-        publicClient.readContract({
-          address: USDC_ADDRESS as `0x${string}`,
-          abi: ERC20ABI,
-          functionName: 'balanceOf',
-          args: [walletAddress]
-        }),
-        publicClient.readContract({
-          address: EURC_ADDRESS as `0x${string}`,
-          abi: ERC20ABI,
-          functionName: 'balanceOf',
-          args: [walletAddress]
-        })
+        usdcAddress
+          ? publicClient.readContract({
+              address: usdcAddress,
+              abi: ERC20ABI,
+              functionName: 'balanceOf',
+              args: [walletAddress]
+            })
+          : Promise.resolve(0n),
+        eurcAddress
+          ? publicClient.readContract({
+              address: eurcAddress,
+              abi: ERC20ABI,
+              functionName: 'balanceOf',
+              args: [walletAddress]
+            })
+          : Promise.resolve(0n)
       ]);
 
       const usdcBalance = BigInt(balanceResults[0] as string | number | bigint || 0);
       const eurcBalance = BigInt(balanceResults[1] as string | number | bigint || 0);
 
-      // Made format balances (6 decimals for USDC/EURC)
       const formatBalance = (balance: bigint) => {
-        const decimals = 6; // USDC, EURC, use 6 decimals
+        const decimals = 6;
         const divisor = BigInt(10 ** decimals);
         const whole = balance / divisor;
         const fraction = balance % divisor;
         const fractionStr = fraction.toString().padStart(decimals, '0');
-        // Remove trailing zeros from the fractional part
         const trimmedFraction = fractionStr.replace(/0+$/, '');
-        // If fractional part is zero or becomes empty after trimming, return only the whole part
         return fraction === 0n || trimmedFraction.length === 0
           ? whole.toString()
           : `${whole}.${trimmedFraction}`;
@@ -530,38 +560,20 @@ export function DeveloperWalletComponent({ blockchain = DEFAULT_BLOCKCHAIN, onWa
     }
   };
 
-  const getBlockchainName = (blockchain: string) => {
-    const names: Record<string, string> = {
-      'ARC-TESTNET': 'Arc Testnet',
-      'ETH-SEPOLIA': 'Ethereum Sepolia',
-      'BASE-SEPOLIA': 'Base Sepolia',
-      'MATIC-AMOY': 'Polygon Amoy',
-      'SOL-DEVNET': 'Solana Devnet'
-    };
-    return names[blockchain] || blockchain;
-  };
-
-  const blockchainToChainId: Record<string, number> = {
-    'ARC-TESTNET': 5042002,
-    'ETH-SEPOLIA': 11155111,
-    'BASE-SEPOLIA': 84532,
-    'MATIC-AMOY': 80002,
-  };
-
-  const getExplorerUrl = (blockchain: string, address: string) => {
-    if (blockchain === 'SOL-DEVNET') {
-      return `https://explorer.solana.com/address/${address}?cluster=devnet`;
+  const getExplorerUrl = (chainBlockchain: string, walletAddress: string) => {
+    if (chainBlockchain === 'SOL-DEVNET') {
+      return `https://explorer.solana.com/address/${walletAddress}?cluster=devnet`;
     }
-    const chainId = blockchainToChainId[blockchain];
-    if (chainId != null) return getExplorerAddressUrl(chainId, address);
+    const chainId = BLOCKCHAIN_TO_CHAIN_ID[chainBlockchain];
+    if (chainId != null) return getExplorerAddressUrl(chainId, walletAddress);
     return '#';
   };
 
-  const getTransactionUrl = (blockchain: string, txHash: string) => {
-    if (blockchain === 'SOL-DEVNET') {
+  const getTransactionUrl = (chainBlockchain: string, txHash: string) => {
+    if (chainBlockchain === 'SOL-DEVNET') {
       return `https://explorer.solana.com/tx/${txHash}?cluster=devnet`;
     }
-    const chainId = blockchainToChainId[blockchain];
+    const chainId = BLOCKCHAIN_TO_CHAIN_ID[chainBlockchain];
     if (chainId != null) return getExplorerTxUrl(chainId, txHash);
     return '#';
   };
@@ -1083,7 +1095,11 @@ export function DeveloperWalletComponent({ blockchain = DEFAULT_BLOCKCHAIN, onWa
                 </>
               )}
 
-              {/* Request Testnet Tokens - available for all wallets */}
+              {/* Request Testnet Tokens — hidden on Arc Mainnet / non-testnet */}
+              {wallet &&
+              ['ARC-TESTNET', 'ETH-SEPOLIA', 'BASE-SEPOLIA', 'MATIC-AMOY', 'OP-SEPOLIA', 'ARB-SEPOLIA', 'AVAX-FUJI', 'SOL-DEVNET', 'UNI-SEPOLIA'].includes(
+                wallet.blockchain
+              ) ? (
               <div className="space-y-3">
                 <Button
                   onClick={handleRequestTestnetTokens}
@@ -1104,6 +1120,7 @@ export function DeveloperWalletComponent({ blockchain = DEFAULT_BLOCKCHAIN, onWa
                   )}
                 </Button>
               </div>
+              ) : null}
             </CardContent>
           </CollapsibleContent>
         </Collapsible>
@@ -1209,10 +1226,10 @@ export function DeveloperWalletComponent({ blockchain = DEFAULT_BLOCKCHAIN, onWa
 
           <p className="text-xs text-gray-500 text-center">
             {isConnected
-              ? `The wallet will be created on Arc Testnet blockchain and linked to your EVM address`
+              ? `The wallet will be created on ${networkLabel} and linked to your EVM address`
               : zkOAuthIdentity
-                ? `The wallet will be created on Arc Testnet and linked to ${zkOAuthIdentity.displayLabel}`
-                : `The wallet will be created on Arc Testnet blockchain and linked to your social account`}
+                ? `The wallet will be created on ${networkLabel} and linked to ${zkOAuthIdentity.displayLabel}`
+                : `The wallet will be created on ${networkLabel} and linked to your social account`}
           </p>
         </CardContent>
       )}

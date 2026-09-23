@@ -6,10 +6,15 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useAccount } from 'wagmi';
+import { useAccount, useChainId } from 'wagmi';
 import { usePrivySafe } from '@/lib/privy/usePrivySafe';
 import { type DeveloperWallet } from '@/lib/circle/developerWalletService';
 import { INTERNAL_WALLET_UPDATED_EVENT } from '@/lib/circle/walletEvents';
+import {
+  circleBlockchainForChainId,
+  supportsInternalWalletForChain,
+} from '@/lib/circle/blockchain';
+import { ARC_CHAIN_ID } from '@/lib/web3/constants';
 import { useZkOAuthIdentity } from '@/lib/zk-oauth';
 import { ZK_OAUTH_IDENTITY_UPDATED_EVENT } from '@/lib/zk-oauth/tokenStorage';
 import { readPersistedTelegramIdentity } from '@/lib/zk-oauth/telegramSession';
@@ -51,6 +56,8 @@ function telegramZkIdentityFromPersist(): { platform: string; socialUserId: stri
  */
 export function CircleWalletProvider({ children }: { children: ReactNode }) {
   const { address, isConnected } = useAccount();
+  const connectedChainId = useChainId();
+  const activeChainId = connectedChainId || ARC_CHAIN_ID;
   const { authenticated, user: privyUser } = usePrivySafe();
   const { identity: zkOAuthIdentity, loading: zkOAuthLoading, isZkHost: zk } = useZkOAuthIdentity();
   const [developerWallet, setDeveloperWallet] = useState<DeveloperWallet | null>(null);
@@ -78,6 +85,19 @@ export function CircleWalletProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const check = async () => {
+      if (!supportsInternalWalletForChain(activeChainId)) {
+        setDeveloperWallet(null);
+        setCheckingWallet(false);
+        return;
+      }
+
+      const blockchain = circleBlockchainForChainId(activeChainId);
+      if (!blockchain) {
+        setDeveloperWallet(null);
+        setCheckingWallet(false);
+        return;
+      }
+
       if (zk && zkOAuthLoading) {
         return;
       }
@@ -100,6 +120,7 @@ export function CircleWalletProvider({ children }: { children: ReactNode }) {
           zkIdentity,
           privyUser: hasPrivySocial ? privyUser : undefined,
           privyUserId: hasPrivySocial ? privyUser?.id : undefined,
+          blockchain,
         });
         setDeveloperWallet(found);
       } catch (err) {
@@ -111,7 +132,17 @@ export function CircleWalletProvider({ children }: { children: ReactNode }) {
     };
 
     void check();
-  }, [isConnected, address, authenticated, privyUser, zk, zkOAuthIdentity, zkOAuthLoading, lookupEpoch]);
+  }, [
+    isConnected,
+    address,
+    authenticated,
+    privyUser,
+    zk,
+    zkOAuthIdentity,
+    zkOAuthLoading,
+    lookupEpoch,
+    activeChainId,
+  ]);
 
   const value = useMemo<UseCircleWalletResult>(
     () => ({

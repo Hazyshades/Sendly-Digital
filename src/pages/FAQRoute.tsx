@@ -103,7 +103,7 @@ export function FAQRoute() {
       questions: [
         {
           question: 'Which blockchain does Sendly run on?',
-          answer: 'Sendly runs on the ARC Testnet blockchain. This is a test network, so the tokens used are test tokens and have no real value.'
+          answer: 'Sendly supports Arc Testnet today and is being prepared for Arc Mainnet (chain ID 5042). Production default stays on Arc Testnet until mainnet contracts and Circle wallet support are ready. On testnet, tokens have no real value; on mainnet, USDC is real.'
         },
         {
           question: 'What fees are charged?',

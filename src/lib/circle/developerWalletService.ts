@@ -2,6 +2,7 @@ import { createPublicClient, http } from 'viem';
 import { apiCall } from '@/lib/supabase/client';
 import { ERC20ABI } from '@/lib/web3/constants';
 import { arcTestnet } from '@/lib/web3/wagmiConfig';
+import { defaultCircleArcBlockchain } from '@/lib/circle/blockchain';
 
 export interface DeveloperWallet {
   id?: number;
@@ -113,7 +114,7 @@ export class DeveloperWalletService {
         method: 'POST',
         body: JSON.stringify({
           userId: request.userId.toLowerCase(),
-          blockchain: request.blockchain || 'ARC-TESTNET',
+          blockchain: request.blockchain || defaultCircleArcBlockchain(),
           accountType: request.accountType || 'EOA'
         })
       });
@@ -220,7 +221,7 @@ export class DeveloperWalletService {
     socialUserId: string,
     socialUsername: string,
     privyUserId: string,
-    blockchain: string = 'ARC-TESTNET',
+    blockchain: string = defaultCircleArcBlockchain(),
     options?: { accessToken?: string; oauth1TokenSecret?: string },
   ): Promise<CreateWalletResponse> {
     try {
@@ -250,7 +251,7 @@ export class DeveloperWalletService {
   static async getWalletBySocial(
     platform: string,
     socialUserId: string,
-    blockchain: string = 'ARC-TESTNET'
+    blockchain: string = defaultCircleArcBlockchain()
   ): Promise<DeveloperWallet | null> {
     try {
       const response = await apiCall(
@@ -273,7 +274,7 @@ export class DeveloperWalletService {
   static async hasSocialWallet(
     platform: string,
     socialUserId: string,
-    blockchain: string = 'ARC-TESTNET'
+    blockchain: string = defaultCircleArcBlockchain()
   ): Promise<boolean> {
     try {
       const wallet = await this.getWalletBySocial(platform, socialUserId, blockchain);
@@ -405,7 +406,7 @@ export class DeveloperWalletService {
   static async executeContractCall(
     params: ExecuteContractCallParams,
   ): Promise<ExecuteContractCallResult> {
-    const blockchain = params.blockchain ?? 'ARC-TESTNET';
+    const blockchain = params.blockchain ?? defaultCircleArcBlockchain();
     const attribution = params.attribution;
     let allowanceSatisfied = false;
 
