@@ -21,6 +21,7 @@ import { TwitterOAuth1CallbackRoute } from '@/pages/TwitterOAuth1CallbackRoute';
 import { TelegramAuthRoute } from '@/pages/TelegramAuthRoute';
 import { CircleMintRoute } from '@/pages/CircleMintRoute';
 import { LeaderboardRoute } from '@/pages/LeaderboardRoute';
+import { AgentsRoute } from '@/pages/AgentsRoute';
 import { BlogRoute } from '@/pages/BlogRoute';
 import { BlogPostRoute } from '@/pages/BlogPostRoute';
 import { ReclaimCallbackRoute } from '@/pages/ReclaimCallbackRoute';
@@ -51,6 +52,7 @@ function SharedAppRoutes({ zkMode }: { zkMode: boolean }) {
       <Route path="/my" element={<MyRoute />} />
       <Route path="/spend" element={<SpendRoute />} />
       <Route path="/history" element={<HistoryRoute />} />
+      <Route path="/agents" element={zkMode ? <Navigate to="/leaderboard" replace /> : <AgentsRoute />} />
       <Route path="/leaderboard" element={<LeaderboardRoute />} />
       <Route path="/terms" element={<TermsRoute />} />
       <Route path="/privacy" element={<PrivacyRoute />} />

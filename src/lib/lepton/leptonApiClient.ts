@@ -10,7 +10,7 @@ export function getLeptonApiBase(): string {
 
 type LeptonApiInit = Omit<EdgeFetchInit, 'baseUrl'>;
 
-/** Thin edgeFetch wrapper for retained Lepton endpoints. */
+/** Thin edgeFetch wrapper for retained Lepton endpoints (default anon). Pass `auth: 'session'` for Agents writes. */
 export async function leptonApiClient<T = unknown>(
   path: string,
   init: LeptonApiInit & { rawResponse: true },
@@ -23,11 +23,11 @@ export async function leptonApiClient<T = unknown>(
   path: string,
   init?: LeptonApiInit,
 ): Promise<T | EdgeFetchRawResult<T>> {
-  const { rawResponse, ...rest } = init ?? {};
+  const { rawResponse, auth = 'anon', ...rest } = init ?? {};
   if (rawResponse) {
-    return edgeFetch<T>('creator-paywall', path, { auth: 'anon', ...rest, rawResponse: true });
+    return edgeFetch<T>('creator-paywall', path, { ...rest, auth, rawResponse: true });
   }
-  return edgeFetch<T>('creator-paywall', path, { auth: 'anon', ...rest, rawResponse: false });
+  return edgeFetch<T>('creator-paywall', path, { ...rest, auth, rawResponse: false });
 }
 
 /** Normalize list payloads returned by retained Lepton endpoints. */

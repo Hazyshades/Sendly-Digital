@@ -40,13 +40,29 @@ For canonical wallet, identity, claim, and settlement terminology, see [Domain C
 | Agent operational guide | `sendly-supabase` → synced | `llm.txt` → `public/llm.txt`, `public/llms.txt` |
 | OpenAPI spec | `sendly-supabase` → synced | `openapi.json` → `public/openapi.json` |
 | Build-time doc sync | Sendly-App | `scripts/sync-agent-docs.mjs` |
-| Human treasury UI (Lepton) | Sendly-App | `/lepton/*`, `src/components/lepton/`, `src/lib/paywall/*PayoutAPI.ts` |
+| Human treasury UI (Lepton demo, zk) | Sendly-App | `/agent/*`, `src/components/lepton/`, `src/lib/paywall/*PayoutAPI.ts` |
+| Human Agents UI (self-serve, non-zk) | Sendly-App | `/agents`, `src/components/agents/`, `src/lib/paywall/agentsPayoutAPI.ts` |
+| Agents backend contract (handoff) | Sendly-App | `openspec/changes/agents-self-serve-hub/backend-contract.md` |
 | Recipient claim UI | Sendly-App | `PendingPayments`, `lib/zk-oauth/`, `lib/reclaim/` |
 | zkTLS Twitch uid proof | `zktls-service` | Twitch provider (`twitch:uid:{id}` context) |
 
 Production agent doc URLs (zk host): `https://sendly.digital/llms.txt`, `https://sendly.digital/openapi.json`.
 
 Base API URL: `https://eiiprokgcuksmunmszxf.supabase.co/functions/v1/creator-paywall`.
+
+## Non-zk Agents (self-serve)
+
+Product surface on the **main (non-zk) host**: Layout tab **Agents** → `/agents`, one screen with side switcher **GitHub | Twitch**.
+
+| Topic | Choice |
+|---|---|
+| Funding | Owner **Internal Wallet** (`sponsor_circle_wallet_id`), not the shared Lepton demo pool |
+| GitHub repo | User enters `owner/repo`; events via **GitHub App** install |
+| Twitch | Port of Lepton campaign form; owner-gated Agents API paths under `/agents/twitch/*` |
+| zk Lepton | `/agent/*` demo (including citation) stays as-is |
+| Auth | Agents writes use session Bearer; see `backend-contract.md` in the OpenSpec change |
+
+Until `sendly-supabase` ships the Agents endpoints, the UI shows load errors and save/create will fail against the live edge function.
 
 ## GitHub Agent Workflow
 

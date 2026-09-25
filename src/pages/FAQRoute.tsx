@@ -140,8 +140,14 @@ export function FAQRoute() {
           answer: 'Bridge allows you to transfer tokens between different blockchains. You can transfer USDC from ARC Testnet to other networks and back.'
         },
         {
-          question: 'What is Leaderboard?',
-          answer: 'Leaderboard shows the most active users on the platform, sorted by the number of cards sent or received.'
+          question: 'What is Agents?',
+          answer:
+            'Agents lets you pay GitHub contributors for merged PRs and Twitch streamers for raids from your Internal Wallet. Open the Agents tab, pick GitHub or Twitch, set the repo or campaign, and connect events.',
+        },
+        {
+          question: 'Where did Leaderboard go?',
+          answer:
+            'Leaderboard was replaced by Agents in the main navigation. The old /leaderboard page may still open if you have a bookmark.',
         },
         {
           question: 'Can I view transaction history?',
