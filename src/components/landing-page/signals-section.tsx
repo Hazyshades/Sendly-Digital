@@ -76,7 +76,7 @@ export function SignalsSection() {
 
       <div
         ref={containerRef}
-        className="flex gap-6 md:gap-8 overflow-x-auto pb-8 no-scrollbar"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6"
       >
         {signals.map((signal, index) => (
           <SignalCard key={index} signal={signal} index={index} />
@@ -96,7 +96,7 @@ function SignalCard({
   return (
     <article
       className={cn(
-        "group relative flex-shrink-0 w-72 md:w-80",
+        "group relative min-w-0 w-full",
         "transition-transform duration-200 ease-[var(--ease-out)] motion-reduce:transition-none",
         "[@media(hover:hover)_and_(pointer:fine)]:hover:-translate-y-2"
       )}

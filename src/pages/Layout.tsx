@@ -23,7 +23,7 @@ interface LayoutProps {
 /** When `VITE_MAINTENANCE_BANNER` is unset, this default applies. Set to `false` after maintenance. */
 const MAINTENANCE_BANNER_FALLBACK = false;
 const MAINTENANCE_BANNER_MESSAGE =
-  "We're performing maintenance. Internal Wallet and Leaderboard may be temporarily unavailable.";
+  "We're performing maintenance. Internal Wallet and Agents may be temporarily unavailable.";
 
 function readMaintenanceBannerFlag(): boolean {
   const raw = import.meta.env.VITE_MAINTENANCE_BANNER;
@@ -54,7 +54,7 @@ export function Layout({ children }: LayoutProps) {
         { path: '/my', label: 'My Cards', icon: '🎴' },
         { path: '/spend', label: 'Spend', icon: '💳' },
         { path: '/history', label: 'History', icon: '📜' },
-        { path: '/leaderboard', label: 'Leaderboard', icon: '🏆' },
+        { path: '/agents', label: 'Agents', icon: '🤖' },
       ];
 
   const isActive = (path: string) => location.pathname === path;
