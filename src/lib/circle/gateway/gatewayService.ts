@@ -126,7 +126,7 @@ export class GatewayService {
     return hash;
   }
 
-  // Transfer USDC via Gateway (burn intent + mint)
+  // Transfer USDC with  Gateway (burn intent + mint)
   async transfer(params: GatewayTransferParams): Promise<{
     burnTxHash: string;
     mintTxHash: string;
