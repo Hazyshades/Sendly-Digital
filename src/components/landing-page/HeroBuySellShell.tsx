@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 
 type ShellMode = "buy" | "sell"
-type MethodId = "circle-onramp" | "paypal" | "wise" | "revolut"
+type MethodId = "circle-onramp" | "paypal" | "wise" | "revolut" | "cashapp"
 type QuoteSpeed = "fast" | "best"
 type SocialPlatform = "twitter" | "github" | "twitch" | "gmail"
 
@@ -32,6 +32,11 @@ const METHODS: MethodOption[] = [
     id: "revolut",
     label: "Revolut",
     icon: "/hero-quote/platforms/revolut.png",
+  },
+  {
+    id: "cashapp",
+    label: "Cash App",
+    icon: "/hero-quote/platforms/cashapp.png",
   },
 ]
 
