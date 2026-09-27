@@ -2,11 +2,8 @@
 module.exports = {
   darkMode: ["class"],
   content: [
-    './pages/**/*.{ts,tsx}',
-    './components/**/*.{ts,tsx}',
-    './app/**/*.{ts,tsx}',
     './src/**/*.{ts,tsx}',
-    './**/*.{ts,tsx}',
+    './index.html',
   ],
   prefix: "",
   theme: {
@@ -62,7 +59,6 @@ module.exports = {
       },
       fontFamily: {
         'jakarta': ['"Plus Jakarta Sans"', 'sans-serif'],
-        'outfit': ['"Outfit"', 'sans-serif'],
         'cormorant': ['"Cormorant Garamond"', 'serif'],
         'mono': ['"JetBrains Mono"', 'monospace'],
         'space': ['"Space Grotesk"', '"Inter"', 'sans-serif'],

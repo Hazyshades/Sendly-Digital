@@ -1,40 +1,42 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { SplashScreen } from '@/components/SplashScreen';
-import { LandingRoute } from '@/pages/LandingRoute';
-import { AgentRoute } from '@/pages/AgentRoute';
-import { CreateRoute } from '@/pages/CreateRoute';
-import { MyRoute } from '@/pages/MyRoute';
-import { SpendRoute } from '@/pages/SpendRoute';
-import { HistoryRoute } from '@/pages/HistoryRoute';
-import { TermsRoute } from '@/pages/TermsRoute';
-import { PrivacyRoute } from '@/pages/PrivacyRoute';
-import { BridgeRoute } from '@/pages/BridgeRoute';
-import { GatewayRoute } from '@/pages/GatewayRoute';
-import { TwitchCallbackRoute } from '@/pages/TwitchCallbackRoute';
-import { TwitterCallbackRoute } from '@/pages/TwitterCallbackRoute';
-import { GitHubCallbackRoute } from '@/pages/GitHubCallbackRoute';
-import { LinkedInCallbackRoute } from '@/pages/LinkedInCallbackRoute';
-import { InstagramCallbackRoute } from '@/pages/InstagramCallbackRoute';
-import { GmailCallbackRoute } from '@/pages/GmailCallbackRoute';
-import { TwitterOAuth1CallbackRoute } from '@/pages/TwitterOAuth1CallbackRoute';
-import { TelegramAuthRoute } from '@/pages/TelegramAuthRoute';
-import { CircleMintRoute } from '@/pages/CircleMintRoute';
-import { LeaderboardRoute } from '@/pages/LeaderboardRoute';
-import { AgentsRoute } from '@/pages/AgentsRoute';
-import { BlogRoute } from '@/pages/BlogRoute';
-import { BlogPostRoute } from '@/pages/BlogPostRoute';
-import { ReclaimCallbackRoute } from '@/pages/ReclaimCallbackRoute';
-import { ZkSendRoute } from '@/pages/ZkSendRoute';
-import { LeptonReceiptsRoute } from '@/pages/LeptonReceiptsRoute';
-import { LeptonPrBountyRoute } from '@/pages/LeptonPrBountyRoute';
-import { LeptonCitationRoute } from '@/pages/LeptonCitationRoute';
-import { LeptonHubRoute } from '@/pages/LeptonHubRoute';
-import { LeptonRepoSettingsRoute } from '@/pages/LeptonRepoSettingsRoute';
-import { LeptonTwitchCampaignRoute } from '@/pages/LeptonTwitchCampaignRoute';
-import { LeptonTwitchReceiptsRoute } from '@/pages/LeptonTwitchReceiptsRoute';
-import { ArchitectureRoute } from '@/pages/ArchitectureRoute';
 import { isZkHost, toZkUrl } from '@/lib/runtime/zkHost';
+
+// Intentional code-splitting boundary: static route imports would load unrelated page graphs on every entry.
+const LandingRoute = lazy(() => import('@/pages/LandingRoute').then(({ LandingRoute }) => ({ default: LandingRoute })));
+const AgentRoute = lazy(() => import('@/pages/AgentRoute').then(({ AgentRoute }) => ({ default: AgentRoute })));
+const CreateRoute = lazy(() => import('@/pages/CreateRoute').then(({ CreateRoute }) => ({ default: CreateRoute })));
+const MyRoute = lazy(() => import('@/pages/MyRoute').then(({ MyRoute }) => ({ default: MyRoute })));
+const SpendRoute = lazy(() => import('@/pages/SpendRoute').then(({ SpendRoute }) => ({ default: SpendRoute })));
+const HistoryRoute = lazy(() => import('@/pages/HistoryRoute').then(({ HistoryRoute }) => ({ default: HistoryRoute })));
+const TermsRoute = lazy(() => import('@/pages/TermsRoute').then(({ TermsRoute }) => ({ default: TermsRoute })));
+const PrivacyRoute = lazy(() => import('@/pages/PrivacyRoute').then(({ PrivacyRoute }) => ({ default: PrivacyRoute })));
+const BridgeRoute = lazy(() => import('@/pages/BridgeRoute').then(({ BridgeRoute }) => ({ default: BridgeRoute })));
+const GatewayRoute = lazy(() => import('@/pages/GatewayRoute').then(({ GatewayRoute }) => ({ default: GatewayRoute })));
+const TwitchCallbackRoute = lazy(() => import('@/pages/TwitchCallbackRoute').then(({ TwitchCallbackRoute }) => ({ default: TwitchCallbackRoute })));
+const TwitterCallbackRoute = lazy(() => import('@/pages/TwitterCallbackRoute').then(({ TwitterCallbackRoute }) => ({ default: TwitterCallbackRoute })));
+const GitHubCallbackRoute = lazy(() => import('@/pages/GitHubCallbackRoute').then(({ GitHubCallbackRoute }) => ({ default: GitHubCallbackRoute })));
+const LinkedInCallbackRoute = lazy(() => import('@/pages/LinkedInCallbackRoute').then(({ LinkedInCallbackRoute }) => ({ default: LinkedInCallbackRoute })));
+const InstagramCallbackRoute = lazy(() => import('@/pages/InstagramCallbackRoute').then(({ InstagramCallbackRoute }) => ({ default: InstagramCallbackRoute })));
+const GmailCallbackRoute = lazy(() => import('@/pages/GmailCallbackRoute').then(({ GmailCallbackRoute }) => ({ default: GmailCallbackRoute })));
+const TwitterOAuth1CallbackRoute = lazy(() => import('@/pages/TwitterOAuth1CallbackRoute').then(({ TwitterOAuth1CallbackRoute }) => ({ default: TwitterOAuth1CallbackRoute })));
+const TelegramAuthRoute = lazy(() => import('@/pages/TelegramAuthRoute').then(({ TelegramAuthRoute }) => ({ default: TelegramAuthRoute })));
+const CircleMintRoute = lazy(() => import('@/pages/CircleMintRoute').then(({ CircleMintRoute }) => ({ default: CircleMintRoute })));
+const LeaderboardRoute = lazy(() => import('@/pages/LeaderboardRoute').then(({ LeaderboardRoute }) => ({ default: LeaderboardRoute })));
+const AgentsRoute = lazy(() => import('@/pages/AgentsRoute').then(({ AgentsRoute }) => ({ default: AgentsRoute })));
+const BlogRoute = lazy(() => import('@/pages/BlogRoute').then(({ BlogRoute }) => ({ default: BlogRoute })));
+const BlogPostRoute = lazy(() => import('@/pages/BlogPostRoute').then(({ BlogPostRoute }) => ({ default: BlogPostRoute })));
+const ReclaimCallbackRoute = lazy(() => import('@/pages/ReclaimCallbackRoute').then(({ ReclaimCallbackRoute }) => ({ default: ReclaimCallbackRoute })));
+const ZkSendRoute = lazy(() => import('@/pages/ZkSendRoute').then(({ ZkSendRoute }) => ({ default: ZkSendRoute })));
+const LeptonReceiptsRoute = lazy(() => import('@/pages/LeptonReceiptsRoute').then(({ LeptonReceiptsRoute }) => ({ default: LeptonReceiptsRoute })));
+const LeptonPrBountyRoute = lazy(() => import('@/pages/LeptonPrBountyRoute').then(({ LeptonPrBountyRoute }) => ({ default: LeptonPrBountyRoute })));
+const LeptonCitationRoute = lazy(() => import('@/pages/LeptonCitationRoute').then(({ LeptonCitationRoute }) => ({ default: LeptonCitationRoute })));
+const LeptonHubRoute = lazy(() => import('@/pages/LeptonHubRoute').then(({ LeptonHubRoute }) => ({ default: LeptonHubRoute })));
+const LeptonRepoSettingsRoute = lazy(() => import('@/pages/LeptonRepoSettingsRoute').then(({ LeptonRepoSettingsRoute }) => ({ default: LeptonRepoSettingsRoute })));
+const LeptonTwitchCampaignRoute = lazy(() => import('@/pages/LeptonTwitchCampaignRoute').then(({ LeptonTwitchCampaignRoute }) => ({ default: LeptonTwitchCampaignRoute })));
+const LeptonTwitchReceiptsRoute = lazy(() => import('@/pages/LeptonTwitchReceiptsRoute').then(({ LeptonTwitchReceiptsRoute }) => ({ default: LeptonTwitchReceiptsRoute })));
+const ArchitectureRoute = lazy(() => import('@/pages/ArchitectureRoute').then(({ ArchitectureRoute }) => ({ default: ArchitectureRoute })));
 
 function SharedAppRoutes({ zkMode }: { zkMode: boolean }) {
   return (
@@ -109,7 +111,11 @@ function ZkAppRouter() {
 
 function AppRouter() {
   const zk = isZkHost();
-  return zk ? <ZkAppRouter /> : <MainAppRouter />;
+  return (
+    <Suspense fallback={<SplashScreen />}>
+      {zk ? <ZkAppRouter /> : <MainAppRouter />}
+    </Suspense>
+  );
 }
 
 export default AppRouter;

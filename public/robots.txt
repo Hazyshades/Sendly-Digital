@@ -1,0 +1,9 @@
+# Shared indexing policy for www.sendly.digital and www.zk.sendly.digital.
+User-agent: *
+Allow: /
+
+Disallow: /api/
+Disallow: /auth/
+Disallow: /reclaim/
+
+Sitemap: https://www.sendly.digital/sitemap.xml
