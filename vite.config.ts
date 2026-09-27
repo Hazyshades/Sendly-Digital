@@ -137,7 +137,7 @@ export default defineConfig(({ mode }) => {
       global: 'globalThis',
     },
     optimizeDeps: {
-      include: ['buffer'],
+      include: ['buffer', '@privy-io/js-sdk-core'],
     },
     server,
     envDir: '.',
