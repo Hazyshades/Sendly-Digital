@@ -6,4 +6,5 @@ Disallow: /api/
 Disallow: /auth/
 Disallow: /reclaim/
 
+Agentmap: https://www.sendly.digital/.well-known/ai-catalog.json
 Sitemap: https://www.sendly.digital/sitemap.xml

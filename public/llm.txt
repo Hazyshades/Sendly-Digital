@@ -1,12 +1,10 @@
 # Sendly Agent Settlement API
 
-Agent documentation:
+## Agent resources
 
-`https://sendly.digital/llms.txt`
-
-OpenAPI spec:
-
-`https://sendly.digital/openapi.json`
+- [Agent documentation](https://www.sendly.digital/llms.txt)
+- [OpenAPI specification](https://www.sendly.digital/openapi.json)
+- [Creator paywall API](https://eiiprokgcuksmunmszxf.supabase.co/functions/v1/creator-paywall)
 
 ---
 
