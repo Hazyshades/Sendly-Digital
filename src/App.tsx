@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { SplashScreen } from '@/components/SplashScreen';
+import { ZkLoadingShell } from '@/components/ZkLoadingShell';
 import { isZkHost, toZkUrl } from '@/lib/runtime/zkHost';
 
 // Intentional code-splitting boundary: static route imports would load unrelated page graphs on every entry.
@@ -111,8 +112,10 @@ function ZkAppRouter() {
 
 function AppRouter() {
   const zk = isZkHost();
+  const routeFallback = zk ? <ZkLoadingShell /> : <SplashScreen />;
+
   return (
-    <Suspense fallback={<SplashScreen />}>
+    <Suspense fallback={routeFallback}>
       {zk ? <ZkAppRouter /> : <MainAppRouter />}
     </Suspense>
   );

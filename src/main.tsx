@@ -8,8 +8,9 @@ import { BrowserRouter, useLocation } from 'react-router-dom'
 import { Analytics } from '@vercel/analytics/react'
 import App from './App.tsx'
 import { SplashScreen } from '@/components/SplashScreen'
+import { ZkLoadingShell } from '@/components/ZkLoadingShell'
 import { isZkHost } from '@/lib/runtime/zkHost'
-import '@/styles/globals.css'
+
 
 // Intentional code-splitting boundary: static provider imports would load Web3 on the landing route.
 const AppProviders = lazy(async () => {
@@ -20,12 +21,13 @@ const AppProviders = lazy(async () => {
 function RoutedApp() {
   const location = useLocation()
   const needsProviders = isZkHost() || location.pathname !== '/'
+  const providerFallback = isZkHost() ? <ZkLoadingShell /> : <SplashScreen />
 
   return (
     <>
       <Analytics />
       {needsProviders ? (
-        <Suspense fallback={<SplashScreen />}>
+        <Suspense fallback={providerFallback}>
           <AppProviders>
             <App />
           </AppProviders>
