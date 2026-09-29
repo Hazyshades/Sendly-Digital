@@ -344,11 +344,13 @@ function ConnectedPlatformRow({
   isPrimary,
   onSetPrimary,
   motionSafe,
+  modal = true,
 }: {
   platform: ZkPlatformConnectionState;
   isPrimary: boolean;
   onSetPrimary: (id: ZkPanelPlatformId) => void;
   motionSafe: boolean;
+  modal?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -390,7 +392,7 @@ function ConnectedPlatformRow({
           <ConnectedStatus showSuccessCheck={showSuccessCheck} />
         </div>
       </div>
-      <DropdownMenu>
+        <DropdownMenu modal={modal}>
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
@@ -725,6 +727,7 @@ export function ZkSocialConnectionsPanel({
                       isPrimary={platform.id === primaryId}
                       onSetPrimary={setPrimary}
                       motionSafe={motionSafe}
+                      modal={!embedded}
                     />
                   ))}
                 </ul>

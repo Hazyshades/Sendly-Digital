@@ -640,6 +640,17 @@ async function installRouteHandlers(context: BrowserContext, state: MutableState
   });
 
   await context.route('**://eiiprokgcuksmunmszxf.supabase.co/**', (route) => handleMockApi(route, state));
+  await context.route('https://rpc.mainnet.arc.io/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: null,
+        error: { code: -32000, message: 'E2E RPC unavailable' },
+      }),
+    });
+  });
   await context.route('**/__e2e__/**', (route) => handleMockApi(route, state));
   // Fonts are static presentation assets, not a P0 product integration. Return
   // an empty stylesheet so the test document can finish loading offline.

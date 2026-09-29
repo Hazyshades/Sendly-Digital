@@ -10,6 +10,7 @@ import App from './App.tsx'
 import { SplashScreen } from '@/components/SplashScreen'
 import { ZkLoadingShell } from '@/components/ZkLoadingShell'
 import { isZkHost } from '@/lib/runtime/zkHost'
+import '@/styles/globals.css'
 
 
 // Intentional code-splitting boundary: static provider imports would load Web3 on the landing route.

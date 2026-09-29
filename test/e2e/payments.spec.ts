@@ -191,7 +191,7 @@ test.describe('direct-address zkSend', () => {
     if (directSendClaimMode === 'escrow_v2') {
       await expect(app.page.getByText('Deposit sent. Recipient can claim from the Receive tab.')).toBeVisible();
     } else {
-      await expect(app.page.getByText('Payment sent successfully!', { exact: true })).toBeVisible();
+      await expect(app.page.getByText('Payment created successfully!', { exact: true })).toBeVisible();
     }
   });
 
