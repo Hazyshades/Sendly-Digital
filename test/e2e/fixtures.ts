@@ -708,7 +708,7 @@ async function installBrowserFixture(context: BrowserContext, scenario: E2EScena
       }
       const telegram = byPlatform.telegram;
       if (telegram) {
-        const encode = (obj) =>
+        const encode = (obj: unknown) =>
           btoa(unescape(encodeURIComponent(JSON.stringify(obj))))
             .replace(/\+/g, '-')
             .replace(/\//g, '_')
