@@ -106,6 +106,9 @@ export function Layout({ children }: LayoutProps) {
           <img
             src="/sendly-wordmark.svg"
             alt="Sendly"
+            width={446}
+            height={203}
+            fetchPriority="high"
             className="h-10 w-auto object-contain"
           />
         </Link>

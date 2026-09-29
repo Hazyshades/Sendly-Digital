@@ -1,10 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useChainId } from 'wagmi';
 import { useSearchParams } from 'react-router-dom';
 
-import { PendingPayments } from './PendingPayments';
 import { SendPaymentForm, type SendPaymentPreviewValues } from './SendPaymentForm';
-import { IdentitySelector } from './IdentitySelector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PaymentsOnboarding } from '@/components/onboarding/PaymentsOnboarding';
 import { isSocialRecipientValid } from '@/lib/reclaim/identity';
@@ -15,6 +13,13 @@ import { useWalletSourcePreference } from '@/hooks/useWalletSourcePreference';
 import { ARC_CHAIN_ID, ARC_MAINNET_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID, TEMPO_CHAIN_ID } from '@/lib/web3/constants';
 import { supportsInternalWalletForChain } from '@/lib/circle/blockchain';
 import { getChain } from '@/lib/web3/chains';
+
+const IdentitySelector = lazy(() =>
+  import('./IdentitySelector').then(({ IdentitySelector: Component }) => ({ default: Component })),
+);
+const PendingPayments = lazy(() =>
+  import('./PendingPayments').then(({ PendingPayments: Component }) => ({ default: Component })),
+);
 
 export type ZkSendPlatform = 'twitter' | 'twitch' | 'github' | 'telegram' | 'instagram' /* | 'tiktok' */ | 'gmail' | 'linkedin';
 
@@ -185,28 +190,30 @@ export function ZkSendPanel({ initialTab = 'send', preview = false, previewValue
         </TabsContent>
 
         <TabsContent value="receive" className="mt-4 space-y-6">
-          <IdentitySelector
-            platform={receivePlatform}
-            onPlatformChange={handleReceivePlatformChange}
-            username={receiveUsername}
-            onUsernameChange={handleReceiveUsernameChange}
-            isConnected={false}
-            readOnly={preview}
-            previewSuggestionLabel={preview ? previewValues?.suggestionLabel : undefined}
-            previewProfileImageUrl={preview ? previewValues?.profileImageUrl : undefined}
-          />
-          <PendingPayments
-            platform={receivePlatform}
-            username={receiveUsername}
-            isActive={activeTab === 'receive'}
-            isIdentityValid={isReceiveIdentityValid}
-            truncateAddresses={preview}
-            walletSource={walletSource}
-            onWalletSourceChange={setWalletSource}
-            developerWallet={developerWallet}
-            hasDeveloperWallet={canUseInternalWallet}
-            highlightPaymentId={claimPaymentId}
-          />
+          <Suspense fallback={<div className="min-h-48 rounded-2xl bg-gray-50" aria-hidden="true" />}>
+            <IdentitySelector
+              platform={receivePlatform}
+              onPlatformChange={handleReceivePlatformChange}
+              username={receiveUsername}
+              onUsernameChange={handleReceiveUsernameChange}
+              isConnected={false}
+              readOnly={preview}
+              previewSuggestionLabel={preview ? previewValues?.suggestionLabel : undefined}
+              previewProfileImageUrl={preview ? previewValues?.profileImageUrl : undefined}
+            />
+            <PendingPayments
+              platform={receivePlatform}
+              username={receiveUsername}
+              isActive={activeTab === 'receive'}
+              isIdentityValid={isReceiveIdentityValid}
+              truncateAddresses={preview}
+              walletSource={walletSource}
+              onWalletSourceChange={setWalletSource}
+              developerWallet={developerWallet}
+              hasDeveloperWallet={canUseInternalWallet}
+              highlightPaymentId={claimPaymentId}
+            />
+          </Suspense>
         </TabsContent>
       </Tabs>
     </div>

@@ -30,10 +30,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useCircleWallet } from '@/hooks/useCircleWallet';
-import {
-  readZkAccountsPanelExpanded,
-  writeZkAccountsPanelExpanded,
-} from '@/hooks/useZkAccountsPanelLayout';
+import { readZkAccountsPanelExpanded } from '@/hooks/useZkAccountsPanelLayout';
 import {
   useZkPlatformConnections,
   type ZkPanelPlatformId,
@@ -56,6 +53,13 @@ import LinkedinIcon from '@/components/itshover-icons/linkedin-icon';
 import TwitterXIcon from '@/components/itshover-icons/twitter-x-icon';
 
 import './zk-payment-identities-transitions.css';
+export {
+  NAV_PILL_ACTIVE,
+  NAV_PILL_BASE,
+  NAV_PILL_INACTIVE,
+  ZkSocialNavToggle,
+} from './ZkSocialNav';
+export { useZkSocialPanelState } from './useZkSocialPanelState';
 
 type PlatformIconComponent = ComponentType<{ className?: string; active?: boolean }>;
 
@@ -99,12 +103,6 @@ const LAYOUT_DURATION = 0.24;
 
 const CONNECT_BUTTON_CLASS =
   'relative h-8 min-w-[6rem] overflow-hidden rounded-full border border-gray-200/80 bg-white/75 px-2.5 text-xs font-medium text-gray-700 shadow-none hover:bg-white active:scale-[0.97] motion-reduce:active:scale-100';
-
-export const NAV_PILL_BASE =
-  'rounded-2xl transition-[background-color,color,box-shadow] duration-200 ease-[var(--ease-out)] active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100';
-
-export const NAV_PILL_ACTIVE = 'bg-white text-blue-600 shadow-circle-card';
-export const NAV_PILL_INACTIVE = 'bg-white/70 text-gray-700 hover:bg-white/90 backdrop-blur-sm';
 
 function isWalletPrimaryPlatform(id: ZkPanelPlatformId): id is ZkOAuthPlatform {
   return (ZK_OAUTH_WALLET_PLATFORMS as readonly string[]).includes(id);
@@ -151,20 +149,6 @@ function usePrimaryIdentity(connectedPlatforms: ZkPlatformConnectionState[]) {
   return { primaryId: effectivePrimaryId, setPrimary };
 }
 
-export function useZkSocialPanelState() {
-  const [expanded, setExpandedInternal] = useState(readZkAccountsPanelExpanded);
-
-  const setExpanded = (value: boolean) => {
-    setExpandedInternal(value);
-    writeZkAccountsPanelExpanded(value);
-  };
-
-  return {
-    expanded,
-    setExpanded,
-    toggleExpanded: () => setExpanded(!expanded),
-  };
-}
 
 type ZkSocialConnectionsPanelProps = {
   expanded?: boolean;
@@ -360,11 +344,13 @@ function ConnectedPlatformRow({
   isPrimary,
   onSetPrimary,
   motionSafe,
+  modal = true,
 }: {
   platform: ZkPlatformConnectionState;
   isPrimary: boolean;
   onSetPrimary: (id: ZkPanelPlatformId) => void;
   motionSafe: boolean;
+  modal?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -406,7 +392,7 @@ function ConnectedPlatformRow({
           <ConnectedStatus showSuccessCheck={showSuccessCheck} />
         </div>
       </div>
-      <DropdownMenu>
+        <DropdownMenu modal={modal}>
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
@@ -650,36 +636,6 @@ export function InternalWalletRow({ compact }: { compact: boolean }) {
   );
 }
 
-type ZkSocialNavToggleProps = {
-  expanded: boolean;
-  onClick: () => void;
-  className?: string;
-};
-
-export function ZkSocialNavToggle({
-  expanded,
-  onClick,
-  className,
-}: ZkSocialNavToggleProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      data-tour="identities-trigger-desktop"
-      className={cn(
-        'px-3 py-2 rounded-2xl text-center text-sm font-medium',
-        NAV_PILL_BASE,
-        expanded ? NAV_PILL_ACTIVE : NAV_PILL_INACTIVE,
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
-        className,
-      )}
-      aria-expanded={expanded}
-      aria-label={`${expanded ? 'Collapse' : 'Expand'} payment identities panel`}
-    >
-      Identities
-    </button>
-  );
-}
 
 export function ZkSocialIconRail({ className }: { className?: string }) {
   const { platforms } = useZkPlatformConnections();
@@ -771,6 +727,7 @@ export function ZkSocialConnectionsPanel({
                       isPrimary={platform.id === primaryId}
                       onSetPrimary={setPrimary}
                       motionSafe={motionSafe}
+                      modal={!embedded}
                     />
                   ))}
                 </ul>

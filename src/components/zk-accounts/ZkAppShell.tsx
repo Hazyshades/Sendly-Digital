@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import type { ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Link } from 'react-router-dom';
@@ -12,15 +13,20 @@ import {
   NAV_PILL_ACTIVE,
   NAV_PILL_BASE,
   NAV_PILL_INACTIVE,
-  ZkSocialConnectionsPanel,
   ZkSocialNavToggle,
-  useZkSocialPanelState,
-} from '@/components/zk-accounts/ZkSocialConnectionsPanel';
+} from '@/components/zk-accounts/ZkSocialNav';
+import { useZkSocialPanelState } from '@/components/zk-accounts/useZkSocialPanelState';
 import { useZkAccountsPanelLayout } from '@/hooks/useZkAccountsPanelLayout';
 import { useMotionSafe } from '@/hooks/useMotionSafe';
 import { cn } from '@/components/ui/utils';
 
 import './zk-payment-identities-transitions.css';
+
+const ZkSocialConnectionsPanel = lazy(() =>
+  import('./ZkSocialConnectionsPanel').then(({ ZkSocialConnectionsPanel: Panel }) => ({
+    default: Panel,
+  })),
+);
 
 /** Half of Tailwind `max-w-2xl` (42rem) */
 const MAIN_HALF = '21rem';
@@ -112,7 +118,9 @@ export function ZkAppShell({
               }
             >
               <div className="pointer-events-auto sticky top-20 mt-[3.25rem] h-fit max-w-full">
-                <ZkSocialConnectionsPanel expanded={expanded} onExpandedChange={setExpanded} />
+                <Suspense fallback={<div className="min-h-64 w-64 rounded-2xl bg-white/60" aria-hidden="true" />}>
+                  <ZkSocialConnectionsPanel expanded={expanded} onExpandedChange={setExpanded} />
+                </Suspense>
               </div>
             </motion.div>
           ) : null}
@@ -126,7 +134,9 @@ export function ZkAppShell({
               <SheetTitle>Payment identities</SheetTitle>
             </SheetHeader>
             <div className="overflow-y-auto">
-              <ZkSocialConnectionsPanel embedded className="bg-transparent" />
+              <Suspense fallback={<div className="min-h-64 w-full bg-white/60" aria-hidden="true" />}>
+                <ZkSocialConnectionsPanel embedded className="bg-transparent" />
+              </Suspense>
             </div>
           </SheetContent>
         </Sheet>

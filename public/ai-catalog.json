@@ -1,0 +1,40 @@
+{
+  "specVersion": "1.0",
+  "host": {
+    "displayName": "Sendly",
+    "identifier": "https://www.sendly.digital",
+    "documentationUrl": "https://www.sendly.digital/llms.txt",
+    "logoUrl": "https://www.sendly.digital/box.png"
+  },
+  "entries": [
+    {
+      "identifier": "urn:air:sendly.digital:api:agent-settlement",
+      "displayName": "Sendly Agent Settlement API",
+      "type": "application/openapi+json",
+      "url": "https://www.sendly.digital/openapi.json",
+      "description": "Arc USDC settlement through ZkSend to GitHub and Twitch social identities, including HTTP 402 agent payments and treasury webhooks.",
+      "tags": ["USDC", "Arc", "ZkSend", "HTTP 402", "agent payments"],
+      "capabilities": ["social-identity-settlement", "github-treasury", "twitch-raid-to-pay"],
+      "representativeQueries": [
+        "How can an agent settle USDC to a GitHub or Twitch identity?",
+        "How do I call the Sendly agent settlement API?",
+        "How can an agent use HTTP 402 payments for a treasury payout?"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "identifier": "urn:air:sendly.digital:docs:agent-settlement",
+      "displayName": "Sendly Agent Documentation",
+      "type": "text/markdown",
+      "url": "https://www.sendly.digital/llms.txt",
+      "description": "Human- and agent-readable documentation for Sendly settlement resources and API behavior.",
+      "tags": ["documentation", "agent instructions", "settlement"],
+      "capabilities": ["api-documentation", "settlement-guidance"],
+      "representativeQueries": [
+        "Where is the Sendly agent settlement documentation?",
+        "What are the supported Sendly settlement endpoints?"
+      ],
+      "version": "1.0.0"
+    }
+  ]
+}
