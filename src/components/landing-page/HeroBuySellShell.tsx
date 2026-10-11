@@ -113,21 +113,37 @@ function ArrowDown({ className }: { className?: string }) {
   )
 }
 
-/** Crisp Arc chain badge as inline SVG (avoids soft Relay PNG at tiny sizes). */
+/** Official Arc network badge using the Web3 Icons background variant. */
 function ArcMark({ size = 11, className }: { size?: number; className?: string }) {
+  const id = useId().replace(/:/g, "")
+  const gradientId = `arc-gradient-${id}`
+  const clipId = `arc-clip-${id}`
+
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 32 32"
+      viewBox="0 0 24 24"
+      fill="none"
       className={className}
       aria-hidden="true"
     >
-      <circle cx="16" cy="16" r="16" fill="#0B1220" />
-      <path
-        fill="#FFFFFF"
-        d="M9.2 23.2V11.4c0-3.7 2.9-6.6 6.8-6.6 3.9 0 6.9 2.8 6.9 6.5 0 3.1-1.9 5.5-4.9 6.3l2.9 5.6h-3.5l-2.5-5.1H12.7v5.1H9.2zm3.5-8.4h2.9c1.6 0 2.6-1 2.6-2.4s-1-2.4-2.6-2.4h-2.9v4.8z"
-      />
+      <g clipPath={`url(#${clipId})`}>
+        <path fill={`url(#${gradientId})`} d="M24 0H0v24h24z" />
+        <path
+          fill="#FFFFFF"
+          d="M4.5 19.999c.13-3.917.794-7.572 1.904-10.415C7.81 5.984 9.845 4 12.134 4s4.324 1.983 5.73 5.585c.731 1.872 1.27 4.098 1.588 6.52q.042.324.078.654.013.021.011.037s.187 1.17.227 3.204h-.02c-.279-.229-3.556-2.804-8.989-2.058.082-.92.195-1.814.34-2.671l.024-.13a21.8 21.8 0 0 1 5.426.508l-.015-.103c-.294-1.83-.728-3.506-1.287-4.939-.915-2.342-2.108-3.797-3.114-3.797S9.934 8.265 9.02 10.607a20 20 0 0 0-.604 1.808 27 27 0 0 0-.638 2.856A36 36 0 0 0 7.311 20H4.5z"
+        />
+      </g>
+      <defs>
+        <linearGradient id={gradientId} x1="12" x2="12" y1="0" y2="24" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#182680" />
+          <stop offset="1" stopColor="#842D56" />
+        </linearGradient>
+        <clipPath id={clipId}>
+          <path fill="#FFFFFF" d="M0 0h24v24H0z" />
+        </clipPath>
+      </defs>
     </svg>
   )
 }
